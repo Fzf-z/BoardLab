@@ -1,0 +1,28 @@
+{
+  "name": "boardlab-desktop",
+  "version": "1.0.0",
+  "description": "Herramienta de Diagnóstico Electrónico BoardLab",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "author": "ZelectronicaUY",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.0"
+  },
+  "dependencies": {
+    "net": "^1.0.2"
+  },
+  "build": {
+    "appId": "com.boardlab.app",
+    "productName": "BoardLab",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  }
+}
