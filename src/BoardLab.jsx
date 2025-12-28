@@ -1,19 +1,53 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Plus, Minus, Move, Crosshair, Wifi, Save, Upload, Trash2, 
-  Activity, Zap, Cpu, Sparkles, X, Loader2, Settings, Monitor 
+  Activity, Zap, Cpu, Sparkles, X, Loader2, Settings as SettingsIcon, Monitor 
 } from 'lucide-react';
+import Settings from './components/Settings'; // Importar el nuevo componente
 
 const BoardLab = () => {
   // --- CONFIGURACIÓN ---
   const [configOpen, setConfigOpen] = useState(false);
-  const [hwConfig, setHwConfig] = useState({
-    multimeterIp: "192.168.1.100", // Cambiar por la IP real de tu ESP32
-    scopeIp: "192.168.1.101"       // Cambiar por la IP real de tu Rigol
+  // Estado de configuración de instrumentos más detallado
+  const [instrumentConfig, setInstrumentConfig] = useState({
+    multimeter: {
+        ip: "192.168.0.202",
+        port: 9876,
+        commands: {
+            measure_voltage: "MEAS:VOLT:DC?",
+            measure_resistance: "MEAS:RES?"
+        }
+    },
+    oscilloscope: {
+        ip: "192.168.0.200",
+        port: 5555,
+        commands: {
+            prepare_waveform: ":WAV:SOUR CHAN1",
+            request_waveform: ":WAV:DATA?"
+        }
+    }
   });
 
   const isElectron = window.electronAPI?.isElectron || false;
 
+  // Cargar configuración al iniciar (si es Electron)
+  useEffect(() => {
+    if (isElectron) {
+      window.electronAPI.loadConfig().then(config => {
+        if (config) {
+          setInstrumentConfig(config);
+        }
+      });
+    }
+  }, [isElectron]);
+
+  const handleSaveConfig = (newConfig) => {
+    setInstrumentConfig(newConfig);
+    if (isElectron) {
+      window.electronAPI.saveConfig(newConfig);
+    }
+  };
+  
   // --- ESTADOS ---
   const [imageSrc, setImageSrc] = useState(null); // Null para mostrar placeholder
   const [points, setPoints] = useState([]);
@@ -89,10 +123,17 @@ const BoardLab = () => {
         if (isElectron) {
             console.log("Midiendo hardware real...");
             if (currentPoint.type === 'oscilloscope') {
-                result = await window.electronAPI.measureScope({ ip: hwConfig.scopeIp });
+                result = await window.electronAPI.measureScope(instrumentConfig.oscilloscope);
             } else {
-                const mode = currentPoint.type === 'voltage' ? 'VOLT' : 'RES';
-                result = await window.electronAPI.measureMultimeter({ ip: hwConfig.multimeterIp, mode });
+                const command = currentPoint.type === 'voltage' ? 
+                    instrumentConfig.multimeter.commands.measure_voltage : 
+                    instrumentConfig.multimeter.commands.measure_resistance;
+                
+                result = await window.electronAPI.measureMultimeter({
+                    ip: instrumentConfig.multimeter.ip,
+                    port: instrumentConfig.multimeter.port,
+                    command: command,
+                });
             }
         } else {
             // Simulación Web
@@ -173,7 +214,7 @@ const BoardLab = () => {
         <button onClick={() => fileInputRef.current.click()} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl"><Upload size={20} /></button>
         <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
         <div className="flex-1"></div>
-        <button onClick={() => setConfigOpen(true)} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl"><Settings size={20} /></button>
+        <button onClick={() => setConfigOpen(true)} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl"><SettingsIcon size={20} /></button>
       </div>
 
       {/* ÁREA DE TRABAJO (CANVAS) */}
@@ -266,18 +307,7 @@ const BoardLab = () => {
       </div>
 
       {/* MODALES */}
-      {configOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-            <div className="bg-gray-800 border border-gray-600 w-full max-w-md rounded-2xl p-6">
-                <h3 className="text-xl font-bold text-white mb-4 flex items-center"><Settings className="mr-2"/> Configuración</h3>
-                <div className="space-y-4">
-                    <div><label className="text-xs text-gray-400 uppercase">IP ESP32 (Multímetro)</label><input value={hwConfig.multimeterIp} onChange={(e) => setHwConfig({...hwConfig, multimeterIp: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white font-mono" /></div>
-                    <div><label className="text-xs text-gray-400 uppercase">IP Rigol (Scope)</label><input value={hwConfig.scopeIp} onChange={(e) => setHwConfig({...hwConfig, scopeIp: e.target.value})} className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white font-mono" /></div>
-                </div>
-                <div className="mt-6 flex justify-end"><button onClick={() => setConfigOpen(false)} className="px-4 py-2 bg-blue-600 text-white rounded font-bold">Guardar</button></div>
-            </div>
-        </div>
-      )}
+      {configOpen && <Settings instruments={instrumentConfig} onSave={handleSaveConfig} onClose={() => setConfigOpen(false)} />}
 
       {aiModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">

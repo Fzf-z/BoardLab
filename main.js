@@ -1,51 +1,94 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const net = require('net');
+const Store = require('electron-store');
+
+const store = new Store();
 
 // --- DRIVER OWON XDM1241 ---
-function readOwon(ip, port = 23, command = "MEAS:VOLT:DC?") {
+function readOwon(ip, port, command) {
   return new Promise((resolve) => {
     const client = new net.Socket();
     let response = '';
-    const timeout = setTimeout(() => { client.destroy(); resolve({ status: 'error', message: 'Timeout' }); }, 2000);
-    client.connect(parseInt(port), ip, () => { client.write(command.trim() + '\n'); });
+    const timeout = setTimeout(() => { 
+        client.destroy(); 
+        resolve({ status: 'error', message: 'Timeout' }); 
+    }, 2000);
+    
+    client.connect(parseInt(port), ip, () => { 
+        client.write(command.trim() + '\n'); 
+    });
+
     client.on('data', (data) => {
       response += data.toString();
       if (response.includes('\n') || response.length > 0) {
-        clearTimeout(timeout); client.destroy(); resolve({ status: 'success', value: response.trim() });
+        clearTimeout(timeout); 
+        client.destroy(); 
+        resolve({ status: 'success', value: response.trim() });
       }
     });
-    client.on('error', (err) => { clearTimeout(timeout); resolve({ status: 'error', message: err.message }); });
+    client.on('error', (err) => { 
+        clearTimeout(timeout); 
+        resolve({ status: 'error', message: err.message }); 
+    });
   });
 }
 
 // --- DRIVER RIGOL DHO814 ---
-function readRigol(ip, port = 5555) {
+function readRigol(ip, port, commands) {
   return new Promise((resolve) => {
     const client = new net.Socket();
     const chunks = [];
     const timeout = setTimeout(() => { 
         client.destroy(); 
-        // Demo Wave si falla
-        resolve({ status: 'success', value: 'Demo Wave', waveform: Array.from({length:100},()=>Math.sin(Math.random()*10)) }); 
+        resolve({ status: 'error', message: 'Timeout' });
     }, 3000);
+    
     client.connect(port, ip, () => {
-      client.write(':WAV:SOUR CHAN1\n:WAV:MODE NORM\n:WAV:FORM ASC\n:WAV:DATA?\n');
+      client.write(`${commands.prepare_waveform}\n:WAV:MODE NORM\n:WAV:FORM ASC\n${commands.request_waveform}\n`);
     });
+
     client.on('data', (data) => {
       chunks.push(data);
-      if (data.includes('\n')) {
-        clearTimeout(timeout); client.destroy();
+      if (data.toString().includes('\n')) {
+        clearTimeout(timeout); 
+        client.destroy();
         const full = Buffer.concat(chunks).toString('ascii');
-        // Parsing simple
         let raw = full.includes('#') ? full.substring(full.indexOf('#') + 11) : full;
-        const pts = raw.split(',').map(n=>parseFloat(n)).filter(n=>!isNaN(n));
-        resolve({ status: 'success', value: 'OK', waveform: pts.slice(0,300) });
+        const pts = raw.split(',').map(n => parseFloat(n)).filter(n => !isNaN(n));
+        resolve({ status: 'success', value: 'Waveform OK', waveform: pts.slice(0, 300) });
       }
     });
-    client.on('error', (err) => { clearTimeout(timeout); resolve({ status: 'error', message: err.message }); });
+
+    client.on('error', (err) => { 
+        clearTimeout(timeout); 
+        resolve({ status: 'error', message: err.message }); 
+    });
   });
 }
+
+// --- FUNCIÓN DE PRUEBA DE CONEXIÓN ---
+function testConnection(ip, port) {
+    return new Promise((resolve) => {
+        const client = new net.Socket();
+        const timeout = setTimeout(() => {
+            client.destroy();
+            resolve({ status: 'error', message: 'Timeout' });
+        }, 2000);
+
+        client.connect(parseInt(port), ip, () => {
+            clearTimeout(timeout);
+            client.end();
+            resolve({ status: 'success' });
+        });
+
+        client.on('error', (err) => {
+            clearTimeout(timeout);
+            resolve({ status: 'error', message: err.message });
+        });
+    });
+}
+
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -66,11 +109,28 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  ipcMain.handle('measure-multimeter', async (e, args) => {
-    const cmd = args.mode === 'VOLT' ? "MEAS:VOLT:DC?" : "MEAS:RES?";
-    return await readOwon(args.ip, 80, cmd); // Verifica si tu ESP32 usa puerto 80 o 23
+    // IPC Handlers para Medición
+  ipcMain.handle('measure-multimeter', async (event, config) => {
+    return await readOwon(config.ip, config.port, config.command);
   });
-  ipcMain.handle('measure-scope', async (e, args) => readRigol(args.ip));
+  
+  ipcMain.handle('measure-scope', async (event, config) => {
+    return await readRigol(config.ip, config.port, config.commands);
+  });
+
+  // IPC Handlers para Configuración
+  ipcMain.handle('test-connection', async (event, { ip, port }) => {
+    return await testConnection(ip, port);
+  });
+
+  ipcMain.handle('save-config', (event, config) => {
+    store.set('instrumentConfig', config);
+  });
+
+  ipcMain.handle('load-config', (event) => {
+    return store.get('instrumentConfig');
+  });
+  
   createWindow();
 });
 
