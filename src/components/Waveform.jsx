@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const Waveform = ({ pointData }) => {
     const oscilloscopeMeasurement = pointData?.measurements?.oscilloscope;
@@ -8,6 +8,11 @@ const Waveform = ({ pointData }) => {
     const { waveform, timeScale, voltageScale, voltageOffset, vpp, freq } = oscilloscopeMeasurement;
 
     const svgWidth = 250, svgHeight = 160;
+    const initialViewBox = { x: 0, y: 0, width: svgWidth, height: svgHeight };
+    const [viewBox, setViewBox] = useState(initialViewBox);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
     const numDivX = 10, numDivY = 8;
     const stepX = svgWidth / numDivX, stepY = svgHeight / numDivY;
 
@@ -28,6 +33,65 @@ const Waveform = ({ pointData }) => {
         })
         .join(' ');
 
+    const handleWheel = (e) => {
+        e.preventDefault();
+        const svgElement = e.currentTarget;
+        const { left, top, width, height } = svgElement.getBoundingClientRect();
+        
+        // Calculate mouse position relative to SVG content (not just viewport)
+        const mouseX = (e.clientX - left) / width * viewBox.width + viewBox.x;
+        const mouseY = (e.clientY - top) / height * viewBox.height + viewBox.y;
+
+        const scaleAmount = 0.1;
+        const newScale = e.deltaY > 0 ? 1 + scaleAmount : 1 - scaleAmount; // Zoom out vs. Zoom in
+
+        const newWidth = viewBox.width * newScale;
+        const newHeight = viewBox.height * newScale;
+
+        // Calculate new viewBox position to zoom towards the mouse
+        const newX = mouseX - (mouseX - viewBox.x) * newScale;
+        const newY = mouseY - (mouseY - viewBox.y) * newScale;
+
+        // Clamp values to prevent zooming too far out or in, or going out of bounds
+        const clampedWidth = Math.max(svgWidth / 4, Math.min(newWidth, svgWidth * 4)); // Zoom in min, zoom out max
+        const clampedHeight = Math.max(svgHeight / 4, Math.min(newHeight, svgHeight * 4));
+
+        setViewBox({
+            x: newX, // Panning will adjust this
+            y: newY, // Panning will adjust this
+            width: clampedWidth,
+            height: clampedHeight,
+        });
+    };
+
+    const handleMouseDown = (e) => {
+        setIsDragging(true);
+        setDragStart({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - dragStart.x;
+        const dy = e.clientY - dragStart.y;
+
+        // Scale the movement by the current zoom level
+        const scaleX = viewBox.width / svgWidth;
+        const scaleY = viewBox.height / svgHeight;
+
+        setViewBox(prevViewBox => ({
+            ...prevViewBox,
+            x: prevViewBox.x - dx * scaleX,
+            y: prevViewBox.y - dy * scaleY,
+        }));
+
+        setDragStart({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+
     const formatUnits = (value, unit) => {
         if (value === null || typeof value === 'undefined' || value > 1e12) return `--- ${unit}`;
         if (value === 0) return `0.00 ${unit}`;
@@ -39,7 +103,16 @@ const Waveform = ({ pointData }) => {
 
     return (
         <div className="mt-2 space-y-2">
-            <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="bg-gray-900 border border-gray-700 rounded-lg w-full">
+            <svg
+                viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
+                className="bg-gray-900 border border-gray-700 rounded-lg w-full"
+                onWheel={handleWheel}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp} // Stop dragging if mouse leaves SVG
+                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+            >
                 {gridLines}
                 <polyline points={pointsStr} fill="none" stroke="#10b981" strokeWidth="1.5" />
             </svg>

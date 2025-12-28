@@ -101,6 +101,8 @@ const BoardLab = () => {
                     points={board.points}
                     onSave={handlePointsSave}
                     onClose={() => setPointsTableOpen(false)}
+                    selectedPointId={board.selectedPointId}
+                    onSelectPoint={board.setSelectedPointId}
                 />
             )}
 
