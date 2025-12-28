@@ -1,7 +1,7 @@
 import React from 'react';
-import { Cpu, Move, Crosshair, Upload, Settings as SettingsIcon } from 'lucide-react';
+import { Cpu, Move, Crosshair, Upload, Settings as SettingsIcon, Table } from 'lucide-react';
 
-const Toolbar = ({ mode, setMode, onUpload, onOpenSettings }) => {
+const Toolbar = ({ mode, setMode, onUpload, onOpenSettings, onOpenPointsTable }) => {
     return (
         <div className="w-16 bg-gray-800 border-r border-gray-700 flex flex-col items-center py-4 space-y-4 z-20 shadow-lg">
             <div className="p-2 bg-blue-600 rounded-lg mb-4">
@@ -26,6 +26,9 @@ const Toolbar = ({ mode, setMode, onUpload, onOpenSettings }) => {
                 <Upload size={20} />
             </button>
             <div className="flex-1"></div>
+            <button onClick={onOpenPointsTable} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Points Table">
+                <Table size={20} />
+            </button>
             <button onClick={onOpenSettings} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Settings">
                 <SettingsIcon size={20} />
             </button>
