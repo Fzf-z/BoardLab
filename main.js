@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
-const { readOwon } = require('./src/drivers/owon');
+const { setOwonConfig, getOwonMeasurement } = require('./src/drivers/owon');
 const { getRigolData } = require('./src/drivers/rigol');
 const { testConnection } = require('./src/drivers/connection');
 
@@ -31,8 +31,12 @@ function createWindow() {
 
 app.whenReady().then(() => {
     // IPC Handlers para Medición
-  ipcMain.handle('measure-multimeter', async (event, config) => {
-    return await readOwon(config.ip, config.port, config.command);
+  ipcMain.handle('multimeter-set-config', async (event, config) => {
+    return await setOwonConfig(config.ip, config.port, config.configCommand);
+  });
+
+  ipcMain.handle('multimeter-get-measurement', async (event, config) => {
+    return await getOwonMeasurement(config.ip, config.port, config.measureCommand);
   });
   
   ipcMain.handle('measure-scope', async (event, config) => {

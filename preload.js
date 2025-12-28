@@ -2,7 +2,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Funciones de medición
-  measureMultimeter: (config) => ipcRenderer.invoke('measure-multimeter', config),
+  multimeterSetConfig: (config) => ipcRenderer.invoke('multimeter-set-config', config),
+  multimeterGetMeasurement: (config) => ipcRenderer.invoke('multimeter-get-measurement', config),
   measureScope: (config) => ipcRenderer.invoke('measure-scope', config),
   
   // Funciones de configuración

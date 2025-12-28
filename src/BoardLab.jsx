@@ -55,6 +55,7 @@ const BoardLab = () => {
                 captureValue={hardware.captureValue}
                 isCapturing={hardware.isCapturing}
                 analyzeBoard={gemini.analyzeBoard}
+                instrumentConfig={hardware.instrumentConfig}
             />
 
             {/* Modals */}

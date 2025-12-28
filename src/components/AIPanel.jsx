@@ -10,10 +10,22 @@ const AIPanel = ({
     askAboutPoint,
     captureValue,
     isCapturing,
-    analyzeBoard
+    analyzeBoard,
+    instrumentConfig
 }) => {
     const handlePointUpdate = (field, value) => {
-        setPoints(points.map(p => p.id === selectedPoint.id ? { ...p, [field]: value } : p));
+        setPoints(points.map(p => (p.id === selectedPoint.id ? { ...p, [field]: value } : p)));
+
+        if (field === 'type' && value !== 'oscilloscope') {
+            const configCommand = instrumentConfig.multimeter.commands[`configure_${value}`];
+            if (configCommand && window.electronAPI) {
+                window.electronAPI.multimeterSetConfig({
+                    ip: instrumentConfig.multimeter.ip,
+                    port: instrumentConfig.multimeter.port,
+                    configCommand: configCommand,
+                });
+            }
+        }
     };
 
     return (
@@ -46,8 +58,8 @@ const AIPanel = ({
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2">
-                            {[{ id: 'voltage', icon: Zap, lbl: 'Volt' }, { id: 'resistance', icon: Cpu, lbl: 'Ohms' }, { id: 'oscilloscope', icon: Activity, lbl: 'Scope' }].map(t => (
+                        <div className="grid grid-cols-4 gap-2">
+                            {[{ id: 'voltage', icon: Zap, lbl: 'Volt' }, { id: 'resistance', icon: Cpu, lbl: 'Ohms' }, { id: 'diode', icon: Zap, lbl: 'Diode' }, { id: 'oscilloscope', icon: Activity, lbl: 'Scope' }].map(t => (
                                 <button key={t.id} onClick={() => handlePointUpdate('type', t.id)} className={`flex flex-col items-center p-2 rounded border ${selectedPoint.type === t.id ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'}`}>
                                     <t.icon size={16} />
                                     <span className="text-[10px] mt-1">{t.lbl}</span>

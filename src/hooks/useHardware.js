@@ -8,8 +8,10 @@ export const useHardware = () => {
             ip: "192.168.0.202",
             port: 9876,
             commands: {
-                measure_voltage: "MEAS:VOLT:DC?",
-                measure_resistance: "MEAS:RES?"
+                configure_voltage: "CONF:VOLT:DC AUTO",
+                configure_resistance: "CONF:RES AUTO",
+                configure_diode: "CONF:DIOD",
+                measure: "MEAS:SHOW?"
             }
         },
         oscilloscope: {
@@ -26,9 +28,26 @@ export const useHardware = () => {
 
     useEffect(() => {
         if (isElectron) {
-            window.electronAPI.loadConfig().then(config => {
-                if (config) {
-                    setInstrumentConfig(config);
+            window.electronAPI.loadConfig().then(loadedConfig => {
+                if (loadedConfig) {
+                    const newConfig = JSON.parse(JSON.stringify(instrumentConfig)); // Deep copy default
+
+                    if (loadedConfig.multimeter) {
+                        newConfig.multimeter.ip = loadedConfig.multimeter.ip || newConfig.multimeter.ip;
+                        newConfig.multimeter.port = loadedConfig.multimeter.port || newConfig.multimeter.port;
+                        if (loadedConfig.multimeter.commands) {
+                            newConfig.multimeter.commands = { ...newConfig.multimeter.commands, ...loadedConfig.multimeter.commands };
+                        }
+                    }
+                    if (loadedConfig.oscilloscope) {
+                        newConfig.oscilloscope.ip = loadedConfig.oscilloscope.ip || newConfig.oscilloscope.ip;
+                        newConfig.oscilloscope.port = loadedConfig.oscilloscope.port || newConfig.oscilloscope.port;
+                        if (loadedConfig.oscilloscope.commands) {
+                            newConfig.oscilloscope.commands = { ...newConfig.oscilloscope.commands, ...loadedConfig.oscilloscope.commands };
+                        }
+                    }
+                    
+                    setInstrumentConfig(newConfig);
                 }
             });
         }
@@ -51,14 +70,16 @@ export const useHardware = () => {
                 if (selectedPoint.type === 'oscilloscope') {
                     result = await window.electronAPI.measureScope(instrumentConfig.oscilloscope);
                 } else {
-                    const command = selectedPoint.type === 'voltage' ?
-                        instrumentConfig.multimeter.commands.measure_voltage :
-                        instrumentConfig.multimeter.commands.measure_resistance;
-
-                    result = await window.electronAPI.measureMultimeter({
+                    const measureCommand = instrumentConfig.multimeter.commands.measure;
+                    if (!measureCommand) {
+                        alert(`Error: "measure" command is missing in the settings.`);
+                        setIsCapturing(false);
+                        return;
+                    }
+                    result = await window.electronAPI.multimeterGetMeasurement({
                         ip: instrumentConfig.multimeter.ip,
                         port: instrumentConfig.multimeter.port,
-                        command: command,
+                        measureCommand: measureCommand,
                     });
                 }
             } else {
