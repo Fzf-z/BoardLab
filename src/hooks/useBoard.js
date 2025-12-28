@@ -69,14 +69,8 @@ export const useBoard = () => {
                 y,
                 label: `TP${points.length + 1}`,
                 type: 'voltage',
-                value: null,
                 notes: '',
-                waveform: null,
-                timeScale: null,
-                voltageScale: null,
-                voltageOffset: null,
-                vpp: null,
-                freq: null
+                measurements: {} // Initialize an empty measurements object
             };
             setPoints([...points, newPoint]);
             setSelectedPointId(newPoint.id);

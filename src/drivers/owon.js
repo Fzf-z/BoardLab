@@ -3,9 +3,10 @@ const net = require('net');
 function setOwonConfig(ip, port, configCommand) {
     return new Promise((resolve) => {
         const client = new net.Socket();
+        const debug_info = `[Config CMD: ${configCommand}]`;
         const timeout = setTimeout(() => {
             client.destroy();
-            resolve({ status: 'error', message: 'Timeout setting config' });
+            resolve({ status: 'error', message: `Timeout setting config. ${debug_info}` });
         }, 2000);
 
         client.connect(parseInt(port), ip, () => {
@@ -19,7 +20,7 @@ function setOwonConfig(ip, port, configCommand) {
         client.on('error', (err) => {
             clearTimeout(timeout);
             client.destroy();
-            resolve({ status: 'error', message: err.message });
+            resolve({ status: 'error', message: `${err.message}. ${debug_info}` });
         });
     });
 }
@@ -28,9 +29,10 @@ function getOwonMeasurement(ip, port, measureCommand) {
     return new Promise((resolve) => {
         const client = new net.Socket();
         let response = '';
+        const debug_info = `[Measure CMD: ${measureCommand}]`;
         const timeout = setTimeout(() => {
             client.destroy();
-            resolve({ status: 'error', message: 'Timeout getting measurement' });
+            resolve({ status: 'error', message: `Timeout getting measurement. ${debug_info}` });
         }, 2000);
 
         client.connect(parseInt(port), ip, () => {
@@ -48,7 +50,7 @@ function getOwonMeasurement(ip, port, measureCommand) {
 
         client.on('error', (err) => {
             clearTimeout(timeout);
-            resolve({ status: 'error', message: err.message });
+            resolve({ status: 'error', message: `${err.message}. ${debug_info}` });
         });
     });
 }

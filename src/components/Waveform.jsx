@@ -1,9 +1,11 @@
 import React from 'react';
 
 const Waveform = ({ pointData }) => {
-    if (!pointData?.waveform) return null;
+    const oscilloscopeMeasurement = pointData?.measurements?.oscilloscope;
 
-    const { waveform, timeScale, voltageScale, voltageOffset, vpp, freq } = pointData;
+    if (!oscilloscopeMeasurement?.waveform) return null;
+
+    const { waveform, timeScale, voltageScale, voltageOffset, vpp, freq } = oscilloscopeMeasurement;
 
     const svgWidth = 250, svgHeight = 160;
     const numDivX = 10, numDivY = 8;

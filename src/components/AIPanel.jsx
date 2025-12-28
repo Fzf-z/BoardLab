@@ -69,7 +69,7 @@ const AIPanel = ({
 
                         <div className="bg-black/40 rounded-lg p-4 border border-gray-700">
                             <div className="text-2xl font-mono text-cyan-400 font-bold mb-1">
-                                {selectedPoint.type === 'oscilloscope' ? 'Scope Data' : (selectedPoint.value || "---")}
+                                {selectedPoint.type === 'oscilloscope' ? 'Scope Data' : (selectedPoint.measurements && selectedPoint.measurements[selectedPoint.type] ? selectedPoint.measurements[selectedPoint.type].value : "---")}
                             </div>
                             {selectedPoint.type === 'oscilloscope' && <Waveform pointData={selectedPoint} />}
                             <button onClick={() => captureValue(selectedPoint, points, setPoints)} disabled={isCapturing} className={`w-full py-2 rounded font-bold flex items-center justify-center space-x-2 transition ${!isCapturing ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-gray-700 text-gray-500'}`}>
