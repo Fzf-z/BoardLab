@@ -10,6 +10,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
   loadConfig: () => ipcRenderer.invoke('load-config'),
 
+  // API Key
+  saveApiKey: (apiKey) => ipcRenderer.invoke('save-api-key', apiKey),
+  loadApiKey: () => ipcRenderer.invoke('load-api-key'),
+
   // Verificación de entorno
   isElectron: true
 });

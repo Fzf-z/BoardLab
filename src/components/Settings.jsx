@@ -40,44 +40,88 @@ const Settings = ({ instruments, onSave, onClose }) => {
     }
   };
 
+
+  const [apiKey, setApiKey] = useState('');
+
+  useEffect(() => {
+    setSettings(instruments);
+    if (window.electronAPI) {
+      window.electronAPI.loadApiKey().then(key => {
+        if (key) setApiKey(key);
+      });
+    }
+  }, [instruments]);
+
+  const handleSaveApiKey = () => {
+    if (window.electronAPI) {
+      window.electronAPI.saveApiKey(apiKey);
+      alert('API Key saved!');
+    } else {
+      alert('API Key can only be saved in the Electron environment.');
+    }
+  };
+
   return (
-    <div className="absolute top-0 left-0 w-full h-full bg-gray-800 bg-opacity-75 flex justify-center items-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
+    <div className="absolute top-0 left-0 w-full h-full bg-gray-900 bg-opacity-75 flex justify-center items-center z-50">
+      <div className="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl text-white">
+        <h2 className="text-2xl font-bold mb-4">Configuration</h2>
+
+        <div className="mb-6 border-b border-gray-700 pb-4">
+            <h3 className="text-xl font-semibold mb-2">Gemini AI</h3>
+            <label className="block text-sm font-medium text-gray-400">API Key</label>
+            <div className="flex items-center space-x-2 mt-1">
+                <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    placeholder="Enter your Gemini API Key"
+                />
+                <button
+                    onClick={handleSaveApiKey}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                    Save
+                </button>
+            </div>
+        </div>
+
+
         <h2 className="text-2xl font-bold mb-4">Instrument Configuration</h2>
 
         {Object.keys(settings).map(key => (
-          <div key={key} className="mb-6 border-b pb-4">
+          <div key={key} className="mb-6 border-b border-gray-700 pb-4">
             <h3 className="text-xl font-semibold mb-2 capitalize">{key}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">IP Address</label>
+                <label className="block text-sm font-medium text-gray-400">IP Address</label>
                 <input
                   type="text"
                   value={settings[key].ip}
                   onChange={(e) => handleChange(key, 'ip', e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Port</label>
+                <label className="block text-sm font-medium text-gray-400">Port</label>
                 <input
                   type="number"
                   value={settings[key].port}
                   onChange={(e) => handleChange(key, 'port', e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
               </div>
             </div>
             <div className="mt-4">
-                <h4 className="text-lg font-medium text-gray-800">SCPI Commands</h4>
+                <h4 className="text-lg font-medium text-gray-300">SCPI Commands</h4>
                 {settings[key].commands && Object.keys(settings[key].commands).map(cmdKey => (
                      <div key={cmdKey} className="mt-2">
-                        <label className="block text-sm font-medium text-gray-700 capitalize">{cmdKey.replace('_', ' ')}</label>
+                        <label className="block text-sm font-medium text-gray-400 capitalize">{cmdKey.replace('_', ' ')}</label>
                         <input
                         type="text"
                         value={settings[key].commands[cmdKey]}
                         onChange={(e) => handleCommandChange(key, cmdKey, e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         />
                     </div>
                 ))}
@@ -85,7 +129,7 @@ const Settings = ({ instruments, onSave, onClose }) => {
             <div className="mt-4">
               <button
                 onClick={() => handleTestConnection(key)}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
               >
                 Test Connection
               </button>
@@ -99,13 +143,13 @@ const Settings = ({ instruments, onSave, onClose }) => {
                 onSave(settings);
                 onClose();
             }}
-            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 mr-2"
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mr-2"
           >
-            Save
+            Save & Close
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
           >
             Close
           </button>
@@ -113,6 +157,7 @@ const Settings = ({ instruments, onSave, onClose }) => {
       </div>
     </div>
   );
+
 };
 
 export default Settings;
