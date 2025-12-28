@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { useBoard } from './hooks/useBoard';
 import { useGemini } from './hooks/useGemini';
@@ -13,13 +13,31 @@ import AIModal from './components/modals/AIModal';
 
 const BoardLab = () => {
     const [mode, setMode] = useState('view'); // 'view' or 'measure'
+    const [apiKey, setApiKey] = useState('');
 
     const board = useBoard();
-    const gemini = useGemini();
     const hardware = useHardware();
+    const gemini = useGemini(apiKey);
+
+    useEffect(() => {
+        if (hardware.isElectron) {
+            window.electronAPI.loadApiKey().then(key => {
+                if (key) setApiKey(key);
+            });
+        }
+    }, [hardware.isElectron]);
+
+    const handleSave = (newInstrumentConfig, newApiKey) => {
+        hardware.handleSaveConfig(newInstrumentConfig);
+        setApiKey(newApiKey);
+        if (hardware.isElectron) {
+            window.electronAPI.saveApiKey(newApiKey);
+        }
+        alert('Settings saved!');
+    };
 
     return (
-        <div className="flex h-screen bg-gray-900 text-gray-100 font-sans overflow-hidden">
+        <div className="flex h-screen bg-gray-900 text-gray-100 font-sans">
             <Toolbar
                 mode={mode}
                 setMode={setMode}
@@ -62,7 +80,9 @@ const BoardLab = () => {
             {hardware.configOpen && (
                 <Settings
                     instruments={hardware.instrumentConfig}
-                    onSave={hardware.handleSaveConfig}
+                    apiKey={apiKey}
+                    setApiKey={setApiKey}
+                    onSave={handleSave}
                     onClose={() => hardware.setConfigOpen(false)}
                 />
             )}
