@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNotifier } from '../contexts/NotifierContext';
 
 const Settings = ({ instruments, apiKey, setApiKey, onSave, onClose }) => {
   const [localInstruments, setLocalInstruments] = useState(instruments);
   const [activeTab, setActiveTab] = useState('app'); // 'app', 'multimeter', 'oscilloscope'
+  const { showNotification } = useNotifier();
 
   const handleInstrumentChange = (instrument, field, value) => {
     setLocalInstruments(prev => ({
@@ -31,9 +33,13 @@ const Settings = ({ instruments, apiKey, setApiKey, onSave, onClose }) => {
     const { ip, port } = localInstruments[instrument];
     if (window.electronAPI) {
         const result = await window.electronAPI.testConnection(ip, port);
-        alert(`${instrument} connection test: ${result.status}`);
+        if (result.status === 'success') {
+            showNotification(`${instrument} connection test successful!`, 'success');
+        } else {
+            showNotification(`${instrument} connection test failed: ${result.message}`, 'error');
+        }
     } else {
-        alert('Connection testing only available in Electron environment.');
+        showNotification('Connection testing only available in Electron environment.', 'info');
     }
   };
 

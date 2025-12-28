@@ -22,7 +22,7 @@ function createWindow() {
     console.log("Cargando aplicación desde Vite Server...");
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
     // Open the DevTools.
-    // mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools();
   } else {
     console.log("Cargando aplicación desde el build de producción...");
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));

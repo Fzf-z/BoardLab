@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNotifier } from '../contexts/NotifierContext';
 
 export const useHardware = () => {
+    const { showNotification } = useNotifier();
     const [isCapturing, setIsCapturing] = useState(false);
     const [configOpen, setConfigOpen] = useState(false);
     const [instrumentConfig, setInstrumentConfig] = useState({
@@ -8,10 +10,10 @@ export const useHardware = () => {
             ip: "192.168.0.202",
             port: 9876,
             commands: {
-                configure_voltage: "CONF:VOLT:DC AUTO",
-                configure_resistance: "CONF:RES AUTO",
+                configure_voltage: ":VOLT:DC:AUTO ON",
+                configure_resistance: ":RES:AUTO ON",
                 configure_diode: "CONF:DIOD",
-                measure: "MEAS:SHOW?"
+                measure: "READ?"
             }
         },
         oscilloscope: {
@@ -51,7 +53,7 @@ export const useHardware = () => {
                 }
             });
         }
-    }, [isElectron]);
+    }, [isElectron, instrumentConfig]);
 
     const handleSaveConfig = (newConfig) => {
         setInstrumentConfig(newConfig);
@@ -72,7 +74,7 @@ export const useHardware = () => {
                 } else {
                     const measureCommand = instrumentConfig.multimeter.commands.measure;
                     if (!measureCommand) {
-                        alert(`Error: "measure" command is missing in the settings.`);
+                        showNotification('"measure" command is missing in the settings.', 'error');
                         setIsCapturing(false);
                         return;
                     }
@@ -85,27 +87,54 @@ export const useHardware = () => {
             } else {
                 // Web simulation
                 await new Promise(r => setTimeout(r, 500));
-                const val = (Math.random() * 5).toFixed(3) + " V";
-                result = { status: 'success', value: val };
+                if (selectedPoint.type === 'oscilloscope') {
+                    result = {
+                        status: 'success',
+                        waveform: Array.from({length: 1000}, () => Math.random() * 2 - 1),
+                        timeScale: 0.001,
+                        voltageScale: 0.5,
+                        voltageOffset: 0,
+                        vpp: 2.5,
+                        freq: 1000,
+                    };
+                } else {
+                    const val = (Math.random() * 5).toFixed(3) + " V";
+                    result = { status: 'success', value: val };
+                }
             }
 
             if (result.status === 'success') {
-                const updatedPoints = points.map(p => p.id === selectedPoint.id ? {
-                    ...p,
-                    value: result.value || 'Waveform Captured',
-                    waveform: result.waveform,
-                    timeScale: result.timeScale,
-                    voltageScale: result.voltageScale,
-                    voltageOffset: result.voltageOffset,
-                    vpp: result.vpp,
-                    freq: result.freq,
-                } : p);
+                const updatedPoints = points.map(p => {
+                    if (p.id === selectedPoint.id) {
+                        const newMeasurements = { ...p.measurements };
+                        if (selectedPoint.type === 'oscilloscope') {
+                            newMeasurements.oscilloscope = {
+                                value: 'Waveform Captured',
+                                waveform: result.waveform,
+                                timeScale: result.timeScale,
+                                voltageScale: result.voltageScale,
+                                voltageOffset: result.voltageOffset,
+                                vpp: result.vpp,
+                                freq: result.freq,
+                                capturedAt: new Date().toISOString(),
+                            };
+                        } else {
+                            newMeasurements[selectedPoint.type] = {
+                                value: result.value,
+                                capturedAt: new Date().toISOString(),
+                            };
+                        }
+                        return { ...p, measurements: newMeasurements };
+                    }
+                    return p;
+                });
                 setPoints(updatedPoints);
+                showNotification('Measurement captured!', 'success');
             } else {
-                alert(`Error capturing value: ${result.message}`);
+                showNotification(`Error capturing value: ${result.message}`, 'error');
             }
         } catch (e) {
-            alert(`Communication error: ${e.message}`);
+            showNotification(`Communication error: ${e.message}`, 'error');
         } finally {
             setIsCapturing(false);
         }

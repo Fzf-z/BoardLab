@@ -1,21 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useNotifier } from '../contexts/NotifierContext';
 
-export const useGemini = () => {
+export const useGemini = (apiKey) => {
+    const { showNotification } = useNotifier();
     const [aiModalOpen, setAiModalOpen] = useState(false);
     const [aiResponse, setAiResponse] = useState("");
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [aiTitle, setAiTitle] = useState("");
-    const [apiKey, setApiKey] = useState("");
-
-    const isElectron = window.electronAPI?.isElectron || false;
-
-    useEffect(() => {
-        if (isElectron) {
-            window.electronAPI.loadApiKey().then(key => {
-                if (key) setApiKey(key);
-            });
-        }
-    }, [isElectron]);
 
     const callGemini = async (prompt, title) => {
         setAiTitle(title);
@@ -24,7 +15,7 @@ export const useGemini = () => {
         setAiResponse("");
 
         if (!apiKey) {
-            setAiResponse("⚠️ Error: Falta la API Key de Gemini. Configúrala en los ajustes.");
+            setAiResponse("⚠️ Error: Missing Gemini API Key. Please configure it in the settings.");
             setIsAiLoading(false);
             return;
         }
@@ -36,10 +27,10 @@ export const useGemini = () => {
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
             });
             const data = await response.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta.";
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response from AI.";
             setAiResponse(text);
         } catch (error) {
-            setAiResponse("Error de conexión con IA.");
+            setAiResponse("Connection error with AI.");
         } finally {
             setIsAiLoading(false);
         }
@@ -47,16 +38,38 @@ export const useGemini = () => {
 
     const analyzeBoard = (points) => {
         if (points.length === 0) {
-            alert("Agrega puntos de medición primero.");
+            showNotification("Add measurement points first.", 'warning');
             return;
         }
-        const measurements = points.map(p => `- ${p.label} (${p.type}): ${p.value || 'N/A'}. Notas: ${p.notes}`).join('\n');
-        callGemini(`Analiza estas mediciones de motherboard y da un posible diagnóstico:\n${measurements}`, "Diagnóstico Inteligente");
+        const measurementsText = points.map(p => {
+            const measuredValues = Object.entries(p.measurements)
+                .map(([type, meas]) => {
+                    if (type === 'oscilloscope' && meas.value) {
+                        return `oscilloscope: Vpp=${meas.vpp}, Freq=${meas.freq}`;
+                    }
+                    return meas.value ? `${type}: ${meas.value}` : null;
+                })
+                .filter(Boolean)
+                .join(', ');
+            return `- ${p.label}: ${measuredValues || 'N/A'}. Notes: ${p.notes}`;
+        }).join('\n');
+    
+        callGemini(`Analyze these motherboard measurements and provide a possible diagnosis:\n${measurementsText}`, "Intelligent Diagnosis");
     };
 
     const askAboutPoint = (selectedPoint) => {
         if (!selectedPoint) return;
-        callGemini(`Analiza este punto de prueba en una placa base: "${selectedPoint.label}" del tipo ${selectedPoint.type}. ¿Qué función típica tiene y qué valores se esperarían?`, `Consulta sobre: ${selectedPoint.label}`);
+        const measuredValues = Object.entries(selectedPoint.measurements)
+            .map(([type, meas]) => {
+                if (type === 'oscilloscope' && meas.value) {
+                    return `oscilloscope: Vpp=${meas.vpp}, Freq=${meas.freq}`;
+                }
+                return meas.value ? `${type}: ${meas.value}` : null;
+            })
+            .filter(Boolean)
+            .join(', ');
+        
+        callGemini(`Analyze this test point on a motherboard: "${selectedPoint.label}" of type ${selectedPoint.type}. Current measurements: ${measuredValues || 'none'}. What is its typical function and what values would be expected?`, `Inquiry about: ${selectedPoint.label}`);
     };
 
     return {

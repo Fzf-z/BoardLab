@@ -9,15 +9,19 @@ import StatusBar from './components/StatusBar';
 import BoardView from './components/BoardView';
 import AIPanel from './components/AIPanel';
 import Settings from './components/Settings';
+import { useNotifier } from './contexts/NotifierContext';
+import PointsTableModal from './components/modals/PointsTableModal';
 import AIModal from './components/modals/AIModal';
 
 const BoardLab = () => {
     const [mode, setMode] = useState('view'); // 'view' or 'measure'
     const [apiKey, setApiKey] = useState('');
+    const [pointsTableOpen, setPointsTableOpen] = useState(false);
 
     const board = useBoard();
     const hardware = useHardware();
     const gemini = useGemini(apiKey);
+    const { showNotification } = useNotifier();
 
     useEffect(() => {
         if (hardware.isElectron) {
@@ -33,7 +37,11 @@ const BoardLab = () => {
         if (hardware.isElectron) {
             window.electronAPI.saveApiKey(newApiKey);
         }
-        alert('Settings saved!');
+        showNotification('Settings saved successfully!', 'success');
+    };
+
+    const handlePointsSave = (newPoints) => {
+        board.setPoints(newPoints);
     };
 
     return (
@@ -43,6 +51,7 @@ const BoardLab = () => {
                 setMode={setMode}
                 onUpload={() => board.fileInputRef.current.click()}
                 onOpenSettings={() => hardware.setConfigOpen(true)}
+                onOpenPointsTable={() => setPointsTableOpen(true)}
             />
             <input
                 type="file"
@@ -84,6 +93,14 @@ const BoardLab = () => {
                     setApiKey={setApiKey}
                     onSave={handleSave}
                     onClose={() => hardware.setConfigOpen(false)}
+                />
+            )}
+
+            {pointsTableOpen && (
+                <PointsTableModal
+                    points={board.points}
+                    onSave={handlePointsSave}
+                    onClose={() => setPointsTableOpen(false)}
                 />
             )}
 
