@@ -10,6 +10,7 @@ function getRigolData(ip, port) {
 
         const commandString = [
             ':WAV:SOUR CHAN1', ':WAV:MODE NORM', ':WAV:FORM BYTE',
+            ':CHAN1:SCAL?', // Consultar la escala de voltaje (V/div)
             ':MEAS:VPP?', // Reintroducir Vpp
             ':MEAS:FREQ?', // Reintroducir Freq
             ':WAV:PRE?',
@@ -44,22 +45,24 @@ function getRigolData(ip, port) {
                 const textPart = bufferAsString.substring(0, binaryStartIndex);
                 const lines = textPart.trim().split('\n');
 
-                // Ahora esperamos 3 líneas de texto: Vpp, Freq, y Preamble.
-                if (lines.length < 3) {
-                    throw new Error(`Se esperaban al menos 3 líneas de texto (Vpp, Freq, Preamble), pero se recibieron ${lines.length}. Texto recibido: "${textPart}".`);
+                // Ahora esperamos 4 líneas: V/div, Vpp, Freq, y Preamble.
+                if (lines.length < 4) {
+                    throw new Error(`Se esperaban al menos 4 líneas de texto (V/div, Vpp, Freq, Preamble), pero se recibieron ${lines.length}. Texto recibido: "${textPart}".`);
                 }
 
-                responses.vpp = parseFloat(lines[0]);
-                responses.freq = parseFloat(lines[1]);
+                responses.voltageScale = parseFloat(lines[0]); // Línea 0: V/div
+                responses.vpp = parseFloat(lines[1]);          // Línea 1: Vpp
+                responses.freq = parseFloat(lines[2]);         // Línea 2: Freq
 
-                // La línea 2 es el Preamble
-                responses.preamble = lines[2].split(',');
+                // La línea 3 es el Preamble
+                responses.preamble = lines[3].split(',');
                 
-                if (responses.preamble.length < 10) throw new Error(`Preamble incompleto: "${lines[2]}".`);
+                if (responses.preamble.length < 10) throw new Error(`Preamble incompleto: "${lines[3]}".`);
 
                 const preambleValues = responses.preamble;
                 responses.timeScale = parseFloat(preambleValues[4]); // Xincrement
-                responses.voltageScale = parseFloat(preambleValues[7]); // Yincrement
+                // La escala de voltaje (V/div) ahora se obtiene directamente con :CHAN1:SCAL?
+                // responses.voltageScale = parseFloat(preambleValues[7]); // Yincrement << Incorrecto
                 responses.voltageOffset = parseFloat(preambleValues[8]); // Yorigin
 
                 // --- Parseo del bloque binario TMC ---
@@ -90,14 +93,16 @@ function getRigolData(ip, port) {
                     throw new Error(`Datos binarios incompletos. Esperados: ${dataLength} bytes, Recibidos: ${binaryData.length - headerEnd} (después del encabezado).`);
                 }
 
-                const yIncrement = parseFloat(preambleValues[7]);
-                const yOrigin = parseFloat(preambleValues[8]);
-                const yReference = parseFloat(preambleValues[9]);
+                // Estos valores del preámbulo son necesarios para escalar correctamente los datos crudos de la forma de onda
+                const yIncrement = parseFloat(preambleValues[7]); // Factor de escala vertical
+                const yOrigin = parseFloat(preambleValues[8]);    // Origen de datos vertical
+                const yReference = parseFloat(preambleValues[9]); // Punto de referencia vertical
 
                 // Extraer solo los datos de la forma de onda (excluyendo el posible \n final)
                 const rawWaveform = binaryData.slice(headerEnd, headerEnd + dataLength);
                 const processedWaveform = [];
                 for (let i = 0; i < rawWaveform.length; i++) {
+                    // Fórmula para convertir el valor crudo (0-255) a un valor de voltaje real
                     processedWaveform.push(((rawWaveform[i] - yReference) * yIncrement) + yOrigin);
                 }
                 
