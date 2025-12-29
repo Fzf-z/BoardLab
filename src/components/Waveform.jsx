@@ -7,7 +7,7 @@ const Waveform = ({ pointData }) => {
 
     const { waveform, timeScale, voltageScale, voltageOffset, vpp, freq } = oscilloscopeMeasurement;
 
-    const svgWidth = 250, svgHeight = 160;
+    const svgWidth = 450, svgHeight = 360;
     const initialViewBox = { x: 0, y: 0, width: svgWidth, height: svgHeight };
     const [viewBox, setViewBox] = useState(initialViewBox);
     const [isDragging, setIsDragging] = useState(false);

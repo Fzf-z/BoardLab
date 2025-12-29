@@ -2,6 +2,7 @@ const net = require('net');
 
 function getRigolData(ip, port) {
     return new Promise((resolve) => {
+        let processingDone = false;
         const client = new net.Socket();
         const timeout = setTimeout(() => {
             client.destroy();
@@ -25,6 +26,9 @@ function getRigolData(ip, port) {
         let numDigits = -1;
 
         const processAndResolve = () => {
+            if (processingDone) return;
+            processingDone = true;
+
             clearTimeout(timeout);
             client.destroy();
 
@@ -174,11 +178,10 @@ function getRigolData(ip, port) {
             console.log('[NET] Conexión cerrada.');
             // Si la conexión se cierra y no hemos procesado aún, intentar procesar lo que se tenga.
             // Esto cubre casos donde el instrumento no envía el final de línea o cierra prematuramente.
-            if (receivedData.length > 0 && !resolve.called) { // Evita llamar resolve dos veces
+            if (receivedData.length > 0 && !processingDone) {
                 processAndResolve();
             }
         });
     });
 }
-
 module.exports = { getRigolData };
