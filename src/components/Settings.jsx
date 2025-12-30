@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
 
-const Settings = ({ instruments, apiKey, setApiKey, onSave, onClose }) => {
+const Settings = ({ instruments, apiKey, setApiKey, autoSave, onAutoSaveChange, onSave, onClose }) => {
   const [localInstruments, setLocalInstruments] = useState(instruments);
   const [activeTab, setActiveTab] = useState('app'); // 'app', 'multimeter', 'oscilloscope'
   const { showNotification } = useNotifier();
@@ -118,7 +118,22 @@ const Settings = ({ instruments, apiKey, setApiKey, onSave, onClose }) => {
         <div className="p-6 min-h-[300px]">
             {activeTab === 'app' && (
                 <div>
-                    <h3 className="text-xl font-semibold mb-4">Gemini AI</h3>
+                    <h3 className="text-xl font-semibold mb-4">General</h3>
+                    <div className="flex items-center">
+                        <input
+                            id="autosave"
+                            name="autosave"
+                            type="checkbox"
+                            checked={autoSave}
+                            onChange={(e) => onAutoSaveChange(e.target.checked)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-600 rounded bg-gray-700"
+                        />
+                        <label htmlFor="autosave" className="ml-3 block text-sm font-medium text-gray-300">
+                            Enable Auto-save after each measurement
+                        </label>
+                    </div>
+
+                    <h3 className="text-xl font-semibold mb-4 mt-8">Gemini AI</h3>
                     <label className="block text-sm font-medium text-gray-400">API Key</label>
                     <div className="mt-1">
                         <input
@@ -145,7 +160,7 @@ const Settings = ({ instruments, apiKey, setApiKey, onSave, onClose }) => {
           </button>
           <button
             onClick={() => {
-                onSave(localInstruments, apiKey);
+                onSave(localInstruments, apiKey, autoSave);
                 onClose();
             }}
             className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"

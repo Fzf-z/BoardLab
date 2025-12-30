@@ -62,8 +62,8 @@ export const useHardware = () => {
         }
     };
 
-    const captureValue = async (selectedPoint, points, setPoints) => {
-        if (!selectedPoint) return;
+    const captureValue = async (selectedPoint) => {
+        if (!selectedPoint) return null;
         setIsCapturing(true);
         let result = { status: 'error', message: 'Not in Electron' };
 
@@ -76,7 +76,7 @@ export const useHardware = () => {
                     if (!measureCommand) {
                         showNotification('"measure" command is missing in the settings.', 'error');
                         setIsCapturing(false);
-                        return;
+                        return null;
                     }
                     result = await window.electronAPI.multimeterGetMeasurement({
                         ip: instrumentConfig.multimeter.ip,
@@ -104,37 +104,26 @@ export const useHardware = () => {
             }
 
             if (result.status === 'success') {
-                const updatedPoints = points.map(p => {
-                    if (p.id === selectedPoint.id) {
-                        const newMeasurements = { ...p.measurements };
-                        if (selectedPoint.type === 'oscilloscope') {
-                            newMeasurements.oscilloscope = {
-                                value: 'Waveform Captured',
-                                waveform: result.waveform,
-                                timeScale: result.timeScale,
-                                voltageScale: result.voltageScale,
-                                voltageOffset: result.voltageOffset,
-                                vpp: result.vpp,
-                                freq: result.freq,
-                                capturedAt: new Date().toISOString(),
-                            };
-                        } else {
-                            newMeasurements[selectedPoint.type] = {
-                                value: result.value,
-                                capturedAt: new Date().toISOString(),
-                            };
-                        }
-                        return { ...p, measurements: newMeasurements };
-                    }
-                    return p;
-                });
-                setPoints(updatedPoints);
                 showNotification('Measurement captured!', 'success');
+                if (selectedPoint.type === 'oscilloscope') {
+                    return {
+                        type: 'oscilloscope',
+                        value: `${result.vpp.toFixed(2)} Vpp / ${result.freq.toFixed(2)} Hz`,
+                        ...result
+                    };
+                } else {
+                    return {
+                        type: selectedPoint.type,
+                        value: result.value,
+                    };
+                }
             } else {
                 showNotification(`Error capturing value: ${result.message}`, 'error');
+                return null;
             }
         } catch (e) {
             showNotification(`Communication error: ${e.message}`, 'error');
+            return null;
         } finally {
             setIsCapturing(false);
         }

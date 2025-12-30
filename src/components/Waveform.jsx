@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const Waveform = ({ pointData }) => {
+const Waveform = ({ pointData, referenceData }) => {
     const oscilloscopeMeasurement = pointData?.measurements?.oscilloscope;
 
     if (!oscilloscopeMeasurement?.waveform) return null;
@@ -16,6 +16,7 @@ const Waveform = ({ pointData }) => {
     const numDivX = 10, numDivY = 8;
     const stepX = svgWidth / numDivX, stepY = svgHeight / numDivY;
 
+    // --- Grid Lines ---
     const gridLines = [];
     for (let i = 1; i < numDivX; i++) gridLines.push(<line key={`v${i}`} x1={i * stepX} y1="0" x2={i * stepX} y2={svgHeight} stroke="#4a5568" strokeWidth="0.5" strokeDasharray="2,2" />);
     for (let i = 1; i < numDivY; i++) gridLines.push(<line key={`h${i}`} x1="0" y1={i * stepY} x2={svgWidth} y2={i * stepY} stroke="#4a5568" strokeWidth="0.5" strokeDasharray="2,2" />);
@@ -24,6 +25,8 @@ const Waveform = ({ pointData }) => {
 
     const vRange = numDivY * voltageScale;
     const vBottom = voltageOffset - (vRange / 2);
+
+    // --- Live Waveform Path ---
     const pointsStr = waveform
         .map((val, i) => {
             const x = (i / (waveform.length - 1)) * svgWidth;
@@ -32,33 +35,42 @@ const Waveform = ({ pointData }) => {
             return `${x.toFixed(2)},${y.toFixed(2)}`;
         })
         .join(' ');
+        
+    // --- Reference Waveform Path ---
+    let referencePointsStr = '';
+    if (referenceData && referenceData.waveform) {
+        // We use the LIVE waveform's scaling to draw the reference waveform for accurate comparison
+        referencePointsStr = referenceData.waveform
+            .map((val, i) => {
+                const x = (i / (referenceData.waveform.length - 1)) * svgWidth;
+                const yPercent = vRange === 0 ? 0.5 : (val - vBottom) / vRange;
+                const y = Math.max(0, Math.min(svgHeight, svgHeight - (yPercent * svgHeight)));
+                return `${x.toFixed(2)},${y.toFixed(2)}`;
+            })
+            .join(' ');
+    }
+
 
     const handleWheel = (e) => {
         e.preventDefault();
         const svgElement = e.currentTarget;
         const { left, top, width, height } = svgElement.getBoundingClientRect();
         
-        // Calculate mouse position relative to SVG content (not just viewport)
         const mouseX = (e.clientX - left) / width * viewBox.width + viewBox.x;
         const mouseY = (e.clientY - top) / height * viewBox.height + viewBox.y;
 
         const scaleAmount = 0.1;
-        const newScale = e.deltaY > 0 ? 1 + scaleAmount : 1 - scaleAmount; // Zoom out vs. Zoom in
+        const newScale = e.deltaY > 0 ? 1 + scaleAmount : 1 - scaleAmount;
 
         const newWidth = viewBox.width * newScale;
         const newHeight = viewBox.height * newScale;
-
-        // Calculate new viewBox position to zoom towards the mouse
-        const newX = mouseX - (mouseX - viewBox.x) * newScale;
-        const newY = mouseY - (mouseY - viewBox.y) * newScale;
-
-        // Clamp values to prevent zooming too far out or in, or going out of bounds
-        const clampedWidth = Math.max(svgWidth / 4, Math.min(newWidth, svgWidth * 4)); // Zoom in min, zoom out max
+        
+        const clampedWidth = Math.max(svgWidth / 4, Math.min(newWidth, svgWidth * 4));
         const clampedHeight = Math.max(svgHeight / 4, Math.min(newHeight, svgHeight * 4));
 
         setViewBox({
-            x: newX, // Panning will adjust this
-            y: newY, // Panning will adjust this
+            x: mouseX - (mouseX - viewBox.x) * newScale,
+            y: mouseY - (mouseY - viewBox.y) * newScale,
             width: clampedWidth,
             height: clampedHeight,
         });
@@ -73,24 +85,13 @@ const Waveform = ({ pointData }) => {
         if (!isDragging) return;
         const dx = e.clientX - dragStart.x;
         const dy = e.clientY - dragStart.y;
-
-        // Scale the movement by the current zoom level
         const scaleX = viewBox.width / svgWidth;
         const scaleY = viewBox.height / svgHeight;
-
-        setViewBox(prevViewBox => ({
-            ...prevViewBox,
-            x: prevViewBox.x - dx * scaleX,
-            y: prevViewBox.y - dy * scaleY,
-        }));
-
+        setViewBox(prev => ({ ...prev, x: prev.x - dx * scaleX, y: prev.y - dy * scaleY }));
         setDragStart({ x: e.clientX, y: e.clientY });
     };
 
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
-
+    const handleMouseUp = () => setIsDragging(false);
 
     const formatUnits = (value, unit) => {
         if (value === null || typeof value === 'undefined' || value > 1e12) return `--- ${unit}`;
@@ -110,10 +111,13 @@ const Waveform = ({ pointData }) => {
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp} // Stop dragging if mouse leaves SVG
+                onMouseLeave={handleMouseUp}
                 style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
             >
                 {gridLines}
+                {referencePointsStr && (
+                    <polyline points={referencePointsStr} fill="none" stroke="#a1a1aa" strokeWidth="1.5" strokeDasharray="3,3" />
+                )}
                 <polyline points={pointsStr} fill="none" stroke="#10b981" strokeWidth="1.5" />
             </svg>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 bg-gray-900 p-2 rounded-lg border border-gray-700 text-[10px] font-mono">

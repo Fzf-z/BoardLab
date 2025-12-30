@@ -14,6 +14,7 @@
     "start": "concurrently -k \"npm run dev\" \"npm run electron\""
   },
   "dependencies": {
+    "better-sqlite3": "^12.5.0",
     "electron-store": "^7.0.3",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
@@ -32,6 +33,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "postcss": "^8.4.35",
+    "puppeteer": "^24.34.0",
     "tailwindcss": "^3.4.1",
     "vite": "^5.1.6",
     "wait-on": "^7.2.0"

@@ -77,8 +77,17 @@ export const useBoard = () => {
         }
     };
 
+    const resetBoard = () => {
+        setImageSrc(null);
+        setPoints([]);
+        setScale(1);
+        setPosition({ x: 0, y: 0 });
+        setSelectedPointId(null);
+    };
+
     return {
         imageSrc,
+        setImage: setImageSrc,
         points,
         setPoints,
         selectedPointId,
@@ -98,5 +107,6 @@ export const useBoard = () => {
         handleMouseMove,
         handleMouseUp,
         handleImageClick,
+        resetBoard,
     };
 };

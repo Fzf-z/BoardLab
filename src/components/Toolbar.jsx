@@ -1,7 +1,7 @@
 import React from 'react';
-import { Cpu, Move, Crosshair, Upload, Settings as SettingsIcon, Table } from 'lucide-react';
+import { Cpu, Move, Crosshair, Upload, Settings as SettingsIcon, Table, FilePlus, FolderOpen, Save, FileDown } from 'lucide-react';
 
-const Toolbar = ({ mode, setMode, onUpload, onOpenSettings, onOpenPointsTable }) => {
+const Toolbar = ({ mode, setMode, onUpload, onOpenSettings, onOpenPointsTable, onNewProject, onOpenProject, onSaveProject, onExportPdf }) => {
     return (
         <div className="w-16 bg-gray-800 border-r border-gray-700 flex flex-col items-center py-4 space-y-4 z-20 shadow-lg">
             <div className="p-2 bg-blue-600 rounded-lg mb-4">
@@ -21,11 +21,30 @@ const Toolbar = ({ mode, setMode, onUpload, onOpenSettings, onOpenPointsTable })
             >
                 <Crosshair size={20} />
             </button>
+            
             <div className="h-px w-8 bg-gray-700 my-2"></div>
+
+            <button onClick={onNewProject} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="New Project">
+                <FilePlus size={20} />
+            </button>
+            <button onClick={onOpenProject} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Open Project">
+                <FolderOpen size={20} />
+            </button>
+            <button onClick={onSaveProject} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Save Project">
+                <Save size={20} />
+            </button>
+            <button onClick={onExportPdf} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Export to PDF">
+                <FileDown size={20} />
+            </button>
+
+            <div className="h-px w-8 bg-gray-700 my-2"></div>
+            
             <button onClick={onUpload} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Upload Image">
                 <Upload size={20} />
             </button>
+
             <div className="flex-1"></div>
+            
             <button onClick={onOpenPointsTable} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Points Table">
                 <Table size={20} />
             </button>
