@@ -13,6 +13,7 @@ import { useNotifier } from './contexts/NotifierContext';
 import PointsTableModal from './components/modals/PointsTableModal';
 import ProjectManagerModal from './components/modals/ProjectManagerModal';
 import AIModal from './components/modals/AIModal';
+import NewProjectModal from './components/modals/NewProjectModal';
 
 const BoardLab = () => {
     const [mode, setMode] = useState('view'); // 'view' or 'measure'
@@ -20,6 +21,7 @@ const BoardLab = () => {
     const [pointsTableOpen, setPointsTableOpen] = useState(false);
     const [currentProject, setCurrentProject] = useState(null);
     const [isProjectManagerOpen, setProjectManagerOpen] = useState(false);
+    const [isNewProjectModalOpen, setNewProjectModalOpen] = useState(false);
     const [projectList, setProjectList] = useState([]);
     const [autoSave, setAutoSave] = useState(false);
 
@@ -62,8 +64,11 @@ const BoardLab = () => {
         board.setPoints(newPoints);
     };
 
-    const handleNewProject = async () => {
-        const projectName = prompt("Enter new project name:", "New Project");
+    const handleNewProject = () => {
+        setNewProjectModalOpen(true);
+    };
+
+    const handleCreateProject = async (projectName) => {
         if (projectName && window.electronAPI) {
             try {
                 const newProject = await window.electronAPI.createProject(projectName);
@@ -176,6 +181,12 @@ const BoardLab = () => {
                 projects={projectList}
                 onLoadProject={handleLoadProject}
                 onDeleteProject={handleDeleteProject}
+            />
+
+            <NewProjectModal
+                isOpen={isNewProjectModalOpen}
+                onClose={() => setNewProjectModalOpen(false)}
+                onCreate={handleCreateProject}
             />
 
             <div className="flex-1 flex flex-col relative">
