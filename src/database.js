@@ -1,144 +1,145 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
 class DB {
-    constructor(dbPath) {
-        this.db = new Database(dbPath, { verbose: console.log });
-        this.init();
-    }
+  constructor() {
+    this.db = null;
+    this.app = null;
+  }
 
-    init() {
-        // Habilitar claves foráneas
-        this.db.exec('PRAGMA foreign_keys = ON;');
-
-        // Tabla de Proyectos
-        this.db.exec(`
-            CREATE TABLE IF NOT EXISTS proyectos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre TEXT NOT NULL,
-                descripcion TEXT,
-                imagenPlaca TEXT,
-                createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        // Tabla de Puntos de Medición
-        this.db.exec(`
-            CREATE TABLE IF NOT EXISTS puntos_de_medicion (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                proyectoId INTEGER NOT NULL,
-                nombre TEXT NOT NULL,
-                x INTEGER NOT NULL,
-                y INTEGER NOT NULL,
-                FOREIGN KEY (proyectoId) REFERENCES proyectos(id) ON DELETE CASCADE
-            );
-        `);
-
-        // Tabla de Mediciones
-        this.db.exec(`
-            CREATE TABLE IF NOT EXISTS mediciones (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                puntoId INTEGER NOT NULL,
-                timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-                tipo TEXT,
-                valor TEXT,
-                oscilograma TEXT,
-                esReferencia INTEGER DEFAULT 0,
-                FOREIGN KEY (puntoId) REFERENCES puntos_de_medicion(id) ON DELETE CASCADE
-            );
-        `);
-    }
-
-    // Métodos para interactuar con la DB se añadirán aquí
-
-    // --- Proyectos ---
-    createProject({ nombre, descripcion, imagenPlaca }) {
-        const stmt = this.db.prepare('INSERT INTO proyectos (nombre, descripcion, imagenPlaca) VALUES (?, ?, ?)');
-        const info = stmt.run(nombre, descripcion, imagenPlaca);
-        return info.lastInsertRowid;
-    }
-
-    getProjects() {
-        const stmt = this.db.prepare('SELECT * FROM proyectos ORDER BY createdAt DESC');
-        return stmt.all();
-    }
+  init(app) {
+    this.app = app;
+    const dbPath = path.join(this.app.getPath('userData'), 'boardlab.db');
     
-    getProject(id) {
-        const stmt = this.db.prepare('SELECT * FROM proyectos WHERE id = ?');
-        return stmt.get(id);
-    }
-    
-    updateProject({ id, nombre, descripcion, imagenPlaca }) {
-        const stmt = this.db.prepare('UPDATE proyectos SET nombre = ?, descripcion = ?, imagenPlaca = ? WHERE id = ?');
-        const info = stmt.run(nombre, descripcion, imagenPlaca, id);
-        return info.changes > 0;
-    }
+    // Ensure the directory exists
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-    deleteProject(id) {
-        const stmt = this.db.prepare('DELETE FROM proyectos WHERE id = ?');
-        const info = stmt.run(id);
-        return info.changes > 0;
-    }
+    this.db = new Database(dbPath);
+    console.log(`Database connected at ${dbPath}`);
+    this.initSchema();
+  }
 
-    // --- Puntos de Medición ---
-    createPoint({ proyectoId, nombre, x, y }) {
-        const stmt = this.db.prepare('INSERT INTO puntos_de_medicion (proyectoId, nombre, x, y) VALUES (?, ?, ?, ?)');
-        const info = stmt.run(proyectoId, nombre, x, y);
-        return info.lastInsertRowid;
-    }
+  initSchema() {
+    if (!this.db) return;
 
-    getPointsForProject(proyectoId) {
-        const stmt = this.db.prepare('SELECT * FROM puntos_de_medicion WHERE proyectoId = ?');
-        return stmt.all(proyectoId);
-    }
+    // Projects Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        image_path TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-    updatePoint({ id, nombre, x, y }) {
-        const stmt = this.db.prepare('UPDATE puntos_de_medicion SET nombre = ?, x = ?, y = ? WHERE id = ?');
-        const info = stmt.run(nombre, x, y, id);
-        return info.changes > 0;
-    }
+    // Points Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS points (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        x REAL NOT NULL,
+        y REAL NOT NULL,
+        label TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+      )
+    `);
 
-    deletePoint(id) {
-        const stmt = this.db.prepare('DELETE FROM puntos_de_medicion WHERE id = ?');
-        const info = stmt.run(id);
-        return info.changes > 0;
-    }
+    // Measurements Table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS measurements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        point_id INTEGER NOT NULL,
+        type TEXT NOT NULL, -- 'voltage', 'resistance', 'waveform'
+        value TEXT NOT NULL, -- Can be a simple value or JSON for complex data
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (point_id) REFERENCES points (id) ON DELETE CASCADE
+      )
+    `);
 
-    // --- Mediciones ---
-    createMeasurement({ puntoId, tipo, valor, oscilograma, esReferencia }) {
-        const stmt = this.db.prepare('INSERT INTO mediciones (puntoId, tipo, valor, oscilograma, esReferencia) VALUES (?, ?, ?, ?, ?)');
-        const info = stmt.run(puntoId, tipo, valor, oscilograma, esReferencia ? 1 : 0);
-        return info.lastInsertRowid;
-    }
+    console.log('Database schema initialized.');
+  }
 
-    getMeasurementsForPoint(puntoId) {
-        const stmt = this.db.prepare('SELECT * FROM mediciones WHERE puntoId = ? ORDER BY timestamp DESC');
-        return stmt.all(puntoId);
-    }
+  // --- Proyectos ---
+  createProject({ nombre, descripcion, imagenPlaca }) {
+    const stmt = this.db.prepare('INSERT INTO proyectos (nombre, descripcion, imagenPlaca) VALUES (?, ?, ?)');
+    const info = stmt.run(nombre, descripcion, imagenPlaca);
+    return info.lastInsertRowid;
+  }
 
-    getMeasurement(id) {
-        const stmt = this.db.prepare('SELECT * FROM mediciones WHERE id = ?');
-        return stmt.get(id);
+  getProjects() {
+    const stmt = this.db.prepare('SELECT * FROM proyectos ORDER BY createdAt DESC');
+    return stmt.all();
+  }
+  
+  getProject(id) {
+    const stmt = this.db.prepare('SELECT * FROM proyectos WHERE id = ?');
+    return stmt.get(id);
+  }
+  
+  updateProject({ id, nombre, descripcion, imagenPlaca }) {
+    const stmt = this.db.prepare('UPDATE proyectos SET nombre = ?, descripcion = ?, imagenPlaca = ? WHERE id = ?');
+    const info = stmt.run(nombre, descripcion, imagenPlaca, id);
+    return info.changes > 0;
+  }
+
+  deleteProject(id) {
+    const stmt = this.db.prepare('DELETE FROM proyectos WHERE id = ?');
+    const info = stmt.run(id);
+    return info.changes > 0;
+  }
+
+  // --- Puntos de Medición ---
+  createPoint({ proyectoId, nombre, x, y }) {
+    const stmt = this.db.prepare('INSERT INTO puntos_de_medicion (proyectoId, nombre, x, y) VALUES (?, ?, ?, ?)');
+    const info = stmt.run(proyectoId, nombre, x, y);
+    return info.lastInsertRowid;
+  }
+
+  getPointsForProject(proyectoId) {
+    const stmt = this.db.prepare('SELECT * FROM puntos_de_medicion WHERE proyectoId = ?');
+    return stmt.all(proyectoId);
+  }
+
+  updatePoint({ id, nombre, x, y }) {
+    const stmt = this.db.prepare('UPDATE puntos_de_medicion SET nombre = ?, x = ?, y = ? WHERE id = ?');
+    const info = stmt.run(nombre, x, y, id);
+    return info.changes > 0;
+  }
+
+  deletePoint(id) {
+    const stmt = this.db.prepare('DELETE FROM puntos_de_medicion WHERE id = ?');
+    const info = stmt.run(id);
+    return info.changes > 0;
+  }
+
+  // --- Mediciones ---
+  createMeasurement({ puntoId, tipo, valor, oscilograma, esReferencia }) {
+    const stmt = this.db.prepare('INSERT INTO mediciones (puntoId, tipo, valor, oscilograma, esReferencia) VALUES (?, ?, ?, ?, ?)');
+    const info = stmt.run(puntoId, tipo, valor, oscilograma, esReferencia ? 1 : 0);
+    return info.lastInsertRowid;
+  }
+
+  getMeasurementsForPoint(puntoId) {
+    const stmt = this.db.prepare('SELECT * FROM mediciones WHERE puntoId = ? ORDER BY timestamp DESC');
+    return stmt.all(puntoId);
+  }
+
+  getMeasurement(id) {
+    const stmt = this.db.prepare('SELECT * FROM mediciones WHERE id = ?');
+    return stmt.get(id);
+  }
+
+  close() {
+    if (this.db) {
+      this.db.close();
+      this.db = null;
+      console.log('Database connection closed.');
     }
+  }
 }
 
-// Exportamos una función para inicializar y devolver la instancia de la DB
-// para asegurarnos de que solo haya una instancia (Singleton).
-let instance = null;
+// Singleton instance
+const dbInstance = new DB();
 
-const initDatabase = (dbPath) => {
-    if (!instance) {
-        instance = new DB(dbPath);
-    }
-    return instance;
-};
-
-const getDatabase = () => {
-    if (!instance) {
-        throw new Error('La base de datos no ha sido inicializada. Llama a initDatabase primero.');
-    }
-    return instance;
-};
-
-
-module.exports = { initDatabase, getDatabase };
+module.exports = dbInstance;

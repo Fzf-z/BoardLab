@@ -37,5 +37,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportPdf: (projectId) => ipcRenderer.invoke('exportPdf', projectId),
 
   // Verificación de entorno
-  isElectron: true
+  isElectron: true,
+
+  // Hardware
+  measureResistance: () => ipcRenderer.invoke('hardware:measure-resistance'),
+  measureVoltage: () => ipcRenderer.invoke('hardware:measure-voltage'),
+  getWaveform: () => ipcRenderer.invoke('hardware:get-waveform'),
+
+  // Database
+  getProjects: () => ipcRenderer.invoke('db:get-projects'),
+  createProject: (projectName) => ipcRenderer.invoke('db:create-project', projectName),
+  savePoints: (data) => ipcRenderer.invoke('db:save-points', data), // data: { projectId, points }
+  getPoints: (projectId) => ipcRenderer.invoke('db:get-points', projectId),
+  saveMeasurement: (data) => ipcRenderer.invoke('db:save-measurement', data), // data: { pointId, type, value }
 });

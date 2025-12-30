@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Folder, Trash2 } from 'lucide-react';
 
-const ProjectManagerModal = ({ isOpen, onClose, projects, onOpen, onDelete }) => {
+const ProjectManagerModal = ({ isOpen, onClose, projects, onLoadProject, onDeleteProject }) => {
     if (!isOpen) return null;
 
     return (
@@ -32,13 +32,13 @@ const ProjectManagerModal = ({ isOpen, onClose, projects, onOpen, onDelete }) =>
                                     </div>
                                     <div className="flex items-center space-x-2">
                                         <button 
-                                            onClick={() => onOpen(p.id)}
+                                            onClick={() => onLoadProject(p)}
                                             className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold"
                                         >
                                             Open
                                         </button>
                                         <button 
-                                            onClick={() => onDelete(p.id)}
+                                            onClick={() => onDeleteProject(p.id)}
                                             className="p-2 text-red-400 hover:bg-red-900/30 rounded-lg"
                                         >
                                             <Trash2 size={20} />

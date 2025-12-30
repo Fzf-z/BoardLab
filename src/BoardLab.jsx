@@ -12,6 +12,7 @@ import Settings from './components/Settings';
 import { useNotifier } from './contexts/NotifierContext';
 import PointsTableModal from './components/modals/PointsTableModal';
 import ProjectManagerModal from './components/modals/ProjectManagerModal';
+import AIModal from './components/modals/AIModal';
 
 const BoardLab = () => {
     const [mode, setMode] = useState('view'); // 'view' or 'measure'
@@ -65,9 +66,9 @@ const BoardLab = () => {
         const projectName = prompt("Enter new project name:", "New Project");
         if (projectName && window.electronAPI) {
             try {
-                const newProjectId = await window.electronAPI.db.createProject({ nombre: projectName, descripcion: "" });
-                setCurrentProject({ id: newProjectId, nombre: projectName });
-                board.resetBoard();
+                const newProject = await window.electronAPI.createProject(projectName);
+                setCurrentProject(newProject);
+                board.resetBoard(); // Clear image and points for the new project
                 showNotification(`Project '${projectName}' created!`, 'success');
             } catch (error) {
                 console.error("Error creating project:", error);
@@ -84,26 +85,11 @@ const BoardLab = () => {
         if (!window.electronAPI) return;
 
         try {
-            await window.electronAPI.db.updateProject({
-                id: currentProject.id,
-                nombre: currentProject.nombre,
-                imagenPlaca: board.imageSrc
+            // Save the points associated with the current project
+            await window.electronAPI.savePoints({
+                projectId: currentProject.id,
+                points: board.points
             });
-            const existingPoints = await window.electronAPI.db.getPointsForProject(currentProject.id);
-            await Promise.all(existingPoints.map(p => window.electronAPI.db.deletePoint(p.id)));
-            const newPointsWithDbIds = await Promise.all(board.points.map(async (point) => {
-                const { id, ...pointToSave } = point;
-                const newId = await window.electronAPI.db.createPoint({ ...pointToSave, proyectoId: currentProject.id });
-                return { ...point, id: newId };
-            }));
-            board.setPoints(newPointsWithDbIds);
-            const oldSelectedId = board.selectedPointId;
-            const oldSelectedPoint = board.points.find(p => p.id === oldSelectedId);
-            if (oldSelectedPoint) {
-                const newSelectedPoint = newPointsWithDbIds.find(p => p.x === oldSelectedPoint.x && p.y === oldSelectedPoint.y);
-                if (newSelectedPoint) board.setSelectedPointId(newSelectedPoint.id);
-                else board.setSelectedPointId(null);
-            }
             showNotification('Project saved successfully!', 'success');
         } catch (error) {
             console.error("Error saving project:", error);
@@ -114,43 +100,35 @@ const BoardLab = () => {
     const handleOpenProject = async () => {
         if (!window.electronAPI) return;
         try {
-            const projects = await window.electronAPI.db.getProjects();
+            const projects = await window.electronAPI.getProjects();
             setProjectList(projects || []);
             setProjectManagerOpen(true);
         } catch (error) {
+            console.error("Error fetching projects:", error);
             showNotification("Failed to fetch projects.", 'error');
         }
     };
 
-    const handleLoadProject = async (projectId) => {
+    const handleLoadProject = async (project) => {
+        if (!project || !window.electronAPI) return;
         try {
-            const projectToLoad = await window.electronAPI.db.getProject(projectId);
-            const points = await window.electronAPI.db.getPointsForProject(projectId);
-            setCurrentProject(projectToLoad);
-            board.setImage(projectToLoad.imagenPlaca);
+            const points = await window.electronAPI.getPoints(project.id);
+            setCurrentProject(project);
+            // Assuming image_path is stored. For now, we reset.
+            // A more complete implementation would save/load the image path.
+            board.resetBoard(); 
             board.setPoints(points);
             setProjectManagerOpen(false);
-            showNotification(`Project '${projectToLoad.nombre}' loaded!`, 'success');
+            showNotification(`Project '${project.name}' loaded!`, 'success');
         } catch (error) {
+            console.error("Error loading project:", error);
             showNotification("Failed to load project.", 'error');
         }
     };
 
     const handleDeleteProject = async (projectId) => {
-        if (confirm('Are you sure you want to delete this project? This cannot be undone.')) {
-            try {
-                await window.electronAPI.db.deleteProject(projectId);
-                const projects = await window.electronAPI.db.getProjects();
-                setProjectList(projects || []);
-                if (currentProject && currentProject.id === projectId) {
-                    setCurrentProject(null);
-                    board.resetBoard();
-                }
-                showNotification('Project deleted.', 'success');
-            } catch (error) {
-                showNotification("Failed to delete project.", 'error');
-            }
-        }
+        // Note: 'db:delete-project' IPC handler would need to be implemented in main.js
+        showNotification("Delete functionality not yet implemented.", 'info');
     };
 
     const handleExportPdf = async () => {
@@ -192,6 +170,14 @@ const BoardLab = () => {
                 accept="image/*"
             />
 
+            <ProjectManagerModal
+                isOpen={isProjectManagerOpen}
+                onClose={() => setProjectManagerOpen(false)}
+                projects={projectList}
+                onLoadProject={handleLoadProject}
+                onDeleteProject={handleDeleteProject}
+            />
+
             <div className="flex-1 flex flex-col relative">
                 <StatusBar
                     scale={board.scale}
@@ -219,14 +205,6 @@ const BoardLab = () => {
             />
 
             {/* Modals */}
-            <ProjectManagerModal 
-                isOpen={isProjectManagerOpen}
-                onClose={() => setProjectManagerOpen(false)}
-                projects={projectList}
-                onOpen={handleLoadProject}
-                onDelete={handleDeleteProject}
-            />
-
             {hardware.configOpen && (
                 <Settings
                     instruments={hardware.instrumentConfig}
@@ -258,3 +236,6 @@ const BoardLab = () => {
             />
         </div>
     );
+}
+
+export default BoardLab;
