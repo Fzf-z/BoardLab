@@ -59,7 +59,8 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
         const labelMatch = point.label.toLowerCase().includes(lowerCaseFilterText);
         const notesMatch = point.notes?.toLowerCase().includes(lowerCaseFilterText);
         
-        const measurementMatch = Object.values(point.measurements).some(m => 
+        // Check if measurements exists before trying to access its values
+        const measurementMatch = point.measurements && Object.values(point.measurements).some(m => 
             m?.value?.toString().toLowerCase().includes(lowerCaseFilterText)
         );
 
@@ -75,8 +76,8 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
             return sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
         } else if (['voltage', 'resistance', 'diode'].includes(sortColumn)) {
             // Extract numeric value from string (e.g., "1.23 V" -> 1.23)
-            compareA = parseFloat(a.measurements[sortColumn]?.value) || 0;
-            compareB = parseFloat(b.measurements[sortColumn]?.value) || 0;
+            compareA = parseFloat(a.measurements?.[sortColumn]?.value) || 0; // Added optional chaining
+            compareB = parseFloat(b.measurements?.[sortColumn]?.value) || 0; // Added optional chaining
             return sortDirection === 'asc' ? compareA - compareB : compareB - compareA;
         }
         
@@ -133,39 +134,40 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedAndFilteredPoints.map(point => (
+                            {sortedAndFilteredPoints.map((point, index) => (
                                 <tr
                                     key={point.id}
                                     ref={el => (rowRefs.current[point.id] = el)}
                                     className={`border-b border-gray-700 hover:bg-gray-700/50 cursor-pointer ${selectedPointId === point.id ? 'bg-blue-600/50' : ''}`}
                                     onClick={() => onSelectPoint(point.id)}
                                 >
-                                    <td className="p-2 font-bold">{point.label}</td>
-                                    <td className="p-2">
+                                    <td className="px-4 py-2 text-right">{sortedAndFilteredPoints.length - index}</td>
+                                    <td className="px-4 py-2 font-bold">{point.label}</td>
+                                    <td className="px-4 py-2">
                                         <input 
-                                            type="text"
-                                            value={point.measurements.voltage?.value || ''}
-                                            onChange={(e) => handleValueChange(point.id, 'voltage', e.target.value)}
-                                            className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full"
+                                            type="text" 
+                                            defaultValue={point.measurements?.voltage?.value || ''}
+                                            onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)}
+                                            className="bg-gray-700 w-full p-1 rounded"
                                         />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="px-4 py-2">
                                         <input 
-                                            type="text"
-                                            value={point.measurements.resistance?.value || ''}
-                                            onChange={(e) => handleValueChange(point.id, 'resistance', e.target.value)}
-                                            className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full"
+                                            type="text" 
+                                            defaultValue={point.measurements?.resistance?.value || ''}
+                                            onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)}
+                                            className="bg-gray-700 w-full p-1 rounded"
                                         />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="px-4 py-2">
                                         <input 
-                                            type="text"
-                                            value={point.measurements.diode?.value || ''}
-                                            onChange={(e) => handleValueChange(point.id, 'diode', e.target.value)}
-                                            className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full"
+                                            type="text" 
+                                            defaultValue={point.measurements?.diode?.value || ''}
+                                            onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)}
+                                            className="bg-gray-700 w-full p-1 rounded"
                                         />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="px-4 py-2">
                                         <input 
                                             type="text"
                                             value={point.notes || ''}

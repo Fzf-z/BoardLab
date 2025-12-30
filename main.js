@@ -63,13 +63,58 @@ app.on('window-all-closed', () => {
 // =================================================================
 
 ipcMain.handle('db:get-projects', async () => {
-  const projects = db.db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
-  return projects;
+  // Excluimos la imagen para que la carga inicial sea rápida
+  const projects = db.db.prepare('SELECT id, board_type, board_model, attributes, created_at FROM projects ORDER BY created_at DESC').all();
+  return projects.map(p => ({
+    ...p,
+    attributes: JSON.parse(p.attributes || '{}') // Parsear el JSON al enviar
+  }));
 });
 
-ipcMain.handle('db:create-project', async (event, projectName) => {
-  const result = db.db.prepare('INSERT INTO projects (name) VALUES (?)').run(projectName);
-  return { id: result.lastInsertRowid, name: projectName };
+ipcMain.handle('db:get-project-with-image', async (event, projectId) => {
+    const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    if (project) {
+        project.attributes = JSON.parse(project.attributes || '{}');
+    }
+    return project;
+});
+
+ipcMain.handle('db:create-project', async (event, projectData) => {
+  const { board_type, board_model, attributes, image_data } = projectData;
+  
+  // Convertir el Uint8Array (recibido desde el renderer) a un Buffer
+  const imageBuffer = Buffer.from(image_data);
+
+  const result = db.db.prepare(
+    'INSERT INTO projects (board_type, board_model, attributes, image_data) VALUES (?, ?, ?, ?)'
+  ).run(board_type, board_model, JSON.stringify(attributes), imageBuffer);
+  
+  return { id: result.lastInsertRowid, ...projectData, image_data: imageBuffer };
+});
+
+ipcMain.handle('db:get-all-attributes', async () => {
+  const projects = db.db.prepare('SELECT attributes FROM projects WHERE attributes IS NOT NULL').all();
+  const keys = new Set();
+  const values = new Set();
+
+  for (const proj of projects) {
+    try {
+      const attrs = JSON.parse(proj.attributes);
+      for (const key in attrs) {
+        keys.add(key);
+        if (typeof attrs[key] === 'string' && attrs[key].trim() !== '') {
+          values.add(attrs[key]);
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing attributes JSON:', e);
+    }
+  }
+
+  return {
+    keys: [...keys].sort(),
+    values: [...values].sort(),
+  };
 });
 
 ipcMain.handle('db:save-points', async (event, { projectId, points }) => {
@@ -94,6 +139,18 @@ ipcMain.handle('db:save-measurement', async (event, { pointId, type, value }) =>
   const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
     .run(pointId, type, JSON.stringify(value));
   return { id: result.lastInsertRowid };
+});
+
+ipcMain.handle('db:createMeasurement', async (event, { pointId, type, value }) => {
+  const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
+    .run(pointId, type, JSON.stringify(value));
+  return { id: result.lastInsertRowid };
+});
+
+ipcMain.handle('db:getMeasurementsForPoint', async (event, pointId) => {
+  if (!pointId) return [];
+  const measurements = db.db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC').all(pointId);
+  return measurements;
 });
 
 // =================================================================

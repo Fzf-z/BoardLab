@@ -49,6 +49,12 @@ const AIPanel = ({
     };
 
     const handleCapture = async () => {
+        if (!selectedPoint || !selectedPoint.id) {
+            console.warn("Attempted to capture measurement with no point selected.");
+            // Optionally, show a user notification here.
+            return;
+        }
+
         const measurement = await captureValue(selectedPoint);
         
         if (measurement) {
@@ -65,15 +71,13 @@ const AIPanel = ({
             // 2. Save the measurement to the DB and update history
             if (window.electronAPI && selectedPoint.id && typeof selectedPoint.id === 'number') {
                 try {
-                    const newMeasurementId = await window.electronAPI.db.createMeasurement({
-                        puntoId: selectedPoint.id,
-                        tipo: measurement.type,
-                        valor: measurement.value,
-                        oscilograma: measurement.waveform ? JSON.stringify(measurement) : null,
+                    const newMeasurement = await window.electronAPI.createMeasurement({
+                        pointId: selectedPoint.id, // <-- Corregido de puntoId a pointId
+                        type: measurement.type,
+                        value: measurement.value,
                     });
                     
-                    const newHistoryItem = await window.electronAPI.db.getMeasurement(newMeasurementId);
-                    if(newHistoryItem) setHistory([newHistoryItem, ...history]);
+                    setHistory([newMeasurement, ...history]);
 
                     // 3. Trigger auto-save if enabled
                     if (autoSave) {

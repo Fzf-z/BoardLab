@@ -24,6 +24,7 @@ const BoardLab = () => {
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState(false);
     const [projectList, setProjectList] = useState([]);
     const [autoSave, setAutoSave] = useState(false);
+    const [knownAttributes, setKnownAttributes] = useState({ keys: [], values: [] });
 
     const board = useBoard();
     const hardware = useHardware();
@@ -39,6 +40,10 @@ const BoardLab = () => {
                 if (config && config.appSettings) {
                     setAutoSave(config.appSettings.autoSave || false);
                 }
+            });
+            // Cargar atributos para autocompletado
+            window.electronAPI.getAllAttributes().then(attrs => {
+                setKnownAttributes(attrs);
             });
         }
     }, [hardware.isElectron]);
@@ -68,13 +73,19 @@ const BoardLab = () => {
         setNewProjectModalOpen(true);
     };
 
-    const handleCreateProject = async (projectName) => {
-        if (projectName && window.electronAPI) {
+    const handleCreateProject = async (projectData) => {
+        if (projectData && window.electronAPI) {
             try {
-                const newProject = await window.electronAPI.createProject(projectName);
+                const newProject = await window.electronAPI.createProject(projectData);
                 setCurrentProject(newProject);
-                board.resetBoard(); // Clear image and points for the new project
-                showNotification(`Project '${projectName}' created!`, 'success');
+                
+                // Convert Uint8Array to Blob URL to display the image
+                const blob = new Blob([projectData.image_data], { type: 'image/png' }); // Adjust type if necessary
+                const imageUrl = URL.createObjectURL(blob);
+                board.setImage(imageUrl);
+                board.setPoints([]); // Clear points for the new project
+
+                showNotification(`Project '${projectData.board_model}' created!`, 'success');
             } catch (error) {
                 console.error("Error creating project:", error);
                 showNotification("Failed to create project.", 'error');
@@ -117,14 +128,24 @@ const BoardLab = () => {
     const handleLoadProject = async (project) => {
         if (!project || !window.electronAPI) return;
         try {
+            // Fetch the full project data including the image
+            const fullProject = await window.electronAPI.getProjectWithImage(project.id);
             const points = await window.electronAPI.getPoints(project.id);
-            setCurrentProject(project);
-            // Assuming image_path is stored. For now, we reset.
-            // A more complete implementation would save/load the image path.
-            board.resetBoard(); 
+            
+            setCurrentProject(fullProject);
+
+            if (fullProject.image_data) {
+                // Correctly create the Blob directly from the Uint8Array
+                const blob = new Blob([fullProject.image_data], { type: 'image/png' });
+                const imageUrl = URL.createObjectURL(blob);
+                board.setImage(imageUrl);
+            } else {
+                board.resetBoard();
+            }
+            
             board.setPoints(points);
             setProjectManagerOpen(false);
-            showNotification(`Project '${project.name}' loaded!`, 'success');
+            showNotification(`Project '${fullProject.board_model}' loaded!`, 'success');
         } catch (error) {
             console.error("Error loading project:", error);
             showNotification("Failed to load project.", 'error');
@@ -187,6 +208,7 @@ const BoardLab = () => {
                 isOpen={isNewProjectModalOpen}
                 onClose={() => setNewProjectModalOpen(false)}
                 onCreate={handleCreateProject}
+                knownAttributes={knownAttributes}
             />
 
             <div className="flex-1 flex flex-col relative">
@@ -198,6 +220,9 @@ const BoardLab = () => {
                 <BoardView
                     {...board}
                     mode={mode}
+                    isDragging={board.isDragging}
+                    setPosition={board.setPosition}
+                    setSelectedPointId={board.setSelectedPointId}
                 />
             </div>
 

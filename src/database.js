@@ -27,8 +27,10 @@ class DB {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        image_path TEXT,
+        board_type TEXT NOT NULL, -- 'Laptop', 'Desktop', 'Industrial', 'Mobile', etc.
+        board_model TEXT NOT NULL,
+        attributes TEXT, -- JSON object for specific fields like CPU, RAM, etc.
+        image_data BLOB,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);

@@ -1,22 +1,40 @@
-import React from 'react';
-import { Upload } from 'lucide-react';
+import React, { useRef, useEffect } from 'react';
+import { Crosshair, Upload } from 'lucide-react';
 
 const BoardView = ({
     imageSrc,
     points,
-    selectedPointId,
-    setSelectedPointId,
     scale,
     position,
-    containerRef,
-    isDragging,
-    mode,
     handleWheel,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
-    handleImageClick
+    handlePointClick,
+    mode,
+    selectedPointId,
+    isDragging, // <-- Recibir la prop
+    setPosition, // <-- Recibir la prop
+    setSelectedPointId // <-- Recibir la prop
 }) => {
+    const containerRef = useRef(null);
+    const imageRef = useRef(null);
+
+    useEffect(() => {
+        if (imageRef.current) {
+            imageRef.current.onload = () => {
+                const { naturalWidth, naturalHeight } = imageRef.current;
+                const { width, height } = containerRef.current.getBoundingClientRect();
+                const scaleX = width / naturalWidth;
+                const scaleY = height / naturalHeight;
+                const initialScale = Math.min(scaleX, scaleY) * 0.9;
+                
+                setPosition({ x: (width - naturalWidth * initialScale) / 2, y: (height - naturalHeight * initialScale) / 2 });
+            };
+        }
+    }, [imageSrc, setPosition]);
+
+
     return (
         <div className="flex-1 relative bg-gray-950 overflow-hidden select-none">
             <div
@@ -34,7 +52,7 @@ const BoardView = ({
                     style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale})` }}
                 >
                     {imageSrc ? (
-                        <img src={imageSrc} className="max-w-none shadow-2xl pointer-events-none" onLoad={() => setPosition({ x: 50, y: 50 })} />
+                        <img ref={imageRef} src={imageSrc} className="max-w-none shadow-2xl pointer-events-none" />
                     ) : (
                         <div className="w-[800px] h-[600px] bg-gray-900 flex items-center justify-center border-2 border-dashed border-gray-700 rounded-xl">
                             <div className="text-gray-500 text-center">
