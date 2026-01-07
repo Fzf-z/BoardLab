@@ -178,23 +178,40 @@ const AIPanel = ({
                             </h3>
                             <div className="bg-gray-900/70 rounded-lg p-2 space-y-2 max-h-48 overflow-y-auto">
                                 {history.length > 0 ? (
-                                    history.map(m => (
-                                        <div key={m.id} className="text-xs text-gray-300 bg-gray-800/50 p-2 rounded flex justify-between items-center">
-                                            <div>
-                                                <span className="font-mono">{m.valor}</span>
-                                                <span className="text-gray-500 ml-2">{new Date(m.timestamp).toLocaleString()}</span>
+                                    history.map(m => {
+                                        let displayValue;
+                                        try {
+                                            const parsed = JSON.parse(m.value);
+                                            // Si es un objeto, busca una propiedad 'value', si no, usa el valor parseado.
+                                            displayValue = typeof parsed === 'object' && parsed !== null ? (parsed.value || 'Scope Data') : parsed;
+                                        } catch (e) {
+                                            displayValue = m.value; // Si no es JSON, usa el valor crudo.
+                                        }
+
+                                        return (
+                                            <div key={m.id} className="text-xs text-gray-300 bg-gray-800/50 p-2 rounded flex justify-between items-center">
+                                                <div>
+                                                    <span className="font-mono">{displayValue}</span>
+                                                    <span className="text-gray-500 ml-2">{new Date(m.created_at).toLocaleString()}</span>
+                                                </div>
+                                                {m.type === 'oscilloscope' && m.value &&(
+                                                    <button 
+                                                        onClick={() => {
+                                                            try {
+                                                                setReferenceWaveform(JSON.parse(m.value));
+                                                            } catch (e) {
+                                                                console.error("Failed to parse reference waveform:", e);
+                                                            }
+                                                        }}
+                                                        className="p-1 text-blue-400 hover:bg-blue-900/30 rounded"
+                                                        title="Set as reference waveform"
+                                                    >
+                                                        <GitCommit size={14} />
+                                                    </button>
+                                                )}
                                             </div>
-                                            {m.tipo === 'oscilloscope' && m.oscilograma &&(
-                                                <button 
-                                                    onClick={() => setReferenceWaveform(JSON.parse(m.oscilograma))}
-                                                    className="p-1 text-blue-400 hover:bg-blue-900/30 rounded"
-                                                    title="Set as reference waveform"
-                                                >
-                                                    <GitCommit size={14} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 ) : (
                                     <div className="text-center text-gray-500 text-xs py-4">No hay mediciones guardadas para este punto.</div>
                                 )}

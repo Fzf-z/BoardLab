@@ -153,6 +153,7 @@ ipcMain.handle('db:save-points', async (event, { projectId, points }) => {
 
   // Después de guardar, devuelve todos los puntos del proyecto con sus IDs permanentes
   const savedPoints = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
+  console.log('Points returned from DB after save:', JSON.stringify(savedPoints, null, 2)); // <-- Log de diagnóstico
   return savedPoints;
 });
 
