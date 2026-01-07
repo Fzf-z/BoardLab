@@ -96,20 +96,23 @@ const BoardLab = () => {
     const handleSaveProject = async () => {
         if (!currentProject) {
             showNotification("No active project to save. Create one first.", 'warning');
-            return;
+            return; // Devuelve undefined si no hay proyecto
         }
-        if (!window.electronAPI) return;
+        if (!window.electronAPI) return; // Devuelve undefined si no es electron
 
         try {
-            // Save the points associated with the current project
-            await window.electronAPI.savePoints({
+            const savedPoints = await window.electronAPI.savePoints({
                 projectId: currentProject.id,
                 points: board.points
             });
+            
+            board.setPoints(savedPoints);
             showNotification('Project saved successfully!', 'success');
+            return savedPoints; // <-- Devolver los puntos guardados
         } catch (error) {
             console.error("Error saving project:", error);
             showNotification("Failed to save project.", 'error');
+            return; // Devuelve undefined en caso de error
         }
     };
 
@@ -220,9 +223,7 @@ const BoardLab = () => {
                 <BoardView
                     {...board}
                     mode={mode}
-                    isDragging={board.isDragging}
-                    setPosition={board.setPosition}
-                    setSelectedPointId={board.setSelectedPointId}
+                    currentProjectId={currentProject?.id}
                 />
             </div>
 

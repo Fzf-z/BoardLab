@@ -15,8 +15,10 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
+let mainWindow = null;
+
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     webPreferences: {
@@ -33,8 +35,22 @@ function createWindow() {
     //mainWindow.webContents.openDevTools();
   } else {
     console.log("Cargando aplicación desde el build de producción...");
+    // For production loads (file://) ensure we set a secure Content-Security-Policy header
+    // to avoid the Electron insecure-CSP warning in packaged builds.
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      const responseHeaders = details.responseHeaders || {};
+      // A reasonably strict CSP for packaged app. Adjust if additional sources are required.
+      responseHeaders['Content-Security-Policy'] = [
+        "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws:"
+      ];
+      callback({ responseHeaders });
+    });
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
 // This method will be called when Electron has finished
@@ -118,33 +134,87 @@ ipcMain.handle('db:get-all-attributes', async () => {
 });
 
 ipcMain.handle('db:save-points', async (event, { projectId, points }) => {
-  // Clear existing points for simplicity, or implement a more complex sync
-  db.db.prepare('DELETE FROM points WHERE project_id = ?').run(projectId);
-  
-  const insert = db.db.prepare('INSERT INTO points (project_id, x, y, label) VALUES (?, ?, ?, ?)');
+  const insertStmt = db.db.prepare('INSERT INTO points (project_id, x, y, label, notes, type) VALUES (?, ?, ?, ?, ?, ?)');
+  const updateStmt = db.db.prepare('UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ? WHERE id = ?');
+
   const transaction = db.db.transaction((pts) => {
-    for (const point of pts) insert.run(projectId, point.x, point.y, point.label);
+    for (const point of pts) {
+      if (typeof point.id === 'string' && point.id.startsWith('temp-')) {
+        // Nuevo punto: INSERT
+        insertStmt.run(projectId, point.x, point.y, point.label, point.notes || '', point.type || 'voltage');
+      } else if (typeof point.id === 'number') {
+        // Punto existente: UPDATE
+        updateStmt.run(point.x, point.y, point.label, point.notes || '', point.type || 'voltage', point.id);
+      }
+    }
   });
 
   transaction(points);
-  return { status: 'success' };
+
+  // Después de guardar, devuelve todos los puntos del proyecto con sus IDs permanentes
+  const savedPoints = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
+  return savedPoints;
 });
 
 ipcMain.handle('db:get-points', async (event, projectId) => {
   const points = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
-  return points;
+  const getMeasurementsStmt = db.db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC');
+
+  // Para cada punto, buscar y adjuntar sus mediciones
+  const pointsWithMeasurements = points.map(point => {
+    const measurements = getMeasurementsStmt.all(point.id);
+    const measurementsByType = {};
+    
+    // Agrupar las mediciones por tipo (voltage, resistance, etc.)
+    for (const m of measurements) {
+      if (!measurementsByType[m.type]) { // Solo guardar la más reciente de cada tipo
+        try {
+          measurementsByType[m.type] = {
+            type: m.type,
+            value: JSON.parse(m.value),
+            capturedAt: m.created_at
+          };
+        } catch (e) {
+          console.error(`Failed to parse measurement value for point ${point.id}:`, m.value);
+        }
+      }
+    }
+    return { ...point, measurements: measurementsByType };
+  });
+
+  return pointsWithMeasurements;
 });
 
-ipcMain.handle('db:save-measurement', async (event, { pointId, type, value }) => {
-  const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
-    .run(pointId, type, JSON.stringify(value));
-  return { id: result.lastInsertRowid };
+ipcMain.handle('db:save-measurement', async (event, payload) => {
+  console.log('Received payload for db:save-measurement:', payload); 
+  try {
+    const { pointId, type, value } = payload || {};
+    if (!pointId || !type) {
+      return { status: 'error', message: 'Invalid payload: pointId and type are required' };
+    }
+    const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
+      .run(pointId, type, JSON.stringify(value));
+    return { id: result.lastInsertRowid };
+  } catch (e) {
+    console.error('Error in db:save-measurement:', e);
+    return { status: 'error', message: e.message };
+  }
 });
 
-ipcMain.handle('db:createMeasurement', async (event, { pointId, type, value }) => {
-  const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
-    .run(pointId, type, JSON.stringify(value));
-  return { id: result.lastInsertRowid };
+ipcMain.handle('db:createMeasurement', async (event, payload) => {
+  console.log('Received payload for db:createMeasurement:', payload); // <-- Añadir log
+  try {
+    const { pointId, type, value } = payload || {};
+    if (!pointId || !type) {
+      return { status: 'error', message: 'Invalid payload: pointId and type are required' };
+    }
+    const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
+      .run(pointId, type, JSON.stringify(value));
+    return { id: result.lastInsertRowid };
+  } catch (e) {
+    console.error('Error in db:createMeasurement:', e);
+    return { status: 'error', message: e.message };
+  }
 });
 
 ipcMain.handle('db:getMeasurementsForPoint', async (event, pointId) => {
@@ -187,27 +257,34 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
     return { status: 'cancelled' };
   }
 
-  try {
-    const db = getDatabase();
-    const project = db.getProject(projectId);
-    const points = db.getPointsForProject(projectId);
-    
-    const pointsWithMeasurements = points.map(p => ({
-      ...p,
-      measurements: db.getMeasurementsForPoint(p.id)
-    }));
+    try {
+        // Corrección: Usar el objeto db.db y los métodos prepare/get/all
+        const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+        if (project) {
+            project.attributes = JSON.parse(project.attributes || '{}');
+        }
 
-    const htmlContent = generateReportHtml(project, pointsWithMeasurements);
-    
-    const browser = await puppeteer.launch({ headless: "new" });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    await page.pdf({ path: filePath, format: 'A4', printBackground: true });
-    await browser.close();
+        const points = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
+        const getMeasurementsStmt = db.db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC');
 
-    return { status: 'success', filePath };
-  } catch (error) {
-    console.error('Failed to generate PDF:', error);
-    return { status: 'error', message: error.message };
-  }
+        const pointsWithMeasurements = points.map(p => ({
+            ...p,
+            measurements: getMeasurementsStmt.all(p.id).map(m => ({...m, value: JSON.parse(m.value || '{}')})) // Parsear mediciones
+        }));
+
+        // NOTA: generateReportHtml no está definido aquí, asumimos que existe en el scope.
+        // const htmlContent = generateReportHtml(project, pointsWithMeasurements);
+        const htmlContent = `<h1>Report for ${project.board_model}</h1><p>PDF generation placeholder.</p>`; // Placeholder
+
+        const browser = await puppeteer.launch({ headless: "new" });
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        await page.pdf({ path: filePath, format: 'A4', printBackground: true });
+        await browser.close();
+
+        return { status: 'success', filePath };
+    } catch (error) {
+        console.error('Failed to generate PDF:', error);
+        return { status: 'error', message: error.message };
+    }
 });

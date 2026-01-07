@@ -22,7 +22,7 @@ const AIPanel = ({
         setHistory([]);
         setReferenceWaveform(null);
         if (selectedPoint && selectedPoint.id && typeof selectedPoint.id === 'number' && window.electronAPI) {
-            window.electronAPI.db.getMeasurementsForPoint(selectedPoint.id)
+            window.electronAPI.getMeasurementsForPoint(selectedPoint.id)
                 .then(measurements => {
                     setHistory(measurements || []);
                 })
@@ -51,46 +51,63 @@ const AIPanel = ({
     const handleCapture = async () => {
         if (!selectedPoint || !selectedPoint.id) {
             console.warn("Attempted to capture measurement with no point selected.");
-            // Optionally, show a user notification here.
             return;
         }
 
-        const measurement = await captureValue(selectedPoint);
-        
-        if (measurement) {
-            // 1. Update the UI state for the live measurement
-            const updatedPoints = points.map(p => {
-                if (p.id === selectedPoint.id) {
-                    const newMeasurements = { ...p.measurements, [measurement.type]: { ...measurement, capturedAt: new Date().toISOString() } };
-                    return { ...p, measurements: newMeasurements };
+        let pointToMeasure = selectedPoint;
+
+        // Si el punto es nuevo (ID temporal), guárdalo primero para obtener un ID permanente.
+        if (typeof pointToMeasure.id === 'string' && pointToMeasure.id.startsWith('temp-')) {
+            console.log("Temporary point detected, saving project before measurement...");
+            const savedPoints = await handleSaveProject();
+            // Añadir comprobación de seguridad
+            if (Array.isArray(savedPoints)) {
+                const newlySavedPoint = savedPoints.find(p => p.label === pointToMeasure.label && p.x === pointToMeasure.x); 
+                if (newlySavedPoint) {
+                    pointToMeasure = newlySavedPoint;
+                    setSelectedPointId(newlySavedPoint.id); // Actualizar el ID seleccionado en la UI
+                } else {
+                    console.error("Could not find the newly saved point. Aborting measurement.");
+                    return;
                 }
-                return p;
-            });
-            setPoints(updatedPoints);
-
-            // 2. Save the measurement to the DB and update history
-            if (window.electronAPI && selectedPoint.id && typeof selectedPoint.id === 'number') {
-                try {
-                    const newMeasurement = await window.electronAPI.createMeasurement({
-                        pointId: selectedPoint.id, // <-- Corregido de puntoId a pointId
-                        type: measurement.type,
-                        value: measurement.value,
-                    });
-                    
-                    setHistory([newMeasurement, ...history]);
-
-                    // 3. Trigger auto-save if enabled
-                    if (autoSave) {
-                        // Use a timeout to allow the state to update before saving
-                        setTimeout(() => handleSaveProject(), 100);
-                    }
-
-                } catch (error) {
-                    console.error("Error saving measurement:", error);
-                }
+            } else {
+                 console.error("handleSaveProject did not return saved points. Aborting measurement.");
+                 return;
             }
         }
-    }
+
+        const measurement = await captureValue(pointToMeasure);
+        if (!measurement) return;
+
+        // 1. Update UI state with the new measurement
+        const updatedPoints = points.map(p => {
+            if (p.id === pointToMeasure.id) {
+                const newMeasurements = { ...p.measurements, [measurement.type]: { ...measurement, capturedAt: new Date().toISOString() } };
+                return { ...p, measurements: newMeasurements };
+            }
+            return p;
+        });
+        setPoints(updatedPoints);
+
+        // 2. Save the measurement to the DB
+        try {
+            const result = await window.electronAPI.createMeasurement({
+                pointId: pointToMeasure.id,
+                type: pointToMeasure.type, // <-- Usar el tipo del punto
+                value: measurement.value,
+            });
+            
+            if(result.id) {
+                 // Actualizar el historial con la medición guardada
+                const newHistoryItem = { ...measurement, id: result.id };
+                setHistory([newHistoryItem, ...history]);
+            } else {
+                console.error("Failed to save measurement, backend returned:", JSON.stringify(result, null, 2));
+            }
+        } catch (error) {
+            console.error("Error saving measurement:", error);
+        }
+    };
 
     return (
         <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">

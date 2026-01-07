@@ -52,7 +52,7 @@ const Waveform = ({ pointData, referenceData }) => {
 
 
     const handleWheel = (e) => {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         const svgElement = e.currentTarget;
         const { left, top, width, height } = svgElement.getBoundingClientRect();
         

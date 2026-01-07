@@ -30,7 +30,7 @@ export const useBoard = () => {
 
     const handleWheel = (e) => {
         if (e.ctrlKey) return;
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         const rect = e.currentTarget.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -58,19 +58,25 @@ export const useBoard = () => {
         setIsDragging(false);
     };
 
-    const handleImageClick = (e, mode) => {
+    const handleImageClick = (e, mode, projectId) => { // <-- projectId añadido
         if (mode === 'measure' && !isDragging && e.button === 0) {
-            const rect = containerRef.current.getBoundingClientRect();
+            if (!projectId) {
+                console.error("Cannot add point: No project is active.");
+                // Podrías mostrar una notificación al usuario aquí.
+                return;
+            }
+            const rect = e.currentTarget.getBoundingClientRect();
             const x = (e.clientX - rect.left) / scale;
             const y = (e.clientY - rect.top) / scale;
             const newPoint = {
-                id: Date.now(),
+                id: `temp-${Date.now()}`, // Usar un ID temporal
+                project_id: projectId, // <-- Asociar con el proyecto
                 x,
                 y,
                 label: `TP${points.length + 1}`,
                 type: 'voltage',
                 notes: '',
-                measurements: {} // Initialize an empty measurements object
+                measurements: {}
             };
             setPoints([...points, newPoint]);
             setSelectedPointId(newPoint.id);

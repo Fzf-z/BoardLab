@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Crosshair, Upload } from 'lucide-react';
+import { Upload } from 'lucide-react';
 
 const BoardView = ({
     imageSrc,
@@ -10,30 +10,34 @@ const BoardView = ({
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
-    handlePointClick,
+    handleImageClick,
     mode,
     selectedPointId,
-    isDragging, // <-- Recibir la prop
-    setPosition, // <-- Recibir la prop
-    setSelectedPointId // <-- Recibir la prop
+    isDragging,
+    setPosition,
+    setSelectedPointId,
+    currentProjectId,
+    containerRef
 }) => {
-    const containerRef = useRef(null);
     const imageRef = useRef(null);
 
     useEffect(() => {
-        if (imageRef.current) {
-            imageRef.current.onload = () => {
-                const { naturalWidth, naturalHeight } = imageRef.current;
-                const { width, height } = containerRef.current.getBoundingClientRect();
-                const scaleX = width / naturalWidth;
-                const scaleY = height / naturalHeight;
-                const initialScale = Math.min(scaleX, scaleY) * 0.9;
-                
-                setPosition({ x: (width - naturalWidth * initialScale) / 2, y: (height - naturalHeight * initialScale) / 2 });
-            };
-        }
-    }, [imageSrc, setPosition]);
+        if (!imageRef.current || !containerRef || !containerRef.current) return;
 
+        imageRef.current.onload = () => {
+            const { naturalWidth, naturalHeight } = imageRef.current;
+            const { width, height } = containerRef.current.getBoundingClientRect();
+            const scaleX = width / naturalWidth;
+            const scaleY = height / naturalHeight;
+            const initialScale = Math.min(scaleX, scaleY) * 0.9;
+
+            setPosition({ x: (width - naturalWidth * initialScale) / 2, y: (height - naturalHeight * initialScale) / 2 });
+        };
+
+        return () => {
+            if (imageRef.current) imageRef.current.onload = null;
+        };
+    }, [imageSrc, setPosition, containerRef]);
 
     return (
         <div className="flex-1 relative bg-gray-950 overflow-hidden select-none">
@@ -43,7 +47,7 @@ const BoardView = ({
                 onMouseDown={(e) => handleMouseDown(e, mode)}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
-                onContextMenu={(e) => e.preventDefault()}
+                onContextMenu={(e) => { if (e.cancelable) e.preventDefault(); }}
                 style={{ cursor: isDragging ? 'grabbing' : mode === 'measure' ? 'crosshair' : 'grab' }}
             >
                 <div
@@ -52,7 +56,7 @@ const BoardView = ({
                     style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale})` }}
                 >
                     {imageSrc ? (
-                        <img ref={imageRef} src={imageSrc} className="max-w-none shadow-2xl pointer-events-none" />
+                        <img ref={imageRef} src={imageSrc} className="max-w-none shadow-2xl pointer-events-none" alt="Board" />
                     ) : (
                         <div className="w-[800px] h-[600px] bg-gray-900 flex items-center justify-center border-2 border-dashed border-gray-700 rounded-xl">
                             <div className="text-gray-500 text-center">
@@ -62,16 +66,19 @@ const BoardView = ({
                         </div>
                     )}
 
-                    <div className="absolute inset-0 z-10" onClick={(e) => handleImageClick(e, mode)}></div>
+                    <div
+                        className="absolute inset-0 z-10"
+                        onClick={(e) => handleImageClick && handleImageClick(e, mode, currentProjectId)}
+                    />
 
                     {points.map(p => (
                         <div
                             key={p.id}
-                            onClick={(e) => { e.stopPropagation(); if (!isDragging) setSelectedPointId(p.id); }}
-                            className={`absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-2 shadow-lg flex items-center justify-center cursor-pointer transform hover:scale-125 transition z-20 ${selectedPointId === p.id ? 'bg-yellow-400 border-black text-black' : p.value ? 'bg-green-500 border-white text-white' : 'bg-red-500 border-white text-white'}`}
+                            onClick={(e) => { e.stopPropagation(); if (!isDragging) setSelectedPointId && setSelectedPointId(p.id); }}
+                            className={`absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-2 shadow-lg flex items-center justify-center cursor-pointer transform hover:scale-125 transition z-20 ${selectedPointId === p.id ? 'bg-yellow-400 border-black text-black' : p.measurements && Object.keys(p.measurements).length > 0 ? 'bg-green-500 border-white text-white' : 'bg-red-500 border-white text-white'}`}
                             style={{ left: p.x, top: p.y }}
                         >
-                            <span className="text-[10px] font-bold">{p.id % 100}</span>
+                            <span className="text-[10px] font-bold">{typeof p.id === 'number' ? p.id : 'N'}</span>
                         </div>
                     ))}
                 </div>

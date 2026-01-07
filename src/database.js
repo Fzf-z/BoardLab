@@ -43,9 +43,36 @@ class DB {
         x REAL NOT NULL,
         y REAL NOT NULL,
         label TEXT,
-        FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
-      )
-    `);
+        notes TEXT,
+         type TEXT,
+         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+         FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+       )
+     `);
+
+     // Migration: ensure `notes`, `created_at`, and `type` exist on points (for older DBs)
+     try {
+       const cols = this.db.prepare("PRAGMA table_info('points')").all();
+       const colNames = cols.map(c => c.name);
+       if (!colNames.includes('notes')) {
+         this.db.exec("ALTER TABLE points ADD COLUMN notes TEXT");
+       }
+       if (!colNames.includes('type')) {
+         this.db.exec("ALTER TABLE points ADD COLUMN type TEXT");
+      }
+      if (!colNames.includes('created_at')) {
+        // SQLite does not allow adding a column with a non-constant default via ALTER TABLE,
+        // so add the column without a default and backfill existing rows.
+        this.db.exec("ALTER TABLE points ADD COLUMN created_at DATETIME");
+        try {
+          this.db.exec("UPDATE points SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL");
+        } catch (e) {
+          console.warn('Could not backfill created_at for points:', e);
+        }
+      }
+    } catch (e) {
+      console.error('Error running points migrations:', e);
+    }
 
     // Measurements Table
     this.db.exec(`
