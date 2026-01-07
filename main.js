@@ -57,8 +57,8 @@ function createWindow() {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
+  db.init(app); // <-- Initialize database BEFORE creating the window
   createWindow();
-  db.init(app); // <-- Inicializar la base de datos
 });
 
 app.on('activate', () => {
@@ -109,6 +109,10 @@ ipcMain.handle('db:create-project', async (event, projectData) => {
 });
 
 ipcMain.handle('db:get-all-attributes', async () => {
+  if (!db || !db.db) {
+    console.warn('DB not initialized yet when db:get-all-attributes called');
+    return { keys: [], values: [] };
+  }
   const projects = db.db.prepare('SELECT attributes FROM projects WHERE attributes IS NOT NULL').all();
   const keys = new Set();
   const values = new Set();
@@ -137,24 +141,38 @@ ipcMain.handle('db:save-points', async (event, { projectId, points }) => {
   const insertStmt = db.db.prepare('INSERT INTO points (project_id, x, y, label, notes, type) VALUES (?, ?, ?, ?, ?, ?)');
   const updateStmt = db.db.prepare('UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ? WHERE id = ?');
 
+  const savedRows = [];
+
   const transaction = db.db.transaction((pts) => {
     for (const point of pts) {
       if (typeof point.id === 'string' && point.id.startsWith('temp-')) {
-        // Nuevo punto: INSERT
-        insertStmt.run(projectId, point.x, point.y, point.label, point.notes || '', point.type || 'voltage');
+        // Nuevo punto: INSERT, luego obtener la fila insertada y adjuntar temp_id
+        const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || '', point.type || 'voltage');
+        const row = db.db.prepare('SELECT * FROM points WHERE id = ?').get(res.lastInsertRowid);
+        if (row) {
+          row.temp_id = point.id;
+          savedRows.push(row);
+        }
       } else if (typeof point.id === 'number') {
-        // Punto existente: UPDATE
+        // Punto existente: UPDATE y devolver la fila actualizada
         updateStmt.run(point.x, point.y, point.label, point.notes || '', point.type || 'voltage', point.id);
+        const row = db.db.prepare('SELECT * FROM points WHERE id = ?').get(point.id);
+        if (row) savedRows.push(row);
       }
     }
   });
 
   transaction(points);
 
-  // Después de guardar, devuelve todos los puntos del proyecto con sus IDs permanentes
-  const savedPoints = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
-  console.log('Points returned from DB after save:', JSON.stringify(savedPoints, null, 2)); // <-- Log de diagnóstico
-  return savedPoints;
+  // Si no hubieran filas (por alguna razón), devolver todos los puntos del proyecto
+  if (savedRows.length === 0) {
+    const fallback = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
+    console.log('Points returned from DB after save (fallback):', JSON.stringify(fallback, null, 2));
+    return fallback;
+  }
+
+  console.log('Points returned from DB after save:', JSON.stringify(savedRows, null, 2)); // <-- Log de diagnóstico
+  return savedRows;
 });
 
 ipcMain.handle('db:get-points', async (event, projectId) => {
@@ -195,6 +213,8 @@ ipcMain.handle('db:save-measurement', async (event, payload) => {
     }
     const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
       .run(pointId, type, JSON.stringify(value));
+    const row = db.db.prepare('SELECT * FROM measurements WHERE id = ?').get(result.lastInsertRowid);
+    console.log('Saved measurement row:', JSON.stringify(row, null, 2));
     return { id: result.lastInsertRowid };
   } catch (e) {
     console.error('Error in db:save-measurement:', e);
@@ -211,6 +231,8 @@ ipcMain.handle('db:createMeasurement', async (event, payload) => {
     }
     const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
       .run(pointId, type, JSON.stringify(value));
+    const saved = db.db.prepare('SELECT * FROM measurements WHERE id = ?').get(result.lastInsertRowid);
+    console.log('createMeasurement saved row:', JSON.stringify(saved, null, 2));
     return { id: result.lastInsertRowid };
   } catch (e) {
     console.error('Error in db:createMeasurement:', e);
