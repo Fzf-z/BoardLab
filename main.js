@@ -224,6 +224,30 @@ ipcMain.handle('db:getMeasurementsForPoint', async (event, pointId) => {
   return measurements;
 });
 
+// Delete a project and its related data (measurements, points)
+ipcMain.handle('db:delete-project', async (event, projectId) => {
+  try {
+    if (!projectId) return { status: 'error', message: 'projectId required' };
+
+    const deleteTransaction = db.db.transaction((pid) => {
+      // Delete measurements for points belonging to the project
+      db.db.prepare('DELETE FROM measurements WHERE point_id IN (SELECT id FROM points WHERE project_id = ?)').run(pid);
+      // Delete points
+      db.db.prepare('DELETE FROM points WHERE project_id = ?').run(pid);
+      // Delete project
+      db.db.prepare('DELETE FROM projects WHERE id = ?').run(pid);
+    });
+
+    deleteTransaction(projectId);
+
+    console.log(`Project ${projectId} and related data deleted.`);
+    return { status: 'success' };
+  } catch (e) {
+    console.error('Error deleting project:', e);
+    return { status: 'error', message: e.message };
+  }
+});
+
 // =================================================================
 // IPC Handlers for Hardware
 // =================================================================

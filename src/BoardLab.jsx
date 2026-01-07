@@ -156,8 +156,29 @@ const BoardLab = () => {
     };
 
     const handleDeleteProject = async (projectId) => {
-        // Note: 'db:delete-project' IPC handler would need to be implemented in main.js
-        showNotification("Delete functionality not yet implemented.", 'info');
+        if (!projectId || !window.electronAPI) return;
+
+        const confirmDelete = window.confirm('Are you sure you want to delete this project? This action cannot be undone.');
+        if (!confirmDelete) return;
+
+        try {
+            const result = await window.electronAPI.deleteProject(projectId);
+            if (result && result.status === 'success') {
+                setProjectList(prev => prev.filter(p => p.id !== projectId));
+                // If the deleted project is currently loaded, clear it
+                if (currentProject && currentProject.id === projectId) {
+                    setCurrentProject(null);
+                    board.resetBoard();
+                }
+                showNotification('Project deleted successfully.', 'success');
+            } else {
+                console.error('Failed to delete project:', result);
+                showNotification(`Failed to delete project: ${result?.message || 'unknown error'}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            showNotification('Error deleting project.', 'error');
+        }
     };
 
     const handleExportPdf = async () => {
