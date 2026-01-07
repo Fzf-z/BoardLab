@@ -48,6 +48,15 @@ const BoardLab = () => {
         }
     }, [hardware.isElectron]);
 
+    // Auto-save when a new temporary point is added
+    useEffect(() => {
+        const hasTempPoint = board.points.some(p => typeof p.id === 'string' && p.id.startsWith('temp-'));
+        if (hasTempPoint && autoSave && currentProject) {
+            console.log("Auto-saving due to new point creation...");
+            handleSaveProject();
+        }
+    }, [board.points, autoSave, currentProject]);
+
     const handleSave = (newInstrumentConfig, newApiKey, newAutoSave) => {
         const fullConfig = {
             ...hardware.instrumentConfig, // Keep existing instrument settings
