@@ -91,15 +91,19 @@ const AIPanel = ({
 
         // 2. Save the measurement to the DB
         try {
+            // For oscilloscope data, save the entire measurement object.
+            // For other types, save just the value.
+            const valueToSave = measurement.type === 'oscilloscope' ? measurement : measurement.value;
+
             const result = await window.electronAPI.createMeasurement({
                 pointId: pointToMeasure.id,
-                type: pointToMeasure.type, // <-- Usar el tipo del punto
-                value: measurement.value,
+                type: pointToMeasure.type,
+                value: valueToSave,
             });
             
             if(result.id) {
-                 // Actualizar el historial con la medición guardada
-                const newHistoryItem = { ...measurement, id: result.id };
+                 // Update history with the saved measurement
+                const newHistoryItem = { ...measurement, id: result.id, created_at: new Date().toISOString() };
                 setHistory([newHistoryItem, ...history]);
             } else {
                 console.error("Failed to save measurement, backend returned:", JSON.stringify(result, null, 2));
@@ -155,7 +159,12 @@ const AIPanel = ({
                             <div className="text-2xl font-mono text-cyan-400 font-bold mb-1">
                                 {selectedPoint.type === 'oscilloscope' ? 'Scope Data' : (selectedPoint.measurements && selectedPoint.measurements[selectedPoint.type] ? selectedPoint.measurements[selectedPoint.type].value : "---")}
                             </div>
-                            {selectedPoint.type === 'oscilloscope' && <Waveform pointData={selectedPoint} referenceData={referenceWaveform} />}
+                            {selectedPoint.type === 'oscilloscope' && (
+                                <Waveform 
+                                    pointData={selectedPoint} 
+                                    referenceData={referenceWaveform} 
+                                />
+                            )}
                             <button onClick={handleCapture} disabled={isCapturing} className={`w-full py-2 rounded font-bold flex items-center justify-center space-x-2 transition ${!isCapturing ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-gray-700 text-gray-500'}`}>
                                 {isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Wifi size={16} />}
                                 <span>{isCapturing ? 'MIDIENDO...' : 'CAPTURAR'}</span>

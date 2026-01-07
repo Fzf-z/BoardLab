@@ -163,16 +163,33 @@ ipcMain.handle('db:save-points', async (event, { projectId, points }) => {
   });
 
   transaction(points);
+    // After saving, return all project points with their permanent IDs and latest measurements
+    const finalPoints = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
+    const getMeasurementsStmt = db.db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC');
 
-  // Si no hubieran filas (por alguna razón), devolver todos los puntos del proyecto
-  if (savedRows.length === 0) {
-    const fallback = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
-    console.log('Points returned from DB after save (fallback):', JSON.stringify(fallback, null, 2));
-    return fallback;
-  }
+    const pointsWithMeasurements = finalPoints.map(point => {
+        const measurements = getMeasurementsStmt.all(point.id);
+        const measurementsByType = {};
+        for (const m of measurements) {
+            if (!measurementsByType[m.type]) {
+                try {
+                    measurementsByType[m.type] = {
+                        type: m.type,
+                        value: JSON.parse(m.value),
+                        capturedAt: m.created_at
+                    };
+                } catch (e) {
+                    console.error(`Failed to parse measurement value for point ${point.id}:`, m.value);
+                }
+            }
+        }
+        // Find the original temp-id for new points to send it back to the renderer
+        const originalPoint = savedRows.find(sr => sr.id === point.id);
+        return { ...point, measurements: measurementsByType, temp_id: originalPoint?.temp_id };
+    });
 
-  console.log('Points returned from DB after save:', JSON.stringify(savedRows, null, 2)); // <-- Log de diagnóstico
-  return savedRows;
+    console.log('Points with measurements returned from DB after save:', JSON.stringify(pointsWithMeasurements, null, 2));
+    return pointsWithMeasurements;
 });
 
 ipcMain.handle('db:get-points', async (event, projectId) => {
@@ -188,13 +205,25 @@ ipcMain.handle('db:get-points', async (event, projectId) => {
     for (const m of measurements) {
       if (!measurementsByType[m.type]) { // Solo guardar la más reciente de cada tipo
         try {
+          const parsedValue = JSON.parse(m.value);
+          if (m.type === 'oscilloscope') {
+            // For scope data, the entire parsed object is the measurement.
+            measurementsByType[m.type] = { ...parsedValue, capturedAt: m.created_at };
+          } else {
+            // For simple types, the value is just the parsed content.
+            measurementsByType[m.type] = {
+              type: m.type,
+              value: parsedValue,
+              capturedAt: m.created_at
+            };
+          }
+        } catch (e) {
+          // Fallback for non-JSON string values (older data)
           measurementsByType[m.type] = {
             type: m.type,
-            value: JSON.parse(m.value),
+            value: m.value,
             capturedAt: m.created_at
           };
-        } catch (e) {
-          console.error(`Failed to parse measurement value for point ${point.id}:`, m.value);
         }
       }
     }
