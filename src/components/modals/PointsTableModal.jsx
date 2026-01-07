@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ArrowUp, ArrowDown, Search } from 'lucide-react';
+import { X, ArrowUp, ArrowDown, Search, Trash2 } from 'lucide-react';
 
-const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPoint }) => {
+const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPoint, onDeletePoint }) => {
     const [editedPoints, setEditedPoints] = useState(JSON.parse(JSON.stringify(points)));
-    const [sortColumn, setSortColumn] = useState('label'); // Default sort column
-    const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+    const [sortColumn, setSortColumn] = useState('label');
+    const [sortDirection, setSortDirection] = useState('asc');
     const [filterText, setFilterText] = useState('');
-
     const rowRefs = useRef({});
 
     useEffect(() => {
+        // When the points prop changes (e.g., after a delete), update the local state.
         setEditedPoints(JSON.parse(JSON.stringify(points)));
     }, [points]);
 
@@ -58,8 +58,6 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
         const lowerCaseFilterText = filterText.toLowerCase();
         const labelMatch = point.label.toLowerCase().includes(lowerCaseFilterText);
         const notesMatch = point.notes?.toLowerCase().includes(lowerCaseFilterText);
-        
-        // Check if measurements exists before trying to access its values
         const measurementMatch = point.measurements && Object.values(point.measurements).some(m => 
             m?.value?.toString().toLowerCase().includes(lowerCaseFilterText)
         );
@@ -75,13 +73,12 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
             compareB = b[sortColumn] || '';
             return sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
         } else if (['voltage', 'resistance', 'diode'].includes(sortColumn)) {
-            // Extract numeric value from string (e.g., "1.23 V" -> 1.23)
-            compareA = parseFloat(a.measurements?.[sortColumn]?.value) || 0; // Added optional chaining
-            compareB = parseFloat(b.measurements?.[sortColumn]?.value) || 0; // Added optional chaining
+            compareA = parseFloat(a.measurements?.[sortColumn]?.value) || 0;
+            compareB = parseFloat(b.measurements?.[sortColumn]?.value) || 0;
             return sortDirection === 'asc' ? compareA - compareB : compareB - compareA;
         }
         
-        return 0; // Should not happen
+        return 0;
     });
 
     const SortIcon = ({ column }) => {
@@ -116,21 +113,23 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-700">
-                                <th className="p-3 cursor-pointer hover:bg-gray-600 flex items-center" onClick={() => handleSort('label')}>
+                                <th className="p-3 w-12 text-right">#</th>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('label')}>
                                     Label <SortIcon column="label" />
                                 </th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600 flex items-center" onClick={() => handleSort('voltage')}>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('voltage')}>
                                     Voltage <SortIcon column="voltage" />
                                 </th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600 flex items-center" onClick={() => handleSort('resistance')}>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('resistance')}>
                                     Resistance <SortIcon column="resistance" />
                                 </th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600 flex items-center" onClick={() => handleSort('diode')}>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('diode')}>
                                     Diode <SortIcon column="diode" />
                                 </th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600 flex items-center" onClick={() => handleSort('notes')}>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('notes')}>
                                     Notes <SortIcon column="notes" />
                                 </th>
+                                <th className="p-3 w-24 text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -174,6 +173,24 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
                                             onChange={(e) => handleNotesChange(point.id, e.target.value)}
                                             className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full"
                                         />
+                                    </td>
+                                    <td className="px-4 py-2 text-center">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm('Are you sure you want to delete this point?')) {
+                                                    if (onDeletePoint) {
+                                                        onDeletePoint(point.id);
+                                                    }
+                                                    // Immediately update local state to reflect the deletion
+                                                    setEditedPoints(prev => prev.filter(p => p.id !== point.id));
+                                                }
+                                            }}
+                                            className="p-2 text-red-400 hover:bg-red-900/30 rounded-lg"
+                                            title="Delete Point"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
