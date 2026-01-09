@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 
 export const useBoard = () => {
     const [imageSrc, setImageSrc] = useState(null);
@@ -12,7 +12,35 @@ export const useBoard = () => {
     const containerRef = useRef(null);
     const fileInputRef = useRef(null);
 
-    const selectedPoint = points.find(p => p.id === selectedPointId);
+    useEffect(() => {
+        if (imageSrc && containerRef.current) {
+            const img = new Image();
+            img.onload = () => {
+                const container = containerRef.current;
+                if (!container) return; // Guard against component unmount
+
+                const containerAspect = container.clientWidth / container.clientHeight;
+                const imageAspect = img.naturalWidth / img.naturalHeight;
+
+                let newScale;
+                if (containerAspect > imageAspect) {
+                    newScale = container.clientHeight / img.naturalHeight;
+                } else {
+                    newScale = container.clientWidth / img.naturalWidth;
+                }
+                
+                const finalScale = newScale * 0.95; // Add a small margin
+                const centeredX = (container.clientWidth - (img.naturalWidth * finalScale)) / 2;
+                const centeredY = (container.clientHeight - (img.naturalHeight * finalScale)) / 2;
+
+                setScale(finalScale); 
+                setPosition({ x: centeredX, y: centeredY });
+            };
+            img.src = imageSrc;
+        }
+    }, [imageSrc]); // Only depends on imageSrc
+
+    const selectedPoint = useMemo(() => points.find(p => p.id === selectedPointId), [points, selectedPointId]);
 
     const handleImageUpload = (e) => {
         const file = e.target.files[0];
@@ -21,8 +49,7 @@ export const useBoard = () => {
             reader.onload = (ev) => {
                 setImageSrc(ev.target.result);
                 setPoints([]);
-                setScale(1);
-                setPosition({ x: 0, y: 0 });
+                // Scale and position are now handled by useEffect
             };
             reader.readAsDataURL(file);
         }
@@ -58,19 +85,18 @@ export const useBoard = () => {
         setIsDragging(false);
     };
 
-    const handleImageClick = (e, mode, projectId) => { // <-- projectId añadido
+    const handleImageClick = (e, mode, projectId) => {
         if (mode === 'measure' && !isDragging && e.button === 0) {
             if (!projectId) {
                 console.error("Cannot add point: No project is active.");
-                // Podrías mostrar una notificación al usuario aquí.
                 return;
             }
             const rect = e.currentTarget.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / scale;
-            const y = (e.clientY - rect.top) / scale;
+            const x = (e.clientX - rect.left - position.x) / scale;
+            const y = (e.clientY - rect.top - position.y) / scale;
             const newPoint = {
-                id: `temp-${Date.now()}`, // Usar un ID temporal
-                project_id: projectId, // <-- Asociar con el proyecto
+                id: `temp-${Date.now()}`,
+                project_id: projectId,
                 x,
                 y,
                 label: `TP${points.length + 1}`,

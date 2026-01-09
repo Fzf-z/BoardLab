@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const net = require('net');
-const db = require('./src/database'); // <-- Importar la base de datos
+const { Worker } = require('worker_threads');
 const Store = require('electron-store');
 const puppeteer = require('puppeteer');
 const { setOwonConfig, getOwonMeasurement } = require('./src/drivers/owon');
@@ -16,6 +16,53 @@ if (require('electron-squirrel-startup')) {
 }
 
 let mainWindow = null;
+
+// =================================================================
+// Database Worker
+// =================================================================
+
+// Initialize the database worker
+const dbPath = path.join(app.getPath('userData'), 'boardlab.db');
+const dbWorker = new Worker(path.join(__dirname, 'db-worker.js'), {
+  workerData: { dbPath }
+});
+
+// Keep track of pending queries
+const pendingQueries = new Map();
+let queryId = 0;
+
+// Listen for messages from the worker
+dbWorker.on('message', (msg) => {
+  const { id, result, error } = msg;
+  if (pendingQueries.has(id)) {
+    const { resolve, reject } = pendingQueries.get(id);
+    pendingQueries.delete(id);
+    if (error) {
+      console.error('Database worker error:', error);
+      reject(new Error(error.message));
+    } else {
+      resolve(result);
+    }
+  }
+});
+
+dbWorker.on('error', err => console.error('DB worker error:', err));
+dbWorker.on('exit', code => {
+  if (code !== 0) console.error(`DB worker stopped with exit code ${code}`);
+});
+
+// Helper function to query the database worker
+function dbQuery(type, payload) {
+  return new Promise((resolve, reject) => {
+    const id = queryId++;
+    pendingQueries.set(id, { resolve, reject });
+    dbWorker.postMessage({ id, type, payload });
+  });
+}
+
+// =================================================================
+// Main Window
+// =================================================================
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -35,11 +82,8 @@ function createWindow() {
     //mainWindow.webContents.openDevTools();
   } else {
     console.log("Cargando aplicación desde el build de producción...");
-    // For production loads (file://) ensure we set a secure Content-Security-Policy header
-    // to avoid the Electron insecure-CSP warning in packaged builds.
     mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
       const responseHeaders = details.responseHeaders || {};
-      // A reasonably strict CSP for packaged app. Adjust if additional sources are required.
       responseHeaders['Content-Security-Policy'] = [
         "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws:"
       ];
@@ -53,13 +97,7 @@ function createWindow() {
   });
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', () => {
-  db.init(app); // <-- Initialize database BEFORE creating the window
-  createWindow();
-});
+app.on('ready', createWindow);
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
@@ -68,236 +106,28 @@ app.on('activate', () => {
 });
 
 app.on('window-all-closed', () => {
-  db.close(); // <-- Cerrar la conexión a la BD
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  dbQuery('close').finally(() => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
 });
 
 // =================================================================
-// IPC Handlers for Database
+// IPC Handlers for Database (Now non-blocking)
 // =================================================================
 
-ipcMain.handle('db:get-projects', async () => {
-  // Excluimos la imagen para que la carga inicial sea rápida
-  const projects = db.db.prepare('SELECT id, board_type, board_model, attributes, created_at FROM projects ORDER BY created_at DESC').all();
-  return projects.map(p => ({
-    ...p,
-    attributes: JSON.parse(p.attributes || '{}') // Parsear el JSON al enviar
-  }));
-});
+ipcMain.handle('db:get-projects', () => dbQuery('db:get-projects'));
+ipcMain.handle('db:get-project-with-image', (event, projectId) => dbQuery('db:get-project-with-image', projectId));
+ipcMain.handle('db:create-project', (event, projectData) => dbQuery('db:create-project', projectData));
+ipcMain.handle('db:get-all-attributes', () => dbQuery('db:get-all-attributes'));
+ipcMain.handle('db:save-points', (event, payload) => dbQuery('db:save-points', payload));
+ipcMain.handle('db:get-points', (event, projectId) => dbQuery('db:get-points', projectId));
+ipcMain.handle('db:save-measurement', (event, payload) => dbQuery('db:save-measurement', payload));
+ipcMain.handle('db:createMeasurement', (event, payload) => dbQuery('db:createMeasurement', payload));
+ipcMain.handle('db:getMeasurementsForPoint', (event, pointId) => dbQuery('db:getMeasurementsForPoint', pointId));
+ipcMain.handle('db:delete-project', (event, projectId) => dbQuery('db:delete-project', projectId));
 
-ipcMain.handle('db:get-project-with-image', async (event, projectId) => {
-    const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
-    if (project) {
-        project.attributes = JSON.parse(project.attributes || '{}');
-    }
-    return project;
-});
-
-ipcMain.handle('db:create-project', async (event, projectData) => {
-  const { board_type, board_model, attributes, image_data } = projectData;
-  
-  // Convertir el Uint8Array (recibido desde el renderer) a un Buffer
-  const imageBuffer = Buffer.from(image_data);
-
-  const result = db.db.prepare(
-    'INSERT INTO projects (board_type, board_model, attributes, image_data) VALUES (?, ?, ?, ?)'
-  ).run(board_type, board_model, JSON.stringify(attributes), imageBuffer);
-  
-  return { id: result.lastInsertRowid, ...projectData, image_data: imageBuffer };
-});
-
-ipcMain.handle('db:get-all-attributes', async () => {
-  if (!db || !db.db) {
-    console.warn('DB not initialized yet when db:get-all-attributes called');
-    return { keys: [], values: [] };
-  }
-  const projects = db.db.prepare('SELECT attributes FROM projects WHERE attributes IS NOT NULL').all();
-  const keys = new Set();
-  const values = new Set();
-
-  for (const proj of projects) {
-    try {
-      const attrs = JSON.parse(proj.attributes);
-      for (const key in attrs) {
-        keys.add(key);
-        if (typeof attrs[key] === 'string' && attrs[key].trim() !== '') {
-          values.add(attrs[key]);
-        }
-      }
-    } catch (e) {
-      console.error('Error parsing attributes JSON:', e);
-    }
-  }
-
-  return {
-    keys: [...keys].sort(),
-    values: [...values].sort(),
-  };
-});
-
-ipcMain.handle('db:save-points', async (event, { projectId, points }) => {
-  const insertStmt = db.db.prepare('INSERT INTO points (project_id, x, y, label, notes, type) VALUES (?, ?, ?, ?, ?, ?)');
-  const updateStmt = db.db.prepare('UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ? WHERE id = ?');
-
-  const savedRows = [];
-
-  const transaction = db.db.transaction((pts) => {
-    for (const point of pts) {
-      if (typeof point.id === 'string' && point.id.startsWith('temp-')) {
-        // Nuevo punto: INSERT, luego obtener la fila insertada y adjuntar temp_id
-        const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || '', point.type || 'voltage');
-        const row = db.db.prepare('SELECT * FROM points WHERE id = ?').get(res.lastInsertRowid);
-        if (row) {
-          row.temp_id = point.id;
-          savedRows.push(row);
-        }
-      } else if (typeof point.id === 'number') {
-        // Punto existente: UPDATE y devolver la fila actualizada
-        updateStmt.run(point.x, point.y, point.label, point.notes || '', point.type || 'voltage', point.id);
-        const row = db.db.prepare('SELECT * FROM points WHERE id = ?').get(point.id);
-        if (row) savedRows.push(row);
-      }
-    }
-  });
-
-  transaction(points);
-    // After saving, return all project points with their permanent IDs and latest measurements
-    const finalPoints = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
-    const getMeasurementsStmt = db.db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC');
-
-    const pointsWithMeasurements = finalPoints.map(point => {
-        const measurements = getMeasurementsStmt.all(point.id);
-        const measurementsByType = {};
-        for (const m of measurements) {
-            if (!measurementsByType[m.type]) {
-                try {
-                    measurementsByType[m.type] = {
-                        type: m.type,
-                        value: JSON.parse(m.value),
-                        capturedAt: m.created_at
-                    };
-                } catch (e) {
-                    console.error(`Failed to parse measurement value for point ${point.id}:`, m.value);
-                }
-            }
-        }
-        // Find the original temp-id for new points to send it back to the renderer
-        const originalPoint = savedRows.find(sr => sr.id === point.id);
-        return { ...point, measurements: measurementsByType, temp_id: originalPoint?.temp_id };
-    });
-
-    console.log('Points with measurements returned from DB after save:', JSON.stringify(pointsWithMeasurements, null, 2));
-    return pointsWithMeasurements;
-});
-
-ipcMain.handle('db:get-points', async (event, projectId) => {
-  const points = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
-  const getMeasurementsStmt = db.db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC');
-
-  // Para cada punto, buscar y adjuntar sus mediciones
-  const pointsWithMeasurements = points.map(point => {
-    const measurements = getMeasurementsStmt.all(point.id);
-    const measurementsByType = {};
-    
-    // Agrupar las mediciones por tipo (voltage, resistance, etc.)
-    for (const m of measurements) {
-      if (!measurementsByType[m.type]) { // Solo guardar la más reciente de cada tipo
-        try {
-          const parsedValue = JSON.parse(m.value);
-          if (m.type === 'oscilloscope') {
-            // For scope data, the entire parsed object is the measurement.
-            measurementsByType[m.type] = { ...parsedValue, capturedAt: m.created_at };
-          } else {
-            // For simple types, the value is just the parsed content.
-            measurementsByType[m.type] = {
-              type: m.type,
-              value: parsedValue,
-              capturedAt: m.created_at
-            };
-          }
-        } catch (e) {
-          // Fallback for non-JSON string values (older data)
-          measurementsByType[m.type] = {
-            type: m.type,
-            value: m.value,
-            capturedAt: m.created_at
-          };
-        }
-      }
-    }
-    return { ...point, measurements: measurementsByType };
-  });
-
-  return pointsWithMeasurements;
-});
-
-ipcMain.handle('db:save-measurement', async (event, payload) => {
-  console.log('Received payload for db:save-measurement:', payload); 
-  try {
-    const { pointId, type, value } = payload || {};
-    if (!pointId || !type) {
-      return { status: 'error', message: 'Invalid payload: pointId and type are required' };
-    }
-    const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
-      .run(pointId, type, JSON.stringify(value));
-    const row = db.db.prepare('SELECT * FROM measurements WHERE id = ?').get(result.lastInsertRowid);
-    console.log('Saved measurement row:', JSON.stringify(row, null, 2));
-    return { id: result.lastInsertRowid };
-  } catch (e) {
-    console.error('Error in db:save-measurement:', e);
-    return { status: 'error', message: e.message };
-  }
-});
-
-ipcMain.handle('db:createMeasurement', async (event, payload) => {
-  console.log('Received payload for db:createMeasurement:', payload); // <-- Añadir log
-  try {
-    const { pointId, type, value } = payload || {};
-    if (!pointId || !type) {
-      return { status: 'error', message: 'Invalid payload: pointId and type are required' };
-    }
-    const result = db.db.prepare('INSERT INTO measurements (point_id, type, value) VALUES (?, ?, ?)')
-      .run(pointId, type, JSON.stringify(value));
-    const saved = db.db.prepare('SELECT * FROM measurements WHERE id = ?').get(result.lastInsertRowid);
-    console.log('createMeasurement saved row:', JSON.stringify(saved, null, 2));
-    return { id: result.lastInsertRowid };
-  } catch (e) {
-    console.error('Error in db:createMeasurement:', e);
-    return { status: 'error', message: e.message };
-  }
-});
-
-ipcMain.handle('db:getMeasurementsForPoint', async (event, pointId) => {
-  if (!pointId) return [];
-  const measurements = db.db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC').all(pointId);
-  return measurements;
-});
-
-// Delete a project and its related data (measurements, points)
-ipcMain.handle('db:delete-project', async (event, projectId) => {
-  try {
-    if (!projectId) return { status: 'error', message: 'projectId required' };
-
-    const deleteTransaction = db.db.transaction((pid) => {
-      // Delete measurements for points belonging to the project
-      db.db.prepare('DELETE FROM measurements WHERE point_id IN (SELECT id FROM points WHERE project_id = ?)').run(pid);
-      // Delete points
-      db.db.prepare('DELETE FROM points WHERE project_id = ?').run(pid);
-      // Delete project
-      db.db.prepare('DELETE FROM projects WHERE id = ?').run(pid);
-    });
-
-    deleteTransaction(projectId);
-
-    console.log(`Project ${projectId} and related data deleted.`);
-    return { status: 'success' };
-  } catch (e) {
-    console.error('Error deleting project:', e);
-    return { status: 'error', message: e.message };
-  }
-});
 
 // =================================================================
 // IPC Handlers for Hardware
@@ -334,19 +164,8 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
   }
 
     try {
-        // Corrección: Usar el objeto db.db y los métodos prepare/get/all
-        const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
-        if (project) {
-            project.attributes = JSON.parse(project.attributes || '{}');
-        }
-
-        const points = db.db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
-        const getMeasurementsStmt = db.db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC');
-
-        const pointsWithMeasurements = points.map(p => ({
-            ...p,
-            measurements: getMeasurementsStmt.all(p.id).map(m => ({...m, value: JSON.parse(m.value || '{}')})) // Parsear mediciones
-        }));
+        const project = await dbQuery('db:get-project-with-image', projectId);
+        const pointsWithMeasurements = await dbQuery('db:get-points', projectId);
 
         // NOTA: generateReportHtml no está definido aquí, asumimos que existe en el scope.
         // const htmlContent = generateReportHtml(project, pointsWithMeasurements);
