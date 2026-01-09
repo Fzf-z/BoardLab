@@ -55,10 +55,10 @@ const BoardView = ({
                         <div
                             key={p.id}
                             onClick={(e) => { e.stopPropagation(); if (!isDragging) setSelectedPointId && setSelectedPointId(p.id); }}
-                            className={`absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-2 shadow-lg flex items-center justify-center cursor-pointer transform hover:scale-125 transition z-20 ${selectedPointId === p.id ? 'bg-yellow-400 border-black text-black' : p.measurements && Object.keys(p.measurements).length > 0 ? 'bg-green-500 border-white text-white' : 'bg-red-500 border-white text-white'}`}
+                            className={`absolute px-2 py-0.5 rounded shadow-lg flex items-center justify-center cursor-pointer transition z-20 transform -translate-x-1/2 -translate-y-1/2 hover:scale-110 whitespace-nowrap ${selectedPointId === p.id ? 'bg-yellow-400 border-2 border-black text-black' : p.measurements && Object.keys(p.measurements).length > 0 ? 'bg-green-500 border border-white text-white' : 'bg-red-500 border border-white text-white'}`}
                             style={{ left: p.x, top: p.y }}
                         >
-                            <span className="text-[10px] font-bold">{typeof p.id === 'number' ? p.id : 'N'}</span>
+                            <span className="text-xs font-bold">{p.label || (typeof p.id === 'number' ? p.id : 'N')}</span>
                         </div>
                     ))}
                 </div>

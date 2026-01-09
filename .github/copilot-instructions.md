@@ -24,6 +24,13 @@ CRÍTICO: Contiene la lógica de conexión TCP directa con el hardware (Drivers)
 
 Escucha eventos IPC (ipcMain.handle) para ejecutar mediciones.
 
+Base de datos: Delega todas las operaciones de la DB a un `Worker` (`db-worker.js`) para evitar bloquear el hilo principal. Usa `dbQuery` para comunicación asíncrona.
+
+db-worker.js:
+- Inicializa la base de datos `better-sqlite3`.
+- Maneja las consultas en un hilo separado.
+- Recibe mensajes del proceso principal y devuelve resultados/errores.
+
 preload.js: - Puente de seguridad contextBridge.
 
 Expone la API segura window.electronAPI al Frontend.
