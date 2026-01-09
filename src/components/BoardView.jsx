@@ -22,6 +22,7 @@ const BoardView = ({
     return (
         <div className="flex-1 relative bg-gray-950 overflow-hidden select-none">
             <div
+                ref={containerRef}
                 className="w-full h-full"
                 onWheel={handleWheel}
                 onMouseDown={(e) => handleMouseDown(e, mode)}
@@ -31,7 +32,6 @@ const BoardView = ({
                 style={{ cursor: isDragging ? 'grabbing' : mode === 'measure' ? 'crosshair' : 'grab' }}
             >
                 <div
-                    ref={containerRef}
                     className="absolute origin-top-left transition-transform duration-75 ease-out"
                     style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale})` }}
                 >
