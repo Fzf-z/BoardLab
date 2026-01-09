@@ -16,29 +16,37 @@ export const useBoard = () => {
         if (imageSrc && containerRef.current) {
             const img = new Image();
             img.onload = () => {
-                const container = containerRef.current;
-                if (!container) return; // Guard against component unmount
+                // Use a timeout to ensure the container has been rendered and has dimensions
+                setTimeout(() => {
+                    const container = containerRef.current;
+                    if (!container) return; // Guard against component unmount
 
-                const containerAspect = container.clientWidth / container.clientHeight;
-                const imageAspect = img.naturalWidth / img.naturalHeight;
+                    const { naturalWidth, naturalHeight } = img;
+                    if (naturalWidth === 0 || naturalHeight === 0 || container.clientWidth === 0 || container.clientHeight === 0) {
+                        return;
+                    }
 
-                let newScale;
-                if (containerAspect > imageAspect) {
-                    newScale = container.clientHeight / img.naturalHeight;
-                } else {
-                    newScale = container.clientWidth / img.naturalWidth;
-                }
-                
-                const finalScale = newScale * 0.95; // Add a small margin
-                const centeredX = (container.clientWidth - (img.naturalWidth * finalScale)) / 2;
-                const centeredY = (container.clientHeight - (img.naturalHeight * finalScale)) / 2;
+                    const containerAspect = container.clientWidth / container.clientHeight;
+                    const imageAspect = naturalWidth / naturalHeight;
 
-                setScale(finalScale); 
-                setPosition({ x: centeredX, y: centeredY });
+                    let newScale;
+                    if (containerAspect > imageAspect) {
+                        newScale = container.clientHeight / naturalHeight;
+                    } else {
+                        newScale = container.clientWidth / naturalWidth;
+                    }
+                    
+                    const finalScale = newScale * 0.95; // Add a small margin
+                    const centeredX = (container.clientWidth - (naturalWidth * finalScale)) / 2;
+                    const centeredY = (container.clientHeight - (naturalHeight * finalScale)) / 2;
+
+                    setScale(finalScale); 
+                    setPosition({ x: centeredX, y: centeredY });
+                }, 0);
             };
             img.src = imageSrc;
         }
-    }, [imageSrc]); // Only depends on imageSrc
+    }, [imageSrc, containerRef.current]); // Add containerRef.current to dependencies
 
     const selectedPoint = useMemo(() => points.find(p => p.id === selectedPointId), [points, selectedPointId]);
 
@@ -92,8 +100,12 @@ export const useBoard = () => {
                 return;
             }
             const rect = e.currentTarget.getBoundingClientRect();
-            const x = (e.clientX - rect.left - position.x) / scale;
-            const y = (e.clientY - rect.top - position.y) / scale;
+            // rect is already transformed (scaled and translated) because the click target is inside the transformed container.
+            // So rect.left represents the visual left edge of the image on screen.
+            // We just need to calculate the relative position and divide by scale.
+            // We do NOT subtract position.x/y because rect.left/top already accounts for it.
+            const x = (e.clientX - rect.left) / scale;
+            const y = (e.clientY - rect.top) / scale;
             const newPoint = {
                 id: `temp-${Date.now()}`,
                 project_id: projectId,

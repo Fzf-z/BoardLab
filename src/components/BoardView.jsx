@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { Upload } from 'lucide-react';
 
 const BoardView = ({
@@ -19,26 +19,6 @@ const BoardView = ({
     currentProjectId,
     containerRef
 }) => {
-    const imageRef = useRef(null);
-
-    useEffect(() => {
-        if (!imageRef.current || !containerRef || !containerRef.current) return;
-
-        imageRef.current.onload = () => {
-            const { naturalWidth, naturalHeight } = imageRef.current;
-            const { width, height } = containerRef.current.getBoundingClientRect();
-            const scaleX = width / naturalWidth;
-            const scaleY = height / naturalHeight;
-            const initialScale = Math.min(scaleX, scaleY) * 0.9;
-
-            setPosition({ x: (width - naturalWidth * initialScale) / 2, y: (height - naturalHeight * initialScale) / 2 });
-        };
-
-        return () => {
-            if (imageRef.current) imageRef.current.onload = null;
-        };
-    }, [imageSrc, setPosition, containerRef]);
-
     return (
         <div className="flex-1 relative bg-gray-950 overflow-hidden select-none">
             <div
@@ -56,7 +36,7 @@ const BoardView = ({
                     style={{ transform: `translate(${position.x}px, ${position.y}px) scale(${scale})` }}
                 >
                     {imageSrc ? (
-                        <img ref={imageRef} src={imageSrc} className="max-w-none shadow-2xl pointer-events-none" alt="Board" />
+                        <img src={imageSrc} className="max-w-none shadow-2xl pointer-events-none" alt="Board" />
                     ) : (
                         <div className="w-[800px] h-[600px] bg-gray-900 flex items-center justify-center border-2 border-dashed border-gray-700 rounded-xl">
                             <div className="text-gray-500 text-center">
