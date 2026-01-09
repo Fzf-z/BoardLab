@@ -7,6 +7,7 @@ const puppeteer = require('puppeteer');
 const { setOwonConfig, getOwonMeasurement } = require('./src/drivers/owon');
 const { getRigolData } = require('./src/drivers/rigol');
 const { testConnection } = require('./src/drivers/connection');
+const { generateReportHtml } = require('./src/report-generator');
 
 const store = new Store();
 
@@ -165,11 +166,12 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
 
     try {
         const project = await dbQuery('db:get-project-with-image', projectId);
+        if (!project) {
+            throw new Error(`Project with ID ${projectId} not found.`);
+        }
         const pointsWithMeasurements = await dbQuery('db:get-points', projectId);
 
-        // NOTA: generateReportHtml no está definido aquí, asumimos que existe en el scope.
-        // const htmlContent = generateReportHtml(project, pointsWithMeasurements);
-        const htmlContent = `<h1>Report for ${project.board_model}</h1><p>PDF generation placeholder.</p>`; // Placeholder
+        const htmlContent = generateReportHtml(project, pointsWithMeasurements);
 
         const browser = await puppeteer.launch({ headless: "new" });
         const page = await browser.newPage();
