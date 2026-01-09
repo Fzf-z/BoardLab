@@ -58,7 +58,6 @@ const AIPanel = ({
 
         // Si el punto es nuevo (ID temporal), guárdalo primero para obtener un ID permanente.
         if (typeof pointToMeasure.id === 'string' && pointToMeasure.id.startsWith('temp-')) {
-            console.log("Temporary point detected, saving project before measurement...");
             const savedPoints = await handleSaveProject();
             // Añadir comprobación de seguridad
             if (Array.isArray(savedPoints)) {

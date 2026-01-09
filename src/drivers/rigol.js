@@ -33,11 +33,6 @@ function getRigolData(ip, port) {
             client.destroy();
 
             try {
-                console.log("--- Final Received Data (ASCII) ---");
-                console.log(receivedData.toString('ascii').substring(0, 500));
-                console.log("--- Final Received Data (Hex) ---");
-                console.log(receivedData.toString('hex').substring(0, 1000));
-
                 if (receivedData.length === 0) throw new Error("No se recibió respuesta alguna del instrumento.");
                 
                 const bufferAsString = receivedData.toString('ascii');
@@ -125,12 +120,7 @@ function getRigolData(ip, port) {
         });
 
         client.on('data', (data) => {
-            console.log(`[NET] Recibido ${data.length} bytes.`);
-            // console.log('Chunk (ASCII): ', data.toString('ascii').substring(0, 100));
-            // console.log('Chunk (Hex): ', data.toString('hex').substring(0, 100));
-
             receivedData = Buffer.concat([receivedData, data]);
-            console.log(`[NET] Buffer acumulado: ${receivedData.length} bytes.`);
 
             if (!binaryBlockStartDetected) {
                 const bufferAsString = receivedData.toString('ascii');
@@ -146,7 +136,6 @@ function getRigolData(ip, port) {
                                 const dataLengthStrEnd = dataLengthStrStart + numDigits;
                                 if (receivedData.length >= dataLengthStrEnd) {
                                     currentDataLength = parseInt(receivedData.toString('ascii', dataLengthStrStart, dataLengthStrEnd), 10);
-                                    console.log(`[NET] TMC Header detectado: numDigits=${numDigits}, dataLength=${currentDataLength}`);
                                 }
                             }
                         } catch (e) {
@@ -161,7 +150,6 @@ function getRigolData(ip, port) {
             if (binaryBlockStartDetected && currentDataLength !== -1) {
                 const expectedTotalSize = binaryStartIndex + 2 + numDigits + currentDataLength + 1; // +1 para el \n final
                 if (receivedData.length >= expectedTotalSize) {
-                    console.log(`[NET] Todos los datos (${expectedTotalSize} bytes) recibidos. Procesando...`);
                     processAndResolve();
                 }
             }
