@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ArrowUp, ArrowDown, Search, Trash2 } from 'lucide-react';
-import { useProject } from '../contexts/ProjectContext';
+import { useProject } from '../../contexts/ProjectContext';
 
 const PointsTableModal = ({ onClose }) => {
     const { points, deletePoint, board } = useProject();

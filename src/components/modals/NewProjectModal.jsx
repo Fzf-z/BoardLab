@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, FilePlus, UploadCloud, Trash2, PlusCircle } from 'lucide-react';
 
-const NewProjectModal = ({ isOpen, onClose, onCreate, knownAttributes }) => {
+const NewProjectModal = ({ isOpen, onClose, onCreate, knownAttributes = { keys: [], values: [] } }) => {
     const [availableTypes, setAvailableTypes] = useState(["Laptop", "Desktop", "Industrial", "Mobile", "Other"]);
     const [boardType, setBoardType] = useState("Laptop");
     const [boardModel, setBoardModel] = useState('');

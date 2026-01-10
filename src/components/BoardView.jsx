@@ -56,7 +56,7 @@ const BoardView = ({ mode }) => {
         const screenY = position.y + (point.y * scale);
         return (
             <div 
-                className="absolute z-50 bg-gray-900/95 backdrop-blur-sm border border-gray-700 text-white p-3 rounded-lg shadow-2xl w-48 pointer-events-none"
+                className="absolute z-50 bg-gray-900/95 backdrop-blur-xs border border-gray-700 text-white p-3 rounded-lg shadow-2xl w-48 pointer-events-none"
                 style={{ left: screenX + 20, top: screenY, transform: 'translateY(-50%)' }}
             >
                 <div className="font-bold text-sm border-b border-gray-700 pb-1 mb-2 flex justify-between items-center text-blue-400">{point.label || `Point ${point.id}`}</div>
