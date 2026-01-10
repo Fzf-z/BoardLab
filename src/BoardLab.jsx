@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-import { useBoard } from './hooks/useBoard';
+import { useProject } from './contexts/ProjectContext';
 import { useGemini } from './hooks/useGemini';
 import { useHardware } from './hooks/useHardware';
 
@@ -9,257 +8,60 @@ import StatusBar from './components/StatusBar';
 import BoardView from './components/BoardView';
 import AIPanel from './components/AIPanel';
 import Settings from './components/Settings';
-import { useNotifier } from './contexts/NotifierContext';
 import PointsTableModal from './components/modals/PointsTableModal';
 import ProjectManagerModal from './components/modals/ProjectManagerModal';
 import AIModal from './components/modals/AIModal';
 import NewProjectModal from './components/modals/NewProjectModal';
 
 const BoardLab = () => {
-    const [mode, setMode] = useState('view'); // 'view' or 'measure'
-    const [apiKey, setApiKey] = useState('');
+    // UI State - Stays in this component
+    const [mode, setMode] = useState('view');
     const [pointsTableOpen, setPointsTableOpen] = useState(false);
-    const [currentProject, setCurrentProject] = useState(null);
     const [isProjectManagerOpen, setProjectManagerOpen] = useState(false);
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState(false);
-    const [projectList, setProjectList] = useState([]);
-    const [autoSave, setAutoSave] = useState(false);
-    const [knownAttributes, setKnownAttributes] = useState({ keys: [], values: [] });
 
-    const board = useBoard();
+    // Global Project State - Consumed from context
+    const {
+        board,
+        currentProject,
+        projectList,
+        createProject,
+        saveProject,
+        loadProject,
+        deleteProject,
+        updateProject,
+        fetchProjectList,
+        setAutoSave,
+        autoSave,
+    } = useProject();
+
+    // Other Hooks
+    const [apiKey, setApiKey] = useState(''); // API key can be local UI state for Settings
     const hardware = useHardware();
     const gemini = useGemini(apiKey);
-    const { showNotification } = useNotifier();
 
+    // Load API key and settings on mount
     useEffect(() => {
         if (hardware.isElectron) {
-            window.electronAPI.loadApiKey().then(key => {
-                if (key) setApiKey(key);
-            });
+            window.electronAPI.loadApiKey().then(key => setApiKey(key || ''));
             window.electronAPI.loadConfig().then(config => {
-                if (config && config.appSettings) {
-                    setAutoSave(config.appSettings.autoSave || false);
+                if (config?.appSettings?.autoSave) {
+                    setAutoSave(true);
                 }
             });
-            // Cargar atributos para autocompletado
-            window.electronAPI.getAllAttributes().then(attrs => {
-                setKnownAttributes(attrs);
-            });
         }
-    }, [hardware.isElectron]);
-
-    // Auto-save when a new temporary point is added
-    useEffect(() => {
-        const hasTempPoint = board.points.some(p => typeof p.id === 'string' && p.id.startsWith('temp-'));
-        if (hasTempPoint && autoSave && currentProject) {
-            console.log("Auto-saving due to new point creation...");
-            handleSaveProject();
-        }
-    }, [board.points, autoSave, currentProject]);
-
-    const handleSave = (newInstrumentConfig, newApiKey, newAutoSave) => {
-        const fullConfig = {
-            ...hardware.instrumentConfig, // Keep existing instrument settings
-            ...newInstrumentConfig,
-            appSettings: { autoSave: newAutoSave }
-        };
-        hardware.handleSaveConfig(fullConfig);
-        setApiKey(newApiKey);
-        setAutoSave(newAutoSave);
-
-        if (hardware.isElectron) {
-            window.electronAPI.saveApiKey(newApiKey);
-            window.electronAPI.saveConfig(fullConfig); // Save the full config
-        }
-        showNotification('Settings saved successfully!', 'success');
-    };
-
-    const handlePointsSave = (newPoints) => {
-        board.setPoints(newPoints);
-    };
-
-    const handleNewProject = () => {
-        setNewProjectModalOpen(true);
-    };
-
-    const handleCreateProject = async (projectData) => {
-        if (projectData && window.electronAPI) {
-            try {
-                const newProject = await window.electronAPI.createProject(projectData);
-                setCurrentProject(newProject);
-                
-                // Convert Uint8Array to Blob URL to display the image
-                const blob = new Blob([projectData.image_data], { type: 'image/png' }); // Adjust type if necessary
-                const imageUrl = URL.createObjectURL(blob);
-                board.setImage(imageUrl);
-                board.setPoints([]); // Clear points for the new project
-
-                showNotification(`Project '${projectData.board_model}' created!`, 'success');
-            } catch (error) {
-                console.error("Error creating project:", error);
-                showNotification("Failed to create project.", 'error');
-            }
-        }
-    };
-
-    const handleSaveProject = async () => {
-        if (!currentProject) {
-            showNotification("No active project to save. Create one first.", 'warning');
-            return; // Devuelve undefined si no hay proyecto
-        }
-        if (!window.electronAPI) return; // Devuelve undefined si no es electron
-
-        try {
-            const savedPoints = await window.electronAPI.savePoints({
-                projectId: currentProject.id,
-                points: board.points
-            });
-            
-            board.setPoints(savedPoints);
-            showNotification('Project saved successfully!', 'success');
-            return savedPoints; // <-- Devolver los puntos guardados
-        } catch (error) {
-            console.error("Error saving project:", error);
-            showNotification("Failed to save project.", 'error');
-            return; // Devuelve undefined en caso de error
-        }
-    };
+    }, [hardware.isElectron, setAutoSave]);
 
     const handleOpenProject = async () => {
-        if (!window.electronAPI) return;
-        try {
-            const projects = await window.electronAPI.getProjects();
-            setProjectList(projects || []);
-            setProjectManagerOpen(true);
-        } catch (error) {
-            console.error("Error fetching projects:", error);
-            showNotification("Failed to fetch projects.", 'error');
-        }
+        await fetchProjectList();
+        setProjectManagerOpen(true);
     };
 
-    const handleLoadProject = async (project) => {
-        if (!project || !window.electronAPI) return;
-        try {
-            // Fetch the full project data including the image
-            const fullProject = await window.electronAPI.getProjectWithImage(project.id);
-            const points = await window.electronAPI.getPoints(project.id);
-            
-            setCurrentProject(fullProject);
-
-            if (fullProject.image_data) {
-                // Correctly create the Blob directly from the Uint8Array
-                const blob = new Blob([fullProject.image_data], { type: 'image/png' });
-                const imageUrl = URL.createObjectURL(blob);
-                board.setImage(imageUrl);
-            } else {
-                board.resetBoard();
-            }
-            
-            board.setPoints(points);
-            setProjectManagerOpen(false);
-            showNotification(`Project '${fullProject.board_model}' loaded!`, 'success');
-        } catch (error) {
-            console.error("Error loading project:", error);
-            showNotification("Failed to load project.", 'error');
-        }
+    const handleCreateProjectAndClose = async (projectData) => {
+        await createProject(projectData);
+        setNewProjectModalOpen(false);
     };
 
-    const handleDeleteProject = async (projectId) => {
-        if (!projectId || !window.electronAPI) return;
-
-        const confirmDelete = window.confirm('Are you sure you want to delete this project? This action cannot be undone.');
-        if (!confirmDelete) return;
-
-        try {
-            const result = await window.electronAPI.deleteProject(projectId);
-            if (result && result.status === 'success') {
-                setProjectList(prev => prev.filter(p => p.id !== projectId));
-                // If the deleted project is currently loaded, clear it
-                if (currentProject && currentProject.id === projectId) {
-                    setCurrentProject(null);
-                    board.resetBoard();
-                }
-                showNotification('Project deleted successfully.', 'success');
-            } else {
-                console.error('Failed to delete project:', result);
-                showNotification(`Failed to delete project: ${result?.message || 'unknown error'}`, 'error');
-            }
-        } catch (error) {
-            console.error('Error deleting project:', error);
-            showNotification('Error deleting project.', 'error');
-        }
-    };
-
-    const handleDeletePoint = async (pointIdToDelete) => {
-        if (!window.electronAPI) return;
-
-        // Si es un punto temporal, solo borrarlo del estado local
-        if (typeof pointIdToDelete === 'string' && pointIdToDelete.startsWith('temp-')) {
-            board.setPoints(prevPoints => prevPoints.filter(p => p.id !== pointIdToDelete));
-            showNotification('Temporary point removed.', 'success');
-            if (board.selectedPointId === pointIdToDelete) {
-                board.setSelectedPointId(null);
-            }
-            return;
-        }
-
-        // Si es un punto guardado, confirmar y borrar de la DB
-        if (!window.confirm('Are you sure you want to delete this point and its history?')) return;
-
-        try {
-            const result = await window.electronAPI.deletePoint(pointIdToDelete);
-            if (result.status === 'success') {
-                board.setPoints(prevPoints => prevPoints.filter(p => p.id !== pointIdToDelete));
-                showNotification('Point deleted successfully.', 'success');
-                if (board.selectedPointId === pointIdToDelete) {
-                    board.setSelectedPointId(null);
-                }
-            } else {
-                showNotification(`Failed to delete point: ${result.message}`, 'error');
-            }
-        } catch (error) {
-            console.error('Error deleting point:', error);
-            showNotification('An error occurred while deleting the point.', 'error');
-        }
-    };
-
-    const handleExportPdf = async () => {
-        if (!currentProject) {
-            showNotification("Please save the project before exporting.", 'warning');
-            return;
-        }
-        if (!window.electronAPI) return;
-
-        const result = await window.electronAPI.exportPdf(currentProject.id);
-        if (result.status === 'success') {
-            showNotification(`Report saved to ${result.filePath}`, 'success');
-        } else if (result.status === 'cancelled') {
-            showNotification('Export cancelled.', 'info');
-        } else {
-            showNotification(`Error exporting PDF: ${result.message}`, 'error');
-        }
-    };
-
-    const handleUpdateProject = async (updatedProjectData) => {
-        if (!window.electronAPI) return;
-        try {
-            const result = await window.electronAPI.updateProject(updatedProjectData);
-            if (result && result.status === 'success') {
-                // Update local list
-                setProjectList(prev => prev.map(p => p.id === updatedProjectData.id ? { ...p, ...updatedProjectData } : p));
-                // Update current project if it's the one being edited
-                if (currentProject && currentProject.id === updatedProjectData.id) {
-                    setCurrentProject(prev => ({ ...prev, ...updatedProjectData }));
-                }
-                showNotification('Project updated successfully.', 'success');
-            } else {
-                showNotification(`Failed to update project: ${result?.message}`, 'error');
-            }
-        } catch (error) {
-            console.error('Error updating project:', error);
-            showNotification('Error updating project.', 'error');
-        }
-    };
 
     return (
         <div className="flex h-screen bg-gray-900 text-gray-100 font-sans">
@@ -269,10 +71,10 @@ const BoardLab = () => {
                 onUpload={() => board.fileInputRef.current.click()}
                 onOpenSettings={() => hardware.setConfigOpen(true)}
                 onOpenPointsTable={() => setPointsTableOpen(true)}
-                onNewProject={handleNewProject}
+                onNewProject={() => setNewProjectModalOpen(true)}
                 onOpenProject={handleOpenProject}
-                onSaveProject={handleSaveProject}
-                onExportPdf={handleExportPdf}
+                onSaveProject={saveProject}
+                onExportPdf={() => { /* Logic to be added */ }}
             />
             <input
                 type="file"
@@ -286,16 +88,18 @@ const BoardLab = () => {
                 isOpen={isProjectManagerOpen}
                 onClose={() => setProjectManagerOpen(false)}
                 projects={projectList}
-                onLoadProject={handleLoadProject}
-                onDeleteProject={handleDeleteProject}
-                onUpdateProject={handleUpdateProject}
+                onLoadProject={(p) => {
+                    loadProject(p);
+                    setProjectManagerOpen(false);
+                }}
+                onDeleteProject={deleteProject}
+                onUpdateProject={updateProject}
             />
 
             <NewProjectModal
                 isOpen={isNewProjectModalOpen}
                 onClose={() => setNewProjectModalOpen(false)}
-                onCreate={handleCreateProject}
-                knownAttributes={knownAttributes}
+                onCreate={handleCreateProjectAndClose}
             />
 
             <div className="flex-1 flex flex-col relative">
@@ -305,28 +109,20 @@ const BoardLab = () => {
                     isElectron={hardware.isElectron}
                 />
                 <BoardView
-                    {...board}
                     mode={mode}
                     currentProjectId={currentProject?.id}
                 />
             </div>
 
             <AIPanel
-                selectedPoint={board.selectedPoint}
-                points={board.points}
-                setPoints={board.setPoints}
-                setSelectedPointId={board.setSelectedPointId}
                 askAboutPoint={gemini.askAboutPoint}
                 captureValue={hardware.captureValue}
                 isCapturing={hardware.isCapturing}
                 analyzeBoard={gemini.analyzeBoard}
                 instrumentConfig={hardware.instrumentConfig}
-                autoSave={autoSave}
-                handleSaveProject={handleSaveProject}
-                onDeletePoint={handleDeletePoint}
             />
 
-            {/* Modals */}
+            {/* Modals that don't need project data can stay as they are */}
             {hardware.configOpen && (
                 <Settings
                     instruments={hardware.instrumentConfig}
@@ -334,19 +130,22 @@ const BoardLab = () => {
                     setApiKey={setApiKey}
                     autoSave={autoSave}
                     onAutoSaveChange={setAutoSave}
-                    onSave={handleSave}
+                    onSave={(newConfig, newApiKey, newAutoSave) => {
+                        hardware.handleSaveConfig(newConfig);
+                        if(window.electronAPI) {
+                            window.electronAPI.saveApiKey(newApiKey);
+                            window.electronAPI.saveConfig({ ...newConfig, appSettings: { autoSave: newAutoSave } });
+                        }
+                        setApiKey(newApiKey);
+                        setAutoSave(newAutoSave);
+                    }}
                     onClose={() => hardware.setConfigOpen(false)}
                 />
             )}
 
             {pointsTableOpen && (
                 <PointsTableModal
-                    points={board.points}
-                    onSave={handlePointsSave}
                     onClose={() => setPointsTableOpen(false)}
-                    selectedPointId={board.selectedPointId}
-                    onSelectPoint={board.setSelectedPointId}
-                    onDeletePoint={handleDeletePoint}
                 />
             )}
 

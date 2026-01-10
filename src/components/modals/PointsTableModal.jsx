@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ArrowUp, ArrowDown, Search, Trash2 } from 'lucide-react';
+import { useProject } from '../contexts/ProjectContext';
 
-const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPoint, onDeletePoint }) => {
+const PointsTableModal = ({ onClose }) => {
+    const { points, deletePoint, board } = useProject();
+    const { setPoints, selectedPointId, setSelectedPointId } = board;
+
     const [editedPoints, setEditedPoints] = useState(JSON.parse(JSON.stringify(points)));
     const [sortColumn, setSortColumn] = useState('label');
     const [sortDirection, setSortDirection] = useState('asc');
@@ -9,7 +13,6 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
     const rowRefs = useRef({});
 
     useEffect(() => {
-        // When the points prop changes (e.g., after a delete), update the local state.
         setEditedPoints(JSON.parse(JSON.stringify(points)));
     }, [points]);
 
@@ -54,6 +57,13 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
         }
     };
 
+    const handleDelete = (pointId) => {
+        if (window.confirm('Are you sure you want to delete this point?')) {
+            deletePoint(pointId);
+            // The useEffect listening to `points` prop will update `editedPoints`
+        }
+    };
+
     const filteredPoints = editedPoints.filter(point => {
         const lowerCaseFilterText = filterText.toLowerCase();
         const labelMatch = point.label.toLowerCase().includes(lowerCaseFilterText);
@@ -61,13 +71,11 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
         const measurementMatch = point.measurements && Object.values(point.measurements).some(m => 
             m?.value?.toString().toLowerCase().includes(lowerCaseFilterText)
         );
-
         return labelMatch || notesMatch || measurementMatch;
     });
 
     const sortedAndFilteredPoints = [...filteredPoints].sort((a, b) => {
         let compareA, compareB;
-
         if (sortColumn === 'label' || sortColumn === 'notes') {
             compareA = a[sortColumn] || '';
             compareB = b[sortColumn] || '';
@@ -77,7 +85,6 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
             compareB = parseFloat(b.measurements?.[sortColumn]?.value) || 0;
             return sortDirection === 'asc' ? compareA - compareB : compareB - compareA;
         }
-        
         return 0;
     });
 
@@ -93,9 +100,7 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
             <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl text-white flex flex-col max-h-[80vh]">
                 <div className="p-4 border-b border-gray-700 flex justify-between items-center">
                     <h2 className="text-2xl font-bold">Measurements Table</h2>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700">
-                        <X size={24} />
-                    </button>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-700"><X size={24} /></button>
                 </div>
                 <div className="px-6 py-4 border-b border-gray-700">
                     <div className="relative">
@@ -114,21 +119,11 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
                         <thead>
                             <tr className="bg-gray-700">
                                 <th className="p-3 w-12 text-right">#</th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('label')}>
-                                    Label <SortIcon column="label" />
-                                </th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('voltage')}>
-                                    Voltage <SortIcon column="voltage" />
-                                </th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('resistance')}>
-                                    Resistance <SortIcon column="resistance" />
-                                </th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('diode')}>
-                                    Diode <SortIcon column="diode" />
-                                </th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('notes')}>
-                                    Notes <SortIcon column="notes" />
-                                </th>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('label')}>Label <SortIcon column="label" /></th>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('voltage')}>Voltage <SortIcon column="voltage" /></th>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('resistance')}>Resistance <SortIcon column="resistance" /></th>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('diode')}>Diode <SortIcon column="diode" /></th>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('notes')}>Notes <SortIcon column="notes" /></th>
                                 <th className="p-3 w-24 text-center">Actions</th>
                             </tr>
                         </thead>
@@ -138,57 +133,24 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
                                     key={point.id}
                                     ref={el => (rowRefs.current[point.id] = el)}
                                     className={`border-b border-gray-700 hover:bg-gray-700/50 cursor-pointer ${selectedPointId === point.id ? 'bg-blue-600/50' : ''}`}
-                                    onClick={() => onSelectPoint(point.id)}
+                                    onClick={() => setSelectedPointId(point.id)}
                                 >
                                     <td className="px-4 py-2 text-right">{sortedAndFilteredPoints.length - index}</td>
                                     <td className="px-4 py-2 font-bold">{point.label}</td>
                                     <td className="px-4 py-2">
-                                        <input 
-                                            type="text" 
-                                            defaultValue={point.measurements?.voltage?.value || ''}
-                                            onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)}
-                                            className="bg-gray-700 w-full p-1 rounded"
-                                        />
+                                        <input type="text" defaultValue={point.measurements?.voltage?.value || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
                                     </td>
                                     <td className="px-4 py-2">
-                                        <input 
-                                            type="text" 
-                                            defaultValue={point.measurements?.resistance?.value || ''}
-                                            onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)}
-                                            className="bg-gray-700 w-full p-1 rounded"
-                                        />
+                                        <input type="text" defaultValue={point.measurements?.resistance?.value || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
                                     </td>
                                     <td className="px-4 py-2">
-                                        <input 
-                                            type="text" 
-                                            defaultValue={point.measurements?.diode?.value || ''}
-                                            onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)}
-                                            className="bg-gray-700 w-full p-1 rounded"
-                                        />
+                                        <input type="text" defaultValue={point.measurements?.diode?.value || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
                                     </td>
                                     <td className="px-4 py-2">
-                                        <input 
-                                            type="text"
-                                            value={point.notes || ''}
-                                            onChange={(e) => handleNotesChange(point.id, e.target.value)}
-                                            className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full"
-                                        />
+                                        <input type="text" value={point.notes || ''} onChange={(e) => handleNotesChange(point.id, e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full" />
                                     </td>
                                     <td className="px-4 py-2 text-center">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (window.confirm('Are you sure you want to delete this point?')) {
-                                                    if (onDeletePoint) {
-                                                        onDeletePoint(point.id);
-                                                    }
-                                                    // Immediately update local state to reflect the deletion
-                                                    setEditedPoints(prev => prev.filter(p => p.id !== point.id));
-                                                }
-                                            }}
-                                            className="p-2 text-red-400 hover:bg-red-900/30 rounded-lg"
-                                            title="Delete Point"
-                                        >
+                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(point.id); }} className="p-2 text-red-400 hover:bg-red-900/30 rounded-lg" title="Delete Point">
                                             <Trash2 size={16} />
                                         </button>
                                     </td>
@@ -198,21 +160,8 @@ const PointsTableModal = ({ points, onSave, onClose, selectedPointId, onSelectPo
                     </table>
                 </div>
                 <div className="flex justify-end p-4 bg-gray-700/50">
-                    <button
-                        onClick={onClose}
-                        className="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 mr-4"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={() => {
-                            onSave(editedPoints);
-                            onClose();
-                        }}
-                        className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                    >
-                        Save Changes
-                    </button>
+                    <button onClick={onClose} className="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 mr-4">Cancel</button>
+                    <button onClick={() => { setPoints(editedPoints); onClose(); }} className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">Save Changes</button>
                 </div>
             </div>
         </div>

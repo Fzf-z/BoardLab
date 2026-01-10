@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit } from 'lucide-react';
 import Waveform from './Waveform';
+import { useProject } from '../contexts/ProjectContext';
 
 const AIPanel = ({
-    selectedPoint,
-    points,
-    setPoints,
-    setSelectedPointId,
     askAboutPoint,
     captureValue,
     isCapturing,
     analyzeBoard,
     instrumentConfig,
-    autoSave,
-    handleSaveProject,
-    onDeletePoint,
 }) => {
+    const { 
+        points, 
+        board, 
+        saveProject, 
+        deletePoint,
+    } = useProject();
+    
+    const { setPoints, setSelectedPointId, selectedPoint } = board;
+
     const [history, setHistory] = useState([]);
     const [referenceWaveform, setReferenceWaveform] = useState(null);
 
@@ -24,13 +27,8 @@ const AIPanel = ({
         setReferenceWaveform(null);
         if (selectedPoint && selectedPoint.id && typeof selectedPoint.id === 'number' && window.electronAPI) {
             window.electronAPI.getMeasurementsForPoint(selectedPoint.id)
-                .then(measurements => {
-                    setHistory(measurements || []);
-                })
-                .catch(err => {
-                    console.error("Error fetching measurement history:", err);
-                    setHistory([]);
-                });
+                .then(measurements => setHistory(measurements || []))
+                .catch(err => console.error("Error fetching measurement history:", err));
         }
     }, [selectedPoint]);
     
@@ -57,21 +55,19 @@ const AIPanel = ({
 
         let pointToMeasure = selectedPoint;
 
-        // Si el punto es nuevo (ID temporal), guárdalo primero para obtener un ID permanente.
         if (typeof pointToMeasure.id === 'string' && pointToMeasure.id.startsWith('temp-')) {
-            const savedPoints = await handleSaveProject();
-            // Añadir comprobación de seguridad
+            const savedPoints = await saveProject();
             if (Array.isArray(savedPoints)) {
-                const newlySavedPoint = savedPoints.find(p => p.label === pointToMeasure.label && p.x === pointToMeasure.x); 
+                const newlySavedPoint = savedPoints.find(p => p.temp_id === pointToMeasure.id); 
                 if (newlySavedPoint) {
                     pointToMeasure = newlySavedPoint;
-                    setSelectedPointId(newlySavedPoint.id); // Actualizar el ID seleccionado en la UI
+                    setSelectedPointId(newlySavedPoint.id);
                 } else {
                     console.error("Could not find the newly saved point. Aborting measurement.");
                     return;
                 }
             } else {
-                 console.error("handleSaveProject did not return saved points. Aborting measurement.");
+                 console.error("saveProject did not return saved points. Aborting measurement.");
                  return;
             }
         }
@@ -79,7 +75,6 @@ const AIPanel = ({
         const measurement = await captureValue(pointToMeasure);
         if (!measurement) return;
 
-        // 1. Update UI state with the new measurement
         const updatedPoints = points.map(p => {
             if (p.id === pointToMeasure.id) {
                 const newMeasurements = { ...p.measurements, [measurement.type]: { ...measurement, capturedAt: new Date().toISOString() } };
@@ -89,10 +84,7 @@ const AIPanel = ({
         });
         setPoints(updatedPoints);
 
-        // 2. Save the measurement to the DB
         try {
-            // For oscilloscope data, save the entire measurement object.
-            // For other types, save just the value.
             const valueToSave = measurement.type === 'oscilloscope' ? measurement : measurement.value;
 
             const result = await window.electronAPI.createMeasurement({
@@ -102,7 +94,6 @@ const AIPanel = ({
             });
             
             if(result.id) {
-                 // Update history with the saved measurement
                 const newHistoryItem = { ...measurement, id: result.id, created_at: new Date().toISOString() };
                 setHistory([newHistoryItem, ...history]);
             } else {
@@ -140,7 +131,7 @@ const AIPanel = ({
                                 </button>
                             </div>
                             <button 
-                                onClick={() => onDeletePoint && onDeletePoint(selectedPoint.id)} 
+                                onClick={() => deletePoint(selectedPoint.id)} 
                                 className="text-red-400 p-2 hover:bg-red-900/30 rounded" 
                                 title="Delete Point"
                             >
@@ -148,6 +139,8 @@ const AIPanel = ({
                             </button>
                         </div>
 
+                        {/* ... Rest of the component is the same ... */}
+                        
                         {/* --- Measurement Type --- */}
                         <div className="grid grid-cols-4 gap-2">
                             {[{ id: 'voltage', icon: Zap, lbl: 'Volt' }, { id: 'resistance', icon: Cpu, lbl: 'Ohms' }, { id: 'diode', icon: Zap, lbl: 'Diode' }, { id: 'oscilloscope', icon: Activity, lbl: 'Scope' }].map(t => (
@@ -161,7 +154,7 @@ const AIPanel = ({
                         {/* --- Live Measurement --- */}
                         <div className="bg-black/40 rounded-lg p-4 border border-gray-700">
                             <div className="text-2xl font-mono text-cyan-400 font-bold mb-1">
-                                {selectedPoint.type === 'oscilloscope' ? 'Scope Data' : (selectedPoint.measurements && selectedPoint.measurements[selectedPoint.type] ? selectedPoint.measurements[selectedPoint.type].value : "---")}
+                                {selectedPoint.type === 'oscilloscope' ? `Vpp: ${selectedPoint.measurements?.oscilloscope?.vpp?.toFixed(2) ?? '...'} V / Freq: ${selectedPoint.measurements?.oscilloscope?.freq?.toFixed(2) ?? '...'} Hz` : (selectedPoint.measurements && selectedPoint.measurements[selectedPoint.type] ? selectedPoint.measurements[selectedPoint.type].value : "---")}
                             </div>
                             {selectedPoint.type === 'oscilloscope' && (
                                 <Waveform 
@@ -195,10 +188,9 @@ const AIPanel = ({
                                         let displayValue;
                                         try {
                                             const parsed = JSON.parse(m.value);
-                                            // Si es un objeto, busca una propiedad 'value', si no, usa el valor parseado.
                                             displayValue = typeof parsed === 'object' && parsed !== null ? (parsed.value || 'Scope Data') : parsed;
                                         } catch (e) {
-                                            displayValue = m.value; // Si no es JSON, usa el valor crudo.
+                                            displayValue = m.value;
                                         }
 
                                         return (
@@ -212,9 +204,7 @@ const AIPanel = ({
                                                         onClick={() => {
                                                             try {
                                                                 setReferenceWaveform(JSON.parse(m.value));
-                                                            } catch (e) {
-                                                                console.error("Failed to parse reference waveform:", e);
-                                                            }
+                                                            } catch (e) { console.error("Failed to parse ref waveform:", e); }
                                                         }}
                                                         className="p-1 text-blue-400 hover:bg-blue-900/30 rounded"
                                                         title="Set as reference waveform"
@@ -230,7 +220,6 @@ const AIPanel = ({
                                 )}
                             </div>
                         </div>
-
                     </div>
                 )}
             </div>
