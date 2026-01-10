@@ -129,7 +129,7 @@ ipcMain.handle('db:createMeasurement', (event, payload) => dbQuery('db:createMea
 ipcMain.handle('db:getMeasurementsForPoint', (event, pointId) => dbQuery('db:getMeasurementsForPoint', pointId));
 ipcMain.handle('db:delete-project', (event, projectId) => dbQuery('db:delete-project', projectId));
 ipcMain.handle('db:delete-point', (event, pointId) => dbQuery('db:delete-point', pointId));
-
+ipcMain.handle('db:update-project', (event, projectData) => dbQuery('db:update-project', projectData));
 
 // =================================================================
 // IPC Handlers for Hardware

@@ -216,6 +216,21 @@ async function handleMessage(msg) {
                 }
                 break;
 
+            case 'db:update-project':
+                const { id: projId, board_model: newModel, board_type: newType, attributes: newAttrs } = payload;
+                if (!projId) throw new Error('Project ID required');
+                
+                const updateProjResult = db.prepare(
+                    'UPDATE projects SET board_model = ?, board_type = ?, attributes = ? WHERE id = ?'
+                ).run(newModel, newType, JSON.stringify(newAttrs), projId);
+                
+                if (updateProjResult.changes > 0) {
+                    result = { status: 'success', ...payload };
+                } else {
+                    result = { status: 'error', message: 'Project not found or no changes made' };
+                }
+                break;
+
             case 'close':
                 db.close();
                 parentPort.postMessage({ id, result: { status: 'closed' } });

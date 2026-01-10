@@ -240,6 +240,26 @@ const BoardLab = () => {
         }
     };
 
+    const handleUpdateProject = async (updatedProjectData) => {
+        if (!window.electronAPI) return;
+        try {
+            const result = await window.electronAPI.updateProject(updatedProjectData);
+            if (result && result.status === 'success') {
+                // Update local list
+                setProjectList(prev => prev.map(p => p.id === updatedProjectData.id ? { ...p, ...updatedProjectData } : p));
+                // Update current project if it's the one being edited
+                if (currentProject && currentProject.id === updatedProjectData.id) {
+                    setCurrentProject(prev => ({ ...prev, ...updatedProjectData }));
+                }
+                showNotification('Project updated successfully.', 'success');
+            } else {
+                showNotification(`Failed to update project: ${result?.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error updating project:', error);
+            showNotification('Error updating project.', 'error');
+        }
+    };
 
     return (
         <div className="flex h-screen bg-gray-900 text-gray-100 font-sans">
@@ -268,6 +288,7 @@ const BoardLab = () => {
                 projects={projectList}
                 onLoadProject={handleLoadProject}
                 onDeleteProject={handleDeleteProject}
+                onUpdateProject={handleUpdateProject}
             />
 
             <NewProjectModal
