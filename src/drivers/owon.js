@@ -44,7 +44,10 @@ function getOwonMeasurement(ip, port, measureCommand) {
             if (response.length > 0) {
                 clearTimeout(timeout);
                 client.destroy();
-                resolve({ status: 'success', value: response.trim() });
+                // Clean up non-printable characters or weird encoding artifacts
+                // Keep ASCII printable characters (32-126)
+                const cleanValue = response.replace(/[^\x20-\x7E]/g, '').trim();
+                resolve({ status: 'success', value: cleanValue });
             }
         });
 
