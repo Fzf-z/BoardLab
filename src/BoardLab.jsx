@@ -190,6 +190,39 @@ const BoardLab = () => {
         }
     };
 
+    const handleDeletePoint = async (pointIdToDelete) => {
+        if (!window.electronAPI) return;
+
+        // Si es un punto temporal, solo borrarlo del estado local
+        if (typeof pointIdToDelete === 'string' && pointIdToDelete.startsWith('temp-')) {
+            board.setPoints(prevPoints => prevPoints.filter(p => p.id !== pointIdToDelete));
+            showNotification('Temporary point removed.', 'success');
+            if (board.selectedPointId === pointIdToDelete) {
+                board.setSelectedPointId(null);
+            }
+            return;
+        }
+
+        // Si es un punto guardado, confirmar y borrar de la DB
+        if (!window.confirm('Are you sure you want to delete this point and its history?')) return;
+
+        try {
+            const result = await window.electronAPI.deletePoint(pointIdToDelete);
+            if (result.status === 'success') {
+                board.setPoints(prevPoints => prevPoints.filter(p => p.id !== pointIdToDelete));
+                showNotification('Point deleted successfully.', 'success');
+                if (board.selectedPointId === pointIdToDelete) {
+                    board.setSelectedPointId(null);
+                }
+            } else {
+                showNotification(`Failed to delete point: ${result.message}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting point:', error);
+            showNotification('An error occurred while deleting the point.', 'error');
+        }
+    };
+
     const handleExportPdf = async () => {
         if (!currentProject) {
             showNotification("Please save the project before exporting.", 'warning');
@@ -269,6 +302,7 @@ const BoardLab = () => {
                 instrumentConfig={hardware.instrumentConfig}
                 autoSave={autoSave}
                 handleSaveProject={handleSaveProject}
+                onDeletePoint={handleDeletePoint}
             />
 
             {/* Modals */}
@@ -291,6 +325,7 @@ const BoardLab = () => {
                     onClose={() => setPointsTableOpen(false)}
                     selectedPointId={board.selectedPointId}
                     onSelectPoint={board.setSelectedPointId}
+                    onDeletePoint={handleDeletePoint}
                 />
             )}
 

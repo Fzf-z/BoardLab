@@ -14,6 +14,7 @@ const AIPanel = ({
     instrumentConfig,
     autoSave,
     handleSaveProject,
+    onDeletePoint,
 }) => {
     const [history, setHistory] = useState([]);
     const [referenceWaveform, setReferenceWaveform] = useState(null);
@@ -138,7 +139,11 @@ const AIPanel = ({
                                     <Sparkles size={16} />
                                 </button>
                             </div>
-                            <button onClick={() => { setPoints(points.filter(p => p.id !== selectedPoint.id)); setSelectedPointId(null); }} className="text-red-400 p-2 hover:bg-red-900/30 rounded" title="Delete Point">
+                            <button 
+                                onClick={() => onDeletePoint && onDeletePoint(selectedPoint.id)} 
+                                className="text-red-400 p-2 hover:bg-red-900/30 rounded" 
+                                title="Delete Point"
+                            >
                                 <Trash2 size={16} />
                             </button>
                         </div>

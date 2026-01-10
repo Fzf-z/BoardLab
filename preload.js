@@ -36,5 +36,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPoints: (projectId) => ipcRenderer.invoke('db:get-points', projectId),
   createMeasurement: (data) => ipcRenderer.invoke('db:createMeasurement', data), // data: { pointId, type, value }
   getMeasurementsForPoint: (pointId) => ipcRenderer.invoke('db:getMeasurementsForPoint', pointId),
+  deletePoint: (pointId) => ipcRenderer.invoke('db:delete-point', pointId),
   deleteProject: (projectId) => ipcRenderer.invoke('db:delete-project', projectId),
 });

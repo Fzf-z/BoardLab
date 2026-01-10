@@ -4,6 +4,7 @@ const path = require('path');
 
 // The database path is passed in from the main thread
 const db = new Database(workerData.dbPath);
+db.pragma('foreign_keys = ON'); // Enable foreign key constraints (critical for cascading deletes)
 console.log(`Worker: Database initialized at ${workerData.dbPath}`);
 
 // Create schema if it doesn't exist
@@ -123,8 +124,15 @@ async function handleMessage(msg) {
                     for (const m of measurements) {
                         if (!measurementsByType[m.type]) {
                             try {
-                                measurementsByType[m.type] = { type: m.type, value: JSON.parse(m.value), capturedAt: m.created_at };
-                            } catch (e) { /* ignore parse error */ }
+                                const parsedValue = JSON.parse(m.value);
+                                if (m.type === 'oscilloscope') {
+                                    measurementsByType[m.type] = { ...parsedValue, capturedAt: m.created_at };
+                                } else {
+                                    measurementsByType[m.type] = { type: m.type, value: parsedValue, capturedAt: m.created_at };
+                                }
+                            } catch (e) {
+                                measurementsByType[m.type] = { type: m.type, value: m.value, capturedAt: m.created_at };
+                            }
                         }
                     }
                     const originalPoint = savedRows.find(sr => sr.id === point.id);
@@ -186,6 +194,26 @@ async function handleMessage(msg) {
                 });
                 deleteTransaction(payload);
                 result = { status: 'success' };
+                break;
+
+            case 'db:delete-point':
+                if (!payload) {
+                    throw new Error('Point ID is required');
+                }
+                const deletePointTransaction = db.transaction((pointId) => {
+                    // Manually delete measurements first to avoid FK constraint issues
+                    db.prepare('DELETE FROM measurements WHERE point_id = ?').run(pointId);
+                    const res = db.prepare('DELETE FROM points WHERE id = ?').run(pointId);
+                    return res;
+                });
+                
+                const deletePointResult = deletePointTransaction(payload);
+                
+                if (deletePointResult.changes > 0) {
+                    result = { status: 'success' };
+                } else {
+                    result = { status: 'error', message: 'Point not found or not deleted' };
+                }
                 break;
 
             case 'close':

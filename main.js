@@ -128,6 +128,7 @@ ipcMain.handle('db:save-measurement', (event, payload) => dbQuery('db:save-measu
 ipcMain.handle('db:createMeasurement', (event, payload) => dbQuery('db:createMeasurement', payload));
 ipcMain.handle('db:getMeasurementsForPoint', (event, pointId) => dbQuery('db:getMeasurementsForPoint', pointId));
 ipcMain.handle('db:delete-project', (event, projectId) => dbQuery('db:delete-project', projectId));
+ipcMain.handle('db:delete-point', (event, pointId) => dbQuery('db:delete-point', pointId));
 
 
 // =================================================================
