@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-import { X, Folder, Trash2, Search, Edit2, Save, ArrowLeft } from 'lucide-react';
+import { X, Folder, Trash2, Search, Edit2, Save, ArrowLeft, Plus } from 'lucide-react';
 
 const ProjectManagerModal = ({ isOpen, onClose, projects, onLoadProject, onDeleteProject, onUpdateProject }) => {
     const [filter, setFilter] = useState('');
     const [editingProject, setEditingProject] = useState(null);
+    const [newAttrKey, setNewAttrKey] = useState('');
+    const [newAttrValue, setNewAttrValue] = useState('');
 
     if (!isOpen) return null;
 
     // --- Edit Form State Handling ---
     const handleEditStart = (project) => {
         setEditingProject({ ...project, attributes: { ...project.attributes } });
+        setNewAttrKey('');
+        setNewAttrValue('');
     };
 
     const handleEditCancel = () => {
@@ -28,6 +32,17 @@ const ProjectManagerModal = ({ isOpen, onClose, projects, onLoadProject, onDelet
             ...prev,
             attributes: { ...prev.attributes, [key]: value }
         }));
+    };
+
+    const handleAddAttribute = () => {
+        if (newAttrKey.trim() && newAttrValue.trim()) {
+            setEditingProject(prev => ({
+                ...prev,
+                attributes: { ...prev.attributes, [newAttrKey.trim()]: newAttrValue.trim() }
+            }));
+            setNewAttrKey('');
+            setNewAttrValue('');
+        }
     };
 
     // --- Render Edit View ---
@@ -53,11 +68,26 @@ const ProjectManagerModal = ({ isOpen, onClose, projects, onLoadProject, onDelet
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-400 mb-1">Board Type</label>
-                            <input 
-                                type="text" 
+                            <select 
                                 value={editingProject.board_type} 
                                 onChange={e => setEditingProject(prev => ({ ...prev, board_type: e.target.value }))}
                                 className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
+                            >
+                                <option value="Laptop">Laptop</option>
+                                <option value="Desktop">Desktop</option>
+                                <option value="Industrial">Industrial</option>
+                                <option value="Mobile">Mobile</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Project Notes</label>
+                            <textarea 
+                                value={editingProject.notes || ''} 
+                                onChange={e => setEditingProject(prev => ({ ...prev, notes: e.target.value }))}
+                                className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white h-24 resize-none"
+                                placeholder="General repair notes..."
                             />
                         </div>
                         
@@ -75,6 +105,33 @@ const ProjectManagerModal = ({ isOpen, onClose, projects, onLoadProject, onDelet
                                         />
                                     </div>
                                 ))}
+                            </div>
+                            
+                            <div className="mt-4 pt-4 border-t border-gray-700/50">
+                                <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">Add New Attribute</label>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Name (e.g. GPU)" 
+                                        value={newAttrKey}
+                                        onChange={e => setNewAttrKey(e.target.value)}
+                                        className="flex-1 bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white"
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Value (e.g. RTX 3060)" 
+                                        value={newAttrValue}
+                                        onChange={e => setNewAttrValue(e.target.value)}
+                                        className="flex-1 bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white"
+                                    />
+                                    <button 
+                                        onClick={handleAddAttribute}
+                                        disabled={!newAttrKey.trim() || !newAttrValue.trim()}
+                                        className="p-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white"
+                                    >
+                                        <Plus size={20} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -144,6 +201,12 @@ const ProjectManagerModal = ({ isOpen, onClose, projects, onLoadProject, onDelet
                                     </div>
                                     <div className="text-xs text-gray-500 mb-3">Created: {new Date(p.created_at).toLocaleString()}</div>
                                     
+                                    {p.notes && (
+                                        <div className="mb-3 text-xs text-gray-400 italic bg-gray-900/30 p-2 rounded border-l-2 border-blue-500/50 line-clamp-2">
+                                            {p.notes}
+                                        </div>
+                                    )}
+
                                     {/* Attributes Chips */}
                                     <div className="flex flex-wrap gap-2">
                                         {p.attributes && Object.entries(p.attributes).map(([key, val]) => (

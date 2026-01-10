@@ -39,4 +39,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deletePoint: (pointId) => ipcRenderer.invoke('db:delete-point', pointId),
   deleteProject: (projectId) => ipcRenderer.invoke('db:delete-project', projectId),
   updateProject: (projectData) => ipcRenderer.invoke('db:update-project', projectData),
+
+  // Board Types
+  getBoardTypes: () => ipcRenderer.invoke('get-board-types'),
+  addBoardType: (newType) => ipcRenderer.invoke('add-board-type', newType),
 });

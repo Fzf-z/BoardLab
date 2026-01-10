@@ -186,3 +186,19 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
         return { status: 'error', message: error.message };
     }
 });
+
+// Board Types Management
+ipcMain.handle('get-board-types', () => {
+    const defaultTypes = ["Laptop", "Desktop", "Industrial", "Mobile", "Other"];
+    const savedTypes = store.get('boardTypes', []);
+    return [...new Set([...defaultTypes, ...savedTypes])];
+});
+
+ipcMain.handle('add-board-type', (event, newType) => {
+    if (!newType) return;
+    const currentTypes = store.get('boardTypes', []);
+    if (!currentTypes.includes(newType)) {
+        store.set('boardTypes', [...currentTypes, newType]);
+    }
+    return true;
+});

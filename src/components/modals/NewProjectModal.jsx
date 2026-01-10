@@ -1,15 +1,27 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, FilePlus, UploadCloud, Trash2, PlusCircle } from 'lucide-react';
 
-const boardTypes = ["Laptop", "Desktop", "Industrial", "Mobile", "Other"];
-
 const NewProjectModal = ({ isOpen, onClose, onCreate, knownAttributes }) => {
-    const [boardType, setBoardType] = useState(boardTypes[0]);
+    const [availableTypes, setAvailableTypes] = useState(["Laptop", "Desktop", "Industrial", "Mobile", "Other"]);
+    const [boardType, setBoardType] = useState("Laptop");
     const [boardModel, setBoardModel] = useState('');
+    const [notes, setNotes] = useState('');
     const [dynamicAttributes, setDynamicAttributes] = useState([{ key: '', value: '' }]);
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
+    const [customBoardType, setCustomBoardType] = useState('');
     const fileInputRef = useRef(null);
+
+    useEffect(() => {
+        if (isOpen && window.electronAPI) {
+            window.electronAPI.getBoardTypes().then(types => {
+                setAvailableTypes(types);
+                if (types.length > 0 && !types.includes(boardType)) {
+                    setBoardType(types[0]);
+                }
+            });
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -64,10 +76,21 @@ const NewProjectModal = ({ isOpen, onClose, onCreate, knownAttributes }) => {
                 return acc;
             }, {});
 
+            const finalBoardType = boardType === 'Other' ? customBoardType.trim() : boardType;
+            if (boardType === 'Other' && !finalBoardType) {
+                alert("Please specify the custom board type.");
+                return;
+            }
+
+            if (boardType === 'Other' && window.electronAPI) {
+                await window.electronAPI.addBoardType(finalBoardType);
+            }
+
             const projectData = {
-                board_type: boardType,
+                board_type: finalBoardType,
                 board_model: boardModel.trim(),
                 attributes: attributesObject,
+                notes: notes.trim(),
                 image_data: imageDataUint8Array, // Ahora es un Uint8Array
             };
             
@@ -75,9 +98,12 @@ const NewProjectModal = ({ isOpen, onClose, onCreate, knownAttributes }) => {
             
             // Reset state
             setBoardModel('');
+            setNotes('');
+            setCustomBoardType('');
             setDynamicAttributes([{ key: '', value: '' }]);
             setImageFile(null);
             setImagePreview(null);
+            setCustomBoardType('');
             onClose();
         } catch (error) {
             console.error("Error processing data:", error);
@@ -100,12 +126,31 @@ const NewProjectModal = ({ isOpen, onClose, onCreate, knownAttributes }) => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Board Type</label>
                                 <select value={boardType} onChange={e => setBoardType(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2">
-                                    {boardTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                                    {availableTypes.map(type => <option key={type} value={type}>{type}</option>)}
                                 </select>
+                                {boardType === 'Other' && (
+                                    <input 
+                                        type="text" 
+                                        value={customBoardType} 
+                                        onChange={e => setCustomBoardType(e.target.value)} 
+                                        className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 mt-2" 
+                                        placeholder="Specify Board Type" 
+                                        required
+                                    />
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Board Model / Name</label>
                                 <input type="text" value={boardModel} onChange={(e) => setBoardModel(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2" placeholder="e.g., MacBook Pro A2141 2019" required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Project Notes</label>
+                                <textarea
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    className="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 h-28 resize-none"
+                                    placeholder="Initial diagnosis, board condition..."
+                                ></textarea>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Custom Attributes</label>

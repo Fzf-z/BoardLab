@@ -14,10 +14,24 @@ db.exec(`
     board_type TEXT,
     board_model TEXT,
     attributes TEXT,
+    notes TEXT,
     image_data BLOB,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+// Migration: Ensure 'notes' column exists in projects
+try {
+  const tableInfo = db.prepare("PRAGMA table_info(projects)").all();
+  const hasNotes = tableInfo.some(col => col.name === 'notes');
+  if (!hasNotes) {
+    db.exec("ALTER TABLE projects ADD COLUMN notes TEXT");
+    console.log("Worker: Migrated projects table to include 'notes' column.");
+  }
+} catch (e) {
+  console.error("Worker: Error migrating projects table:", e);
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS points (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +66,7 @@ async function handleMessage(msg) {
         let result;
         switch (type) {
             case 'db:get-projects':
-                const projects = db.prepare('SELECT id, board_type, board_model, attributes, created_at FROM projects ORDER BY created_at DESC').all();
+                const projects = db.prepare('SELECT id, board_type, board_model, attributes, notes, created_at FROM projects ORDER BY created_at DESC').all();
                 result = projects.map(p => ({
                     ...p,
                     attributes: JSON.parse(p.attributes || '{}')
@@ -68,11 +82,11 @@ async function handleMessage(msg) {
                 break;
 
             case 'db:create-project':
-                const { board_type, board_model, attributes, image_data } = payload;
+                const { board_type, board_model, attributes, image_data, notes } = payload;
                 const imageBuffer = Buffer.from(image_data);
                 const insertResult = db.prepare(
-                    'INSERT INTO projects (board_type, board_model, attributes, image_data) VALUES (?, ?, ?, ?)'
-                ).run(board_type, board_model, JSON.stringify(attributes), imageBuffer);
+                    'INSERT INTO projects (board_type, board_model, attributes, image_data, notes) VALUES (?, ?, ?, ?, ?)'
+                ).run(board_type, board_model, JSON.stringify(attributes), imageBuffer, notes || '');
                 result = { id: insertResult.lastInsertRowid, ...payload, image_data: imageBuffer };
                 break;
 
@@ -217,12 +231,12 @@ async function handleMessage(msg) {
                 break;
 
             case 'db:update-project':
-                const { id: projId, board_model: newModel, board_type: newType, attributes: newAttrs } = payload;
+                const { id: projId, board_model: newModel, board_type: newType, attributes: newAttrs, notes: newNotes } = payload;
                 if (!projId) throw new Error('Project ID required');
                 
                 const updateProjResult = db.prepare(
-                    'UPDATE projects SET board_model = ?, board_type = ?, attributes = ? WHERE id = ?'
-                ).run(newModel, newType, JSON.stringify(newAttrs), projId);
+                    'UPDATE projects SET board_model = ?, board_type = ?, attributes = ?, notes = ? WHERE id = ?'
+                ).run(newModel, newType, JSON.stringify(newAttrs), newNotes || '', projId);
                 
                 if (updateProjResult.changes > 0) {
                     result = { status: 'success', ...payload };
