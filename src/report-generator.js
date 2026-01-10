@@ -1,53 +1,59 @@
 // src/report-generator.js
 
-function generateWaveformSvg(measurementValue) {
-    // The entire oscilloscope measurement object is passed in measurementValue
-    if (!measurementValue || !measurementValue.waveform) return '';
+function generateWaveformSvg(measurement) {
+    // Check if we have valid waveform data
+    if (!measurement || !measurement.waveform || !Array.isArray(measurement.waveform)) return 'No waveform data';
     
-    const { waveform, voltageScale, timeScale, triggerLevel } = measurementValue;
-    const svgWidth = 450, svgHeight = 225;
+    const { waveform, voltageScale, voltageOffset, timeScale, vpp, freq } = measurement;
+    const svgWidth = 500, svgHeight = 300;
     const numDivX = 10, numDivY = 8;
     const stepX = svgWidth / numDivX, stepY = svgHeight / numDivY;
 
-    // --- Grid ---
+    // --- Grid Construction ---
     let gridLines = '';
-    // Vertical
-    for (let i = 1; i < numDivX; i++) gridLines += `<line x1="${i * stepX}" y1="0" x2="${i * stepX}" y2="${svgHeight}" stroke="#e0e0e0" stroke-width="0.5" />`;
-    // Horizontal
-    for (let i = 1; i < numDivY; i++) gridLines += `<line x1="0" y1="${i * stepY}" x2="${svgWidth}" y2="${i * stepY}" stroke="#e0e0e0" stroke-width="0.5" />`;
-    // Center axes
-    gridLines += `<line x1="${svgWidth/2}" y1="0" x2="${svgWidth/2}" y2="${svgHeight}" stroke="#d0d0d0" stroke-width="0.5" stroke-dasharray="2,2" />`;
-    gridLines += `<line x1="0" y1="${svgHeight/2}" x2="${svgWidth}" y2="${svgHeight/2}" stroke="#d0d0d0" stroke-width="0.5" stroke-dasharray="2,2" />`;
+    // Vertical grid lines
+    for (let i = 1; i < numDivX; i++) gridLines += `<line x1="${i * stepX}" y1="0" x2="${i * stepX}" y2="${svgHeight}" stroke="#e5e7eb" stroke-width="1" />`;
+    // Horizontal grid lines
+    for (let i = 1; i < numDivY; i++) gridLines += `<line x1="0" y1="${i * stepY}" x2="${svgWidth}" y2="${i * stepY}" stroke="#e5e7eb" stroke-width="1" />`;
     
-    // --- Trigger Level ---
-    const triggerY = Math.max(0, Math.min(svgHeight, svgHeight / 2 - (triggerLevel / (voltageScale * numDivY)) * svgHeight));
-    gridLines += `<line x1="0" y1="${triggerY}" x2="${svgWidth}" y2="${triggerY}" stroke="orange" stroke-width="1" stroke-dasharray="4,2" />`;
+    // Central Axes
+    gridLines += `<line x1="${svgWidth/2}" y1="0" x2="${svgWidth/2}" y2="${svgHeight}" stroke="#9ca3af" stroke-width="1" />`;
+    gridLines += `<line x1="0" y1="${svgHeight/2}" x2="${svgWidth}" y2="${svgHeight/2}" stroke="#9ca3af" stroke-width="1" />`;
 
-    // --- Waveform ---
-    const vRange = numDivY * voltageScale; // Total voltage range displayed
+    // --- Waveform Path ---
+    // Calculate vertical scaling based on voltage settings
+    const vRange = numDivY * voltageScale;
+    const vBottom = voltageOffset - (vRange / 2);
+
     const pointsStr = waveform
         .map((val, i) => {
             const x = (i / (waveform.length - 1)) * svgWidth;
-            // The middle of the screen is 0V. Y increases downwards.
-            const yPercent = val / vRange; 
-            const y = (svgHeight / 2) - (yPercent * svgHeight);
-            return `${x.toFixed(2)},${y.toFixed(2)}`;
+            // Map voltage value to Y coordinate (0 at top, height at bottom)
+            const yPercent = vRange === 0 ? 0.5 : (val - vBottom) / vRange;
+            const y = Math.max(0, Math.min(svgHeight, svgHeight - (yPercent * svgHeight)));
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
         })
         .join(' ');
 
     return `
-        <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" style="background-color: #f9f9f9; border: 1px solid #ccc; border-radius: 4px; display: block; margin-top: 5px;">
-            ${gridLines}
-            <polyline points="${pointsStr}" fill="none" stroke="#10b981" stroke-width="1.5" />
-            <text x="5" y="15" font-size="10" fill="#777">V/div: ${voltageScale}V</text>
-            <text x="5" y="30" font-size="10" fill="#777">T/div: ${timeScale}ms</text>
-        </svg>
+        <div style="font-family: monospace; background: #fff; border: 1px solid #ccc; border-radius: 6px; overflow: hidden; display: inline-block;">
+            <div style="background: #f3f4f6; padding: 5px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #374151; display: flex; justify-content: space-between;">
+                <span><strong>Scale:</strong> ${voltageScale} V/div | ${timeScale} s/div</span>
+                <span><strong>Vpp:</strong> ${vpp ? vpp.toFixed(2) + ' V' : '--'} | <strong>Freq:</strong> ${freq ? freq.toFixed(2) + ' Hz' : '--'}</span>
+            </div>
+            <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" style="display: block;">
+                <rect width="100%" height="100%" fill="#ffffff" />
+                ${gridLines}
+                <polyline points="${pointsStr}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" />
+            </svg>
+        </div>
     `;
 }
 
 function renderMeasurementValue(measurement) {
     if (measurement.type === 'oscilloscope') {
-        return generateWaveformSvg(measurement.value);
+        // Pass the raw measurement object which contains the waveform array and metadata
+        return generateWaveformSvg(measurement); 
     }
     if (typeof measurement.value === 'object' && measurement.value !== null) {
         return `<pre>${JSON.stringify(measurement.value, null, 2)}</pre>`;
@@ -95,16 +101,29 @@ function generateReportHtml(project, points) {
             ${imageAsBase64 ? `
                 <div>
                     <h2>Imagen de la Placa</h2>
-                    <img src="${imageAsBase64}" class="board-image">
+                    <div style="position: relative; display: inline-block;">
+                        <img src="${imageAsBase64}" class="board-image" style="max-width: 100%;">
+                        ${points.map(p => `
+                            <div style="position: absolute; left: ${p.x}px; top: ${p.y}px; transform: translate(-50%, -50%); background-color: rgba(255, 255, 0, 0.8); border: 2px solid black; border-radius: 4px; padding: 2px 5px; font-size: 10px; font-weight: bold; pointer-events: none;">
+                                ${p.label || (typeof p.id === 'number' ? p.id : 'N')}
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             ` : ''}
 
             <h2>Puntos de Medición</h2>
-            ${points.map(point => `
+            ${points.map(point => {
+                // Filter and sort measurements based on fixed order
+                const orderedTypes = ['voltage', 'resistance', 'diode', 'oscilloscope'];
+                const measurementsToRender = orderedTypes
+                    .map(type => ({ type, data: point.measurements && point.measurements[type] }))
+                    .filter(item => item.data); // Only keep existing measurements
+
+                return `
                 <div class="point-section">
                     <h3>Punto: ${point.label}</h3>
-                    <p>${point.notes || ''}</p>
-                    ${point.measurements && Object.keys(point.measurements).length > 0 ? `
+                    ${measurementsToRender.length > 0 ? `
                         <table>
                             <thead>
                                 <tr>
@@ -114,18 +133,24 @@ function generateReportHtml(project, points) {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${Object.entries(point.measurements).map(([type, m]) => `
+                                ${measurementsToRender.map(({ type, data }) => `
                                     <tr>
-                                        <td>${type}</td>
-                                        <td>${renderMeasurementValue(m)}</td>
-                                        <td>${new Date(m.capturedAt).toLocaleString()}</td>
+                                        <td style="text-transform: capitalize;">${type}</td>
+                                        <td>${renderMeasurementValue(data)}</td>
+                                        <td>${new Date(data.capturedAt).toLocaleString()}</td>
                                     </tr>
                                 `).join('')}
+                                ${point.notes ? `
+                                    <tr>
+                                        <td><strong>Notes</strong></td>
+                                        <td colspan="2" style="font-style: italic; background-color: #fffbeb;">${point.notes}</td>
+                                    </tr>
+                                ` : ''}
                             </tbody>
                         </table>
                     ` : '<p>No hay mediciones para este punto.</p>'}
                 </div>
-            `).join('')}
+            `;}).join('')}
         </body>
         </html>
     `;
