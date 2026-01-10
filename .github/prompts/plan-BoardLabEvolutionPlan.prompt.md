@@ -1,74 +1,86 @@
-Análisis del proyecto y propuesta de plan de desarrollo para **BoardLab**.
+# Plan de Evolución y Estado Actual de BoardLab
 
-Este es un plan detallado para implementar las funcionalidades que has solicitado, junto con otras mejoras sugeridas para hacer la aplicación más robusta y útil.
+Este documento sirve como una guía completa del estado actual del proyecto BoardLab, las decisiones de arquitectura tomadas, y un roadmap claro para futuras funcionalidades.
 
-## Plan: Evolución de BoardLab a un Sistema de Diagnóstico Completo
+## 1. Estado Actual y Arquitectura (Robusto)
 
-El objetivo es transformar BoardLab de una herramienta de medición en tiempo real a un completo sistema de gestión de diagnóstico. Esto se logrará añadiendo una base de datos para persistencia, funciones de comparación de datos, exportación de informes y una mejor gestión de proyectos.
+BoardLab ha evolucionado de un prototipo a una aplicación de escritorio sólida con una arquitectura bien definida que separa responsabilidades.
 
-### Fase 1: Creación de la Base de Datos y Persistencia de Datos (COMPLETADO)
+### Arquitectura General:
+- **`main.js` (Proceso Principal de Electron)**: Orquesta la aplicación. Su única responsabilidad es crear la ventana, manejar la comunicación IPC básica y delegar tareas complejas.
+- **`db-worker.js` (Worker de Base de Datos)**: **Crítico**. Toda la lógica de la base de datos (`better-sqlite3`) se ejecuta en este hilo separado. Esto asegura que la interfaz de usuario **nunca se congele**, sin importar cuán pesada sea la consulta.
+- **`preload.js`**: Puente de seguridad que expone la API del backend (`window.electronAPI`) al frontend de forma segura.
+- **`src/contexts/ProjectContext.jsx`**: **Corazón del Frontend**. Este contexto de React gestiona todo el estado global del proyecto (proyecto actual, lista de puntos, etc.) y contiene toda la lógica para interactuar con el backend (cargar, guardar, borrar).
+- **`src/BoardLab.jsx`**: Ahora es un componente "contenedor" limpio. Su principal responsabilidad es ensamblar los componentes de la UI y manejar el estado local de la interfaz (ej: qué modal está abierto).
+- **Componentes (`AIPanel`, `BoardView`, Modals)**: Consumen datos directamente del `ProjectContext`, eliminando la necesidad de pasar `props` a través de múltiples niveles (prop drilling).
 
-Esta fase es la base de todas las demás. Se creará una base de datos local para almacenar toda la información de manera estructurada.
+### Funcionalidades Implementadas (Completadas):
+- **Gestión Completa de Proyectos**:
+    - Creación, carga, edición y borrado de proyectos.
+    - Los tipos de placa personalizados se guardan y reutilizan.
+    - Las notas a nivel de proyecto se guardan y muestran.
+- **Persistencia de Datos Robusta**:
+    - Guardado de puntos, mediciones (incluyendo formas de onda completas) y notas.
+    - Borrado en cascada (puntos -> mediciones) manejado correctamente.
+    - El guardado automático al crear puntos nuevos asegura la integridad de los datos.
+- **Interfaz de Usuario Avanzada**:
+    - Zoom y paneo de la imagen con creación precisa de puntos en cualquier nivel de zoom.
+    - Ajuste automático de la imagen ("fit to screen") al cargar un proyecto.
+    - Puntos visualizados como etiquetas rectangulares adaptables.
+    - Tooltip emergente al pasar el mouse sobre un punto, mostrando todas sus mediciones, notas y una vista previa de la forma de onda.
+- **Exportación de Reportes PDF**:
+    - Generación de reportes profesionales en PDF.
+    - El reporte incluye la imagen de la placa con los puntos superpuestos, tablas de mediciones ordenadas, notas y gráficos SVG de las formas de onda.
 
-1.  **Instalar y configurar la base de datos.** (Hecho)
-    *   Añadiremos `better-sqlite3`, una librería de base de datos SQL ligera y sin servidor, perfecta para una aplicación de escritorio. Se ejecutará `npm install better-sqlite3`.
-    *   Crearemos un nuevo fichero `src/database.js` (y `db-worker.js`) que se encargará de inicializar la base de datos y definir el esquema.
+---
 
-2.  **Integrar la base de datos en el proceso principal.** (Hecho)
-    *   En `main.js`, importaremos y utilizaremos `src/database.js` para manejar todas las operaciones de la base de datos.
-    *   Se crearán nuevos manejadores de IPC en `main.js` (usando `ipcMain.handle`) para operaciones como `db:saveProject`, `db:loadProject`, `db:saveMeasurement`.
-    *   **Mejora**: Se implementó un `Worker` (`db-worker.js`) para manejar la DB sin bloquear la UI.
+## 2. Roadmap de Próximas Mejoras
 
-3.  **Exponer la API de la base de datos al Frontend.** (Hecho)
-    *   En `preload.js`, añadiremos las nuevas funciones al `contextBridge` para que los componentes de React puedan llamar de forma segura a las operaciones de la base de datos (ej: `window.electronAPI.saveProject(...)`).
+Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y añadir funcionalidades avanzadas.
 
-4.  **Añadir guardado manual en la UI.** (Hecho)
-    *   En el componente `src/components/Toolbar.jsx`, añadiremos botones para "Nuevo Proyecto", "Abrir Proyecto" y "Guardar".
-    *   Estos botones invocarán las nuevas funciones de la API expuestas en el paso anterior para persistir el estado actual de la placa y las mediciones.
+### Fase 1: Mejoras de Usabilidad (UX) - Próximos Pasos
 
-### Fase 2: Comparación de Mediciones y Oscilogramas (EN PROGRESO)
+1.  **[UX] Implementar Atajos de Teclado (Prioridad Alta)**:
+    *   **Objetivo**: Acelerar drásticamente el flujo de trabajo.
+    *   **Tareas**:
+        - `M`: Cambiar al modo "Measure".
+        - `V`: Cambiar al modo "View".
+        - `S` o `Ctrl+S`: Guardar el proyecto actual.
+        - `Supr` o `Del`: Borrar el punto seleccionado.
+        - `Esc`: Deseleccionar punto o cerrar modal activo.
+    *   **Implementación**: Añadir un `useEffect` en `BoardLab.jsx` que escuche eventos `keydown` globales.
 
-Con los datos guardados, ahora podemos implementar la capacidad de comparar mediciones en vivo con datos históricos o de referencia.
+2.  **[Avanzado] Implementar Sistema de Deshacer/Rehacer (Prioridad Media)**:
+    *   **Objetivo**: Permitir a los usuarios revertir acciones accidentales como borrar un punto o moverlo.
+    *   **Tareas**:
+        - Crear un estado de "historial de acciones" en `ProjectContext`.
+        - Cada vez que se modifica el estado (ej: al añadir/borrar un punto), guardar la acción y el estado anterior.
+        - Implementar funciones `undo()` y `redo()` que naveguen por este historial.
+        - Añadir botones en la `Toolbar` y atajos (`Ctrl+Z`, `Ctrl+Y`).
 
-1.  **Obtener datos históricos para un punto.** (Hecho)
-    *   Crearemos una función en la API (`db:getHistoryForPoint`) que, dado un punto de medición, devuelva todas las mediciones guardadas para ese punto.
-    *   Cuando el usuario seleccione un punto en `src/components/BoardView.jsx`, se llamará a esta función.
+### Fase 2: Funcionalidades de Diagnóstico Avanzado
 
-2.  **Visualizar la comparación.** (Hecho parcialmente)
-    *   Se modificará el panel de información o se creará un modal que muestre una tabla con las mediciones históricas junto a la medición actual.
-    *   **Hecho**: El componente `AIPanel` ahora muestra el historial y visualiza formas de onda guardadas.
-    *   **Pendiente**: Implementar la superposición visual de dos ondas en `Waveform.jsx` para comparación directa.
-    
-3.  **Sugerencia: En electrónica, los valores exactos son raros.** (Pendiente)
-    *   No compares if (valor_medido === valor_golden).
-    *   Implementa un sistema de Tolerancia (%). Si la referencia es 10kΩ y mides 9.9kΩ, debería ser un "PASS" (verde), no un error. Agrega un campo tolerance a tu esquema de base de datos.
+3.  **[Diagnóstico] Comparación Visual de Formas de Onda**:
+    *   **Objetivo**: Superponer una forma de onda guardada (de referencia) sobre una captura en vivo en `Waveform.jsx`.
+    *   **Tareas**:
+        - Añadir un botón "Set as Reference" en el historial de mediciones.
+        - Modificar `Waveform.jsx` para aceptar y renderizar una segunda serie de datos con un color diferente.
 
-### Fase 3: Exportación de Informes en PDF (COMPLETADO)
+4.  **[Diagnóstico] Sistema de Tolerancias**:
+    *   **Objetivo**: Marcar automáticamente las mediciones como "correctas" (verde) o "incorrectas" (rojo) según un margen de tolerancia.
+    *   **Tareas**:
+        - Añadir un campo `tolerance` (ej: 10%) a los puntos en la base de datos.
+        - En `AIPanel`, al mostrar una medición, compararla con un valor de referencia (que se podría guardar) y aplicar un estilo visual según la tolerancia.
 
-Esta funcionalidad permitirá generar un documento profesional con toda la información del diagnóstico.
+### Fase 3: Mejoras de Integración y Hardware
 
-1.  **Añadir librería de generación de PDF.** (Hecho - Puppeteer)
-    *   Instalaremos `puppeteer` (`npm install puppeteer`). Esta librería permite usar el motor de Chrome para "imprimir" una página web a PDF, lo que facilita la creación de informes visualmente atractivos usando HTML y CSS.
+5.  **[Hardware] Auto-descubrimiento de Instrumentos**:
+    *   **Objetivo**: Eliminar la necesidad de introducir IPs manualmente.
+    *   **Tareas**: Implementar un escaneo de red (ej: usando `node-ssdp` o un ping broadcast) para encontrar dispositivos que respondan a comandos SCPI estándar como `*IDN?`.
 
-2.  **Crear el generador de informes.** (Hecho)
-    *   Se creará un nuevo manejador IPC en `main.js` llamado `export:generatePdf`.
-    *   Esta función recopilará todos los datos del proyecto actual (imagen de la placa, puntos, mediciones, capturas de oscilogramas) desde la base de datos.
-    *   Generará un fichero HTML dinámicamente con estos datos y le dará estilo con CSS.
-    *   Usará `puppeteer` para cargar este HTML y guardarlo como un fichero PDF, preguntando al usuario dónde desea guardarlo.
+6.  **[IA] Reconocimiento Básico de Componentes**:
+    *   **Objetivo**: Asistir al usuario en la identificación de componentes.
+    *   **Tareas**:
+        - Integrar una librería de Computer Vision (como OpenCV.js) o usar la API de Gemini Vision.
+        - Permitir al usuario seleccionar un área en la imagen y enviar esa sub-imagen a la IA para que intente identificar el componente.
 
-### Fase 4: Mejoras Adicionales y Usabilidad (EN PROGRESO)
-
-1.  **Guardado Automático.** (Hecho)
-    *   En `src/components/Settings.jsx`, se añadirá una opción para habilitar/deshabilitar el guardado automático.
-    *   Si está habilitado, la función de guardado se llamará automáticamente después de cada nueva medición exitosa.
-    *   **Mejora**: Se implementó guardado automático al crear puntos nuevos para asegurar integridad de datos.
-
-2.  **Gestión de Proyectos.** (Hecho)
-    *   Se creará un modal de "Gestión de Proyectos" que permita al usuario ver una lista de los proyectos guardados, abrirlos o eliminarlos.
-    *   **Mejora**: Se implementó borrado completo de proyectos y puntos.
-
-3.  **Zoom y Navegación.** (Hecho)
-    *   **Mejora**: Se implementó ajuste automático ("fit to screen") al cargar imágenes y corrección de coordenadas al hacer clic con zoom/pan.
-
-4.  **Notificaciones al Usuario.** (Hecho)
-    *   Se utilizará el `NotifierContext.jsx` existente para proporcionar feedback sobre las operaciones: "Proyecto guardado", "PDF generado correctamente", "Error al conectar con la base de datos", etc.
