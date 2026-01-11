@@ -31,6 +31,8 @@ const BoardLab = () => {
         deleteProject,
         updateProject,
         fetchProjectList,
+        deletePoint,
+        addMeasurement,
         setAutoSave,
         autoSave,
     } = useProject();
@@ -39,6 +41,58 @@ const BoardLab = () => {
     const [apiKey, setApiKey] = useState(''); // API key can be local UI state for Settings
     const hardware = useHardware();
     const gemini = useGemini(apiKey);
+
+    // Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = async (e) => {
+            // Ignore shortcuts if user is typing in an input field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            const key = e.key.toUpperCase();
+
+            // Mode Switching
+            if (key === 'M') setMode('measure');
+            if (key === 'V') setMode('view');
+
+            // Save Project (Ctrl+S)
+            if ((e.ctrlKey || e.metaKey) && key === 'S') {
+                e.preventDefault();
+                saveProject();
+            }
+
+            // Delete Point
+            if (key === 'DELETE') {
+                if (board.selectedPointId) {
+                    deletePoint(board.selectedPointId);
+                }
+            }
+
+            // Cancel / Deselect
+            if (key === 'ESCAPE') {
+                if (isNewProjectModalOpen) setNewProjectModalOpen(false);
+                else if (isProjectManagerOpen) setProjectManagerOpen(false);
+                else if (pointsTableOpen) setPointsTableOpen(false);
+                else if (board.selectedPointId) board.setSelectedPointId(null);
+            }
+
+            // Measure (Enter)
+            if (key === 'ENTER') {
+                if (mode === 'measure' && board.selectedPoint && !hardware.isCapturing) {
+                    e.preventDefault();
+                    // We need to handle temp points here similar to AIPanel if we want robustness
+                    // For now, assuming point is saved or addMeasurement handles it (it doesn't handle temp conversion yet)
+                    // Ideally we should use a shared 'measurePoint' action.
+                    const measurement = await hardware.captureValue(board.selectedPoint);
+                    if (measurement) {
+                        await addMeasurement(board.selectedPoint, measurement);
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [mode, board.selectedPointId, board.selectedPoint, hardware.isCapturing, isNewProjectModalOpen, isProjectManagerOpen, pointsTableOpen]);
 
     // Load API key and settings on mount
     useEffect(() => {

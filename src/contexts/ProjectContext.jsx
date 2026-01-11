@@ -164,6 +164,77 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
+    const handleAddMeasurement = async (point, measurementData) => {
+        if (!point || !measurementData) return null;
+
+        let targetPoint = point;
+
+        // 1. Handle Temporary Points (Save Project First)
+        if (typeof targetPoint.id === 'string' && targetPoint.id.startsWith('temp-')) {
+            console.log("Saving project to persist temporary point before measuring...");
+            
+            // This function returns the updated list of points from DB, which includes mapping for new IDs
+            const savedPoints = await handleSaveProject(); 
+            
+            if (savedPoints) {
+                // Find the persistent point corresponding to our temp point
+                // db-worker attaches 'temp_id' to the returned object for newly created points
+                const newlySavedPoint = savedPoints.find(p => p.temp_id === targetPoint.id);
+                
+                if (newlySavedPoint) {
+                    targetPoint = newlySavedPoint;
+                    // Update selection in Board if it was the selected point
+                    if (board.selectedPointId === point.id) {
+                        board.setSelectedPointId(targetPoint.id);
+                    }
+                } else {
+                    console.error("Could not find persistent ID for temp point. Aborting measurement.");
+                    showNotification("Error: Could not save point before measuring.", 'error');
+                    return null;
+                }
+            } else {
+                 return null;
+            }
+        }
+
+        // 2. Update Local State (Optimistic)
+        // We use targetPoint.id which is now guaranteed to be persistent (number)
+        board.setPoints(prevPoints => prevPoints.map(p => {
+            if (p.id === targetPoint.id) {
+                const newMeasurements = { 
+                    ...p.measurements, 
+                    [measurementData.type]: { ...measurementData, capturedAt: new Date().toISOString() } 
+                };
+                return { ...p, measurements: newMeasurements };
+            }
+            return p;
+        }));
+
+        if (!window.electronAPI) return measurementData;
+
+        // 3. Persist Measurement
+        try {
+            const valueToSave = measurementData.type === 'oscilloscope' ? measurementData : measurementData.value;
+            const result = await window.electronAPI.createMeasurement({
+                pointId: targetPoint.id,
+                type: targetPoint.type,
+                value: valueToSave,
+            });
+
+            if (result.id) {
+                showNotification('Measurement saved.', 'success');
+                return { ...measurementData, id: result.id, created_at: new Date().toISOString() };
+            } else {
+                showNotification(`Failed to save measurement: ${result.message}`, 'error');
+                return null;
+            }
+        } catch (error) {
+            console.error('Error adding measurement:', error);
+            showNotification('Error saving measurement.', 'error');
+            return null;
+        }
+    };
+
     const value = {
         currentProject,
         points: board.points,
@@ -178,6 +249,7 @@ export const ProjectProvider = ({ children }) => {
         deleteProject: handleDeleteProject,
         updateProject: handleUpdateProject,
         deletePoint: handleDeletePoint,
+        addMeasurement: handleAddMeasurement,
         fetchProjectList,
         
         // Board hook is also part of project state
