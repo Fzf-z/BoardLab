@@ -38,17 +38,21 @@ BoardLab ha evolucionado de un prototipo a una aplicación de escritorio sólida
 
 Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y añadir funcionalidades avanzadas.
 
-### Fase A. Refactorización de Arquitectura (Prioridad Alta)
-**Objetivo**: Mejorar la mantenibilidad y escalabilidad del código.
-**Tareas**:
-1. **Migración completa a ProjectContext / Eliminación de Prop Drilling**:
-   Aunque `ProjectContext` ya existe, asegurar que *todos* los componentes (viejos y nuevos) lo consuman directamente en lugar de pasar props (`points`, `setPoints`) a través de múltiples niveles. Limpiar código legado en `BoardLab.jsx`.
-2. **Adopción de TypeScript (Prioridad Alta)**:
-   Empezar a migrar gradualmente a TypeScript (archivos `.ts`/`.tsx`). Muchos errores recientes (typos, funciones indefinidas) se habrían evitado con tipado estático. Priorizar interfaces para los datos de hardware y base de datos.
+### Fase 1: Refactorización de Arquitectura y Mejoras de Usabilidad (UX)
 
-### Fase 1: Mejoras de Usabilidad (UX) - Próximos Pasos
+1.  **[Arquitectura] Migrar a Context API o Zustand (Prioridad Alta)**:
+    *   En lugar de pasar `points` y `setPoints` por todos lados, la creación de un `ProjectContext` centraliza el estado.
+    *   Cualquier componente (el panel lateral, la vista, el modal) puede acceder a los datos del proyecto directamente sin que `BoardLab.jsx` actúe como intermediario.
 
-1.  **[UX] Implementar Atajos de Teclado (Prioridad Alta)**:
+2.  **[Arquitectura] Migrar a TypeScript (A medio plazo)**:
+    *   **Objetivo**: Mejorar la robustez del código y reducir errores en tiempo de ejecución.
+    *   **Tareas**:
+        - Configurar el proyecto para soportar TypeScript.
+        - Migrar gradualmente archivos clave (`BoardLab.jsx`, `main.js`, `db-worker.js`).
+        - Definir tipos para las estructuras de datos principales (puntos, mediciones, etc.).
+    *   **Beneficios**: Detección temprana de errores, mejor autocompletado y mantenibilidad a largo plazo. Muchos errores comunes se evitarían por completo.
+
+3.  **[UX] Implementar Atajos de Teclado (Prioridad Alta)**:
     *   **Objetivo**: Acelerar drásticamente el flujo de trabajo.
     *   **Tareas**:
         - `M`: Cambiar al modo "Measure".
@@ -56,43 +60,49 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
         - `S` o `Ctrl+S`: Guardar el proyecto actual.
         - `Supr` o `Del`: Borrar el punto seleccionado.
         - `Esc`: Deseleccionar punto o cerrar modal activo.
+        - `Enter`: Realiza la medición actual en el punto seleccionado.
     *   **Implementación**: Añadir un `useEffect` en `BoardLab.jsx` que escuche eventos `keydown` globales.
 
-2.  **[Avanzado] Implementar Sistema de Deshacer/Rehacer (Prioridad Media)**:
-    *   **Objetivo**: Permitir a los usuarios revertir acciones accidentales como borrar un punto o moverlo.
-    *   **Advertencia Técnica**: Implementar esto manualmente es complejo. Considerar patrón "Command" o librerías como `use-history`. Guardar "deltas" (cambios), no el estado completo, para optimizar memoria.
+4.  **[UX - Avanzado] Implementar Sistema de Deshacer/Rehacer (Prioridad Media)**:
+    *   **Objetivo**: Permitir a los usuarios revertir acciones accidentales.
     *   **Tareas**:
         - Crear un estado de "historial de acciones" en `ProjectContext`.
-        - Implementar funciones `undo()` y `redo()` que naveguen por este historial.
-        - Añadir botones en la `Toolbar` y atajos (`Ctrl+Z`, `Ctrl+Y`).
-        - (Opcional) Zoom y Navegación tipo "Google Maps": Implementar un zoom centrado en el cursor y un "minimapa" si la imagen es muy grande.
-
+        - Implementar funciones `undo()` y `redo()` y atajos (`Ctrl+Z`, `Ctrl+Y`).
 
 ### Fase 2: Funcionalidades de Diagnóstico Avanzado
 
-3.  **[Diagnóstico] Comparación Visual de Formas de Onda**:
+1.  **[Diagnóstico] Comparación Visual de Formas de Onda**:
     *   **Objetivo**: Superponer una forma de onda guardada (de referencia) sobre una captura en vivo en `Waveform.jsx`.
     *   **Tareas**:
         - Añadir un botón "Set as Reference" en el historial de mediciones.
-        - Guardar la referencia eficientemente (ej: solo puntos clave si es muy grande) en la DB.
         - Modificar `Waveform.jsx` para aceptar y renderizar una segunda serie de datos con un color diferente.
 
-4.  **[Diagnóstico] Sistema de Tolerancias**:
-    *   **Objetivo**: Marcar automáticamente las mediciones como "correctas" (verde) o "incorrectas" (rojo) según un margen de tolerancia.
+2.  **[Diagnóstico] Sistema de Tolerancias**:
+    *   **Objetivo**: Marcar automáticamente las mediciones como "correctas" (verde) o "incorrectas" (rojo) según un valor de referencia y un margen de tolerancia (ej: 10%).
     *   **Tareas**:
-        - Añadir un campo `tolerance` (ej: 10%) a los puntos en la base de datos.
-        - En `AIPanel`, al mostrar una medición, compararla con un valor de referencia.
-        - **Visualización**: Añadir borde verde/rojo sutil a las etiquetas de los puntos en la imagen principal (Canvas), no solo en el panel lateral.
+        - Añadir un campo `tolerance` a los puntos en la base de datos.
+        - Aplicar estilo visual en `AIPanel` basado en la comparación.
 
-### Fase 3: Mejoras de Integración y Hardware
+3.  **[Diagnóstico] Comparación con "Golden Board" (Placa de Referencia)**:
+    *   **Objetivo**: Permitir comparar mediciones (valores y formas de onda) de un punto actual con el mismo punto de otro proyecto guardado (una "placa buena").
+    *   **Flujo de Ejemplo**:
+        1.  El técnico mide el punto `VCC_CPU`.
+        2.  Hace clic en "Comparar con Referencia".
+        3.  Se abre un modal que le permite buscar otros proyectos y seleccionar el punto `VCC_CPU` de un proyecto "Placa Modelo X - Funcionando OK".
+        4.  La UI muestra el valor actual (ej: 1.05V) al lado del valor de referencia (ej: 1.10V).
+        5.  Para formas de onda, se superpone la señal de referencia sobre la captura actual para una comparación
+    *   **Tareas**:
+        - Crear un modal de búsqueda de proyectos/puntos.
+        - Implementar la lógica de carga de datos comparativos en `ProjectContext`.
+        - Modificar la UI (`AIPanel`, `Waveform.jsx`) para mostrar los datos comparativos.
 
-5.  **[Hardware] Auto-descubrimiento de Instrumentos**:
-    *   **Objetivo**: Eliminar la necesidad de introducir IPs manualmente.
-    *   **Tareas**: Implementar un escaneo de red (ej: usando `node-ssdp` o un ping broadcast) para encontrar dispositivos que respondan a comandos SCPI estándar como `*IDN?`.
-    *   **Nota**: Hacer el proceso asíncrono con un timeout claro y feedback en la UI (spinner "Buscando dispositivos...") para no bloquear la experiencia.
+### Fase 3: Mejoras de Integración y Futuro
 
-6.  **[IA] Reconocimiento Básico de Componentes**:
+1.  **[IA] Reconocimiento Básico de Componentes**:
     *   **Objetivo**: Asistir al usuario en la identificación de componentes.
     *   **Tareas**:
-        - Integrar una librería de Computer Vision (como OpenCV.js) o usar la API de Gemini Vision.
-        - Permitir al usuario seleccionar un área en la imagen y enviar esa sub-imagen a la IA para que intente identificar el componente.
+        - Integrar una API de Computer Vision (como Gemini Vision).
+        - Permitir al usuario seleccionar un área en la imagen y enviarla para su identificación.
+
+
+
