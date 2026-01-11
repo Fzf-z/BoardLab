@@ -96,13 +96,35 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
         - Implementar la lógica de carga de datos comparativos en `ProjectContext`.
         - Modificar la UI (`AIPanel`, `Waveform.jsx`) para mostrar los datos comparativos.
 
-### Fase 3: Mejoras de Integración y Futuro
+### Fase 3: Mejoras de Integración, Nube y Comunidad
 
-1.  **[IA] Reconocimiento Básico de Componentes**:
-    *   **Objetivo**: Asistir al usuario en la identificación de componentes.
+1.  **[IA] Reconocimiento Visual de Componentes**:
+    *   **Estrategia**: Aprovechar la capacidad multimodal de Gemini.
     *   **Tareas**:
-        - Integrar una API de Computer Vision (como Gemini Vision).
-        - Permitir al usuario seleccionar un área en la imagen y enviarla para su identificación.
+        -   Implementar herramienta de recorte (crop) en el canvas (`BoardView`).
+        -   Enviar la imagen recortada a la API de Gemini para identificar el IC/Componente y sugerir su hoja de datos (datasheet).
 
+2.  **[IA] Análisis de Señales con LLM (No Machine Learning propio)**:
+    *   **Estrategia**: Usar el LLM actual para análisis de datos en lugar de entrenar redes neuronales desde cero.
+    *   **Tareas**:
+        -   Convertir los datos del osciloscopio a un formato textual comprimido (CSV/JSON).
+        -   Enviar los datos a Gemini junto con el contexto del componente (ej: "Señal I2C") para que detecte anomalías lógicas o ruido.
 
+3.  **[Nube] Repositorio de Proyectos (Arquitectura "Local-First")**:
+    *   **Estrategia**: Mantener SQLite local como fuente de verdad y usar la nube solo para intercambio ("Snapshot & Share").
+    *   **Tareas**:
+        -   **Exportación/Empaquetado**: Crear una función que exporte un proyecto completo a un archivo comprimido o JSON firmado.
+        -   **Backend Ligero**: Usar Firebase Storage o Supabase para alojar estos paquetes.
 
+4.  **[Seguridad] Autenticación de Usuarios**:
+    *   **Objetivo**: Gestionar la identidad de los técnicos para asegurar la autoría.
+    *   **Tareas**:
+        -   Integrar Firebase Authentication / Google Identity.
+        -   Crear pantallas de Login simples.
+
+5.  **[Comunidad] Galería de Reparaciones**:
+    *   **Objetivo**: Crear una librería de "Casos de Éxito".
+    *   **Flujo**:
+        -   Usuario marca un proyecto como "Solucionado" y elige "Publicar".
+        -   El sistema sube el paquete a la galería pública.
+        -   Otros técnicos pueden buscar por "Modelo de Placa" y descargar el proyecto como referencia ("Golden Board") para usarlo en la comparativa de la Fase 2.
