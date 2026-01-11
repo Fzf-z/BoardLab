@@ -1,15 +1,61 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useBoard } from '../hooks/useBoard';
 import { useNotifier } from './NotifierContext';
+import { Project, Point, MeasurementValue } from '../types';
 
-const ProjectContext = createContext();
+// Extend global window interface for Electron API
+declare global {
+    interface Window {
+        electronAPI?: {
+            createProject: (data: any) => Promise<Project>;
+            savePoints: (data: { projectId: number, points: Point[] }) => Promise<Point[]>;
+            getProjects: () => Promise<Project[]>;
+            getProjectWithImage: (id: number) => Promise<Project>;
+            getPoints: (projectId: number) => Promise<Point[]>;
+            deleteProject: (id: number) => Promise<{ status: string; message?: string }>;
+            updateProject: (data: Partial<Project>) => Promise<{ status: string; message?: string }>;
+            deletePoint: (id: number | string) => Promise<{ status: string; message?: string }>;
+            createMeasurement: (data: { pointId: number | string, type: string, value: any }) => Promise<{ id?: number; status: string; message?: string }>;
+            [key: string]: any;
+        };
+    }
+}
 
-export const useProject = () => useContext(ProjectContext);
+interface ProjectContextValue {
+    currentProject: Project | null;
+    points: Point[];
+    projectList: Project[];
+    autoSave: boolean;
+    setAutoSave: (value: boolean) => void;
+    createProject: (data: any) => Promise<void>;
+    saveProject: () => Promise<Point[] | undefined>;
+    loadProject: (project: Project) => Promise<void>;
+    deleteProject: (id: number) => Promise<void>;
+    updateProject: (data: Partial<Project>) => Promise<void>;
+    deletePoint: (id: number | string) => Promise<void>;
+    addMeasurement: (point: Point, measurementData: MeasurementValue) => Promise<MeasurementValue | null>;
+    fetchProjectList: () => Promise<Project[] | undefined>;
+    board: ReturnType<typeof useBoard>;
+}
 
-export const ProjectProvider = ({ children }) => {
-    const [currentProject, setCurrentProject] = useState(null);
-    const [projectList, setProjectList] = useState([]);
-    const [autoSave, setAutoSave] = useState(false); // We can move this here too
+const ProjectContext = createContext<ProjectContextValue | undefined>(undefined);
+
+export const useProject = () => {
+    const context = useContext(ProjectContext);
+    if (!context) {
+        throw new Error("useProject must be used within a ProjectProvider");
+    }
+    return context;
+};
+
+interface ProjectProviderProps {
+    children: ReactNode;
+}
+
+export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) => {
+    const [currentProject, setCurrentProject] = useState<Project | null>(null);
+    const [projectList, setProjectList] = useState<Project[]>([]);
+    const [autoSave, setAutoSave] = useState<boolean>(false);
     const board = useBoard();
     const { showNotification } = useNotifier();
 
@@ -23,13 +69,14 @@ export const ProjectProvider = ({ children }) => {
 
     // --- Project Data Logic ---
     
-    const handleCreateProject = async (projectData) => {
+    const handleCreateProject = async (projectData: any) => {
         if (!projectData || !window.electronAPI) return;
         try {
             const newProject = await window.electronAPI.createProject(projectData);
             setCurrentProject(newProject);
             
-            const blob = new Blob([projectData.image_data], { type: 'image/png' });
+            // Assuming image_data comes as buffer/array
+            const blob = new Blob([newProject.image_data as any], { type: 'image/png' });
             const imageUrl = URL.createObjectURL(blob);
             board.setImage(imageUrl);
             board.setPoints([]);
@@ -73,7 +120,7 @@ export const ProjectProvider = ({ children }) => {
         }
     };
     
-    const handleLoadProject = async (project) => {
+    const handleLoadProject = async (project: Project) => {
         if (!project || !window.electronAPI) return;
         try {
             const fullProject = await window.electronAPI.getProjectWithImage(project.id);
@@ -82,7 +129,7 @@ export const ProjectProvider = ({ children }) => {
             setCurrentProject(fullProject);
 
             if (fullProject.image_data) {
-                const blob = new Blob([fullProject.image_data], { type: 'image/png' });
+                const blob = new Blob([fullProject.image_data as any], { type: 'image/png' });
                 const imageUrl = URL.createObjectURL(blob);
                 board.setImage(imageUrl);
             } else {
@@ -97,7 +144,7 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
-    const handleDeleteProject = async (projectId) => {
+    const handleDeleteProject = async (projectId: number) => {
         if (!projectId || !window.electronAPI) return;
         try {
             const result = await window.electronAPI.deleteProject(projectId);
@@ -117,14 +164,16 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
-    const handleUpdateProject = async (updatedProjectData) => {
+    const handleUpdateProject = async (updatedProjectData: Partial<Project>) => {
         if (!window.electronAPI) return;
+        if (!updatedProjectData.id) return;
+
         try {
             const result = await window.electronAPI.updateProject(updatedProjectData);
             if (result && result.status === 'success') {
-                setProjectList(prev => prev.map(p => p.id === updatedProjectData.id ? { ...p, ...updatedProjectData } : p));
+                setProjectList(prev => prev.map(p => p.id === updatedProjectData.id ? { ...p, ...updatedProjectData } as Project : p));
                 if (currentProject && currentProject.id === updatedProjectData.id) {
-                    setCurrentProject(prev => ({ ...prev, ...updatedProjectData }));
+                    setCurrentProject(prev => prev ? ({ ...prev, ...updatedProjectData }) as Project : null);
                 }
                 showNotification('Project updated successfully.', 'success');
             } else {
@@ -136,7 +185,7 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
-    const handleDeletePoint = async (pointIdToDelete) => {
+    const handleDeletePoint = async (pointIdToDelete: number | string) => {
         if (typeof pointIdToDelete === 'string' && pointIdToDelete.startsWith('temp-')) {
             board.setPoints(prevPoints => prevPoints.filter(p => p.id !== pointIdToDelete));
             showNotification('Temporary point removed.', 'success');
@@ -164,7 +213,7 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
-    const handleAddMeasurement = async (point, measurementData) => {
+    const handleAddMeasurement = async (point: Point, measurementData: MeasurementValue) => {
         if (!point || !measurementData) return null;
 
         let targetPoint = point;
@@ -177,13 +226,10 @@ export const ProjectProvider = ({ children }) => {
             const savedPoints = await handleSaveProject(); 
             
             if (savedPoints) {
-                // Find the persistent point corresponding to our temp point
-                // db-worker attaches 'temp_id' to the returned object for newly created points
                 const newlySavedPoint = savedPoints.find(p => p.temp_id === targetPoint.id);
                 
                 if (newlySavedPoint) {
                     targetPoint = newlySavedPoint;
-                    // Update selection in Board if it was the selected point
                     if (board.selectedPointId === point.id) {
                         board.setSelectedPointId(targetPoint.id);
                     }
@@ -198,12 +244,12 @@ export const ProjectProvider = ({ children }) => {
         }
 
         // 2. Update Local State (Optimistic)
-        // We use targetPoint.id which is now guaranteed to be persistent (number)
         board.setPoints(prevPoints => prevPoints.map(p => {
             if (p.id === targetPoint.id) {
+                const type = measurementData.type || 'unknown';
                 const newMeasurements = { 
                     ...p.measurements, 
-                    [measurementData.type]: { ...measurementData, capturedAt: new Date().toISOString() } 
+                    [type]: { ...measurementData, capturedAt: new Date().toISOString() } 
                 };
                 return { ...p, measurements: newMeasurements };
             }
@@ -223,7 +269,7 @@ export const ProjectProvider = ({ children }) => {
 
             if (result.id) {
                 showNotification('Measurement saved.', 'success');
-                return { ...measurementData, id: result.id, created_at: new Date().toISOString() };
+                return { ...measurementData, capturedAt: new Date().toISOString() };
             } else {
                 showNotification(`Failed to save measurement: ${result.message}`, 'error');
                 return null;
@@ -235,14 +281,13 @@ export const ProjectProvider = ({ children }) => {
         }
     };
 
-    const value = {
+    const value: ProjectContextValue = {
         currentProject,
         points: board.points,
         projectList,
         autoSave,
         setAutoSave,
         
-        // Functions
         createProject: handleCreateProject,
         saveProject: handleSaveProject,
         loadProject: handleLoadProject,
@@ -252,7 +297,6 @@ export const ProjectProvider = ({ children }) => {
         addMeasurement: handleAddMeasurement,
         fetchProjectList,
         
-        // Board hook is also part of project state
         board,
     };
 

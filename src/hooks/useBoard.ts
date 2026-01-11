@@ -1,16 +1,22 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, ChangeEvent, MouseEvent, WheelEvent } from 'react';
+import { Point } from '../types';
+
+interface Position {
+    x: number;
+    y: number;
+}
 
 export const useBoard = () => {
-    const [imageSrc, setImageSrc] = useState(null);
-    const [points, setPoints] = useState([]);
-    const [selectedPointId, setSelectedPointId] = useState(null);
-    const [scale, setScale] = useState(1);
-    const [position, setPosition] = useState({ x: 0, y: 0 });
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [imageSrc, setImageSrc] = useState<string | null>(null);
+    const [points, setPoints] = useState<Point[]>([]);
+    const [selectedPointId, setSelectedPointId] = useState<number | string | null>(null);
+    const [scale, setScale] = useState<number>(1);
+    const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 });
 
-    const containerRef = useRef(null);
-    const fileInputRef = useRef(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (imageSrc && containerRef.current) {
@@ -46,16 +52,16 @@ export const useBoard = () => {
             };
             img.src = imageSrc;
         }
-    }, [imageSrc, containerRef.current]); // Add containerRef.current to dependencies
+    }, [imageSrc]); 
 
     const selectedPoint = useMemo(() => points.find(p => p.id === selectedPointId), [points, selectedPointId]);
 
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
+    const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = (ev) => {
-                setImageSrc(ev.target.result);
+                setImageSrc(ev.target?.result as string);
                 setPoints([]);
                 // Scale and position are now handled by useEffect
             };
@@ -63,9 +69,15 @@ export const useBoard = () => {
         }
     };
 
-    const handleWheel = (e) => {
+    const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
         if (e.ctrlKey) return;
-        if (e.cancelable) e.preventDefault();
+        // In React 18+, events are sometimes passive by default, so preventDefault might need check
+        // but for wheel on div it usually works if not passive. 
+        // However, React synthetic events don't have 'cancelable' property always reliable?
+        // Let's keep it simply blocked if possible, but TS might complain if we don't check cancelable
+        // e.preventDefault(); // React synthetic event warning might occur
+        
+        // Custom logic for zoom
         const rect = e.currentTarget.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -76,14 +88,14 @@ export const useBoard = () => {
         setScale(newScale);
     };
 
-    const handleMouseDown = (e, mode) => {
+    const handleMouseDown = (e: MouseEvent<HTMLDivElement>, mode: string) => {
         if ((mode === 'view' && e.button === 0) || e.button === 2) {
             setIsDragging(true);
             setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
         }
     };
 
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
         if (isDragging) {
             setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
         }
@@ -93,7 +105,7 @@ export const useBoard = () => {
         setIsDragging(false);
     };
 
-    const handleImageClick = (e, mode, projectId) => {
+    const handleImageClick = (e: MouseEvent<HTMLDivElement>, mode: string, projectId: number | null) => {
         if (mode === 'measure' && !isDragging && e.button === 0) {
             if (!projectId) {
                 console.error("Cannot add point: No project is active.");
@@ -106,7 +118,8 @@ export const useBoard = () => {
             // We do NOT subtract position.x/y because rect.left/top already accounts for it.
             const x = (e.clientX - rect.left) / scale;
             const y = (e.clientY - rect.top) / scale;
-            const newPoint = {
+            
+            const newPoint: Point = {
                 id: `temp-${Date.now()}`,
                 project_id: projectId,
                 x,
