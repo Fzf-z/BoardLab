@@ -80,6 +80,32 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
         return nameMatch && typeMatch;
     });
 
+    const AttributeBadge = ({ attributes }: { attributes: Project['attributes'] }) => {
+        let attrs: Record<string, string> = {};
+        if (typeof attributes === 'string') {
+            try { attrs = JSON.parse(attributes); } catch (e) { return null; }
+        } else if (typeof attributes === 'object' && attributes !== null) {
+            attrs = attributes as Record<string, string>;
+        }
+
+        const importantKeys = ['CPU', 'GPU', 'RAM'];
+        const displayAttrs = Object.entries(attrs)
+            .filter(([key]) => importantKeys.includes(key.toUpperCase()))
+            .slice(0, 2);
+
+        if (displayAttrs.length === 0) return null;
+
+        return (
+            <div className="flex flex-wrap gap-1 mt-1">
+                {displayAttrs.map(([key, val]) => (
+                    <span key={key} className="text-[9px] bg-gray-700/60 text-gray-400 px-1.5 py-0.5 rounded">
+                        <strong>{key}:</strong> {val}
+                    </span>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
             <div className="bg-gray-800 rounded-lg shadow-2xl w-[900px] max-h-[85vh] flex flex-col border border-gray-700">
@@ -124,8 +150,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                         <div className="font-bold truncate">{proj.board_model}</div>
                                         <div className="text-[10px] opacity-70 truncate flex items-center">
                                             <span className="bg-gray-900/50 px-1 rounded mr-1">{proj.board_type}</span>
-                                        </div>
-                                    </div>
+                                        </div>                                        <AttributeBadge attributes={proj.attributes} />                                    </div>
                                 </button>
                             )) : (
                                 <div className="text-center text-gray-500 text-xs mt-4">No se encontraron proyectos.</div>
