@@ -31,7 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getProjects: () => ipcRenderer.invoke('db:get-projects'),
   getProjectWithImage: (projectId: number) => ipcRenderer.invoke('db:get-project-with-image', projectId),
   createProject: (projectData: any) => ipcRenderer.invoke('db:create-project', projectData),
-  getAllAttributes: () => ipcRenderer.invoke('db:get-all-attributes'),
+  getAllAttributes: (boardType?: string) => ipcRenderer.invoke('db:get-all-attributes', { boardType }),
   savePoints: (data: any) => ipcRenderer.invoke('db:save-points', data), // data: { projectId, points }
   getPoints: (projectId: number) => ipcRenderer.invoke('db:get-points', projectId),
   createMeasurement: (data: any) => ipcRenderer.invoke('db:createMeasurement', data), // data: { pointId, type, value }

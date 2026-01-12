@@ -27,6 +27,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [customBoardType, setCustomBoardType] = useState<string>('');
+    const [fetchedAttributes, setFetchedAttributes] = useState<{ keys: string[], values: string[] }>({ keys: [], values: [] });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -39,6 +40,15 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
             });
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen && window.electronAPI) {
+            const typeToFetch = boardType === 'Other' ? undefined : boardType;
+            window.electronAPI.getAllAttributes(typeToFetch).then((attrs: { keys: string[], values: string[] }) => {
+                setFetchedAttributes(attrs || { keys: [], values: [] });
+            }).catch(console.error);
+        }
+    }, [isOpen, boardType]);
 
     if (!isOpen) return null;
 
@@ -245,6 +255,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                             value={attr.value}
                                             onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
                                             className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none"
+                                            list="known-values"
                                         />
                                         {dynamicAttributes.length > 1 && (
                                             <button type="button" onClick={() => removeAttribute(index)} className="text-red-400 hover:bg-red-900/30 p-1.5 rounded transition-colors">
@@ -288,7 +299,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                 
                 {/* Datalist for Autocomplete */}
                 <datalist id="known-keys">
-                    {knownAttributes.keys.map((k, i) => <option key={i} value={k} />)}
+                    {fetchedAttributes.keys.map((k, i) => <option key={i} value={k} />)}
+                </datalist>
+                <datalist id="known-values">
+                    {fetchedAttributes.values.map((v, i) => <option key={i} value={v} />)}
                 </datalist>
             </div>
         </div>

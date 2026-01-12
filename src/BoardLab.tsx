@@ -19,6 +19,8 @@ import ProjectManagerModal from './components/modals/ProjectManagerModal';
 import AIModal from './components/modals/AIModal';
 // @ts-ignore
 import NewProjectModal from './components/modals/NewProjectModal';
+// @ts-ignore
+import ComparisonModal from './components/modals/ComparisonModal';
 
 const BoardLab: React.FC = () => {
     // UI State - Stays in this component
@@ -26,6 +28,8 @@ const BoardLab: React.FC = () => {
     const [pointsTableOpen, setPointsTableOpen] = useState<boolean>(false);
     const [isProjectManagerOpen, setProjectManagerOpen] = useState<boolean>(false);
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState<boolean>(false);
+    const [isComparisonModalOpen, setComparisonModalOpen] = useState<boolean>(false);
+    const [comparisonPoint, setComparisonPoint] = useState<any>(null);
 
     // Global Project State - Consumed from context
     const {
@@ -155,6 +159,21 @@ const BoardLab: React.FC = () => {
                 onUpdateProject={updateProject}
             />
 
+            <ComparisonModal 
+                isOpen={isComparisonModalOpen}
+                onClose={() => setComparisonModalOpen(false)}
+                currentPoint={board.selectedPoint}
+                onImportReference={(pt: any) => {
+                    setComparisonPoint(pt);
+                    setComparisonModalOpen(false);
+                    if (board.selectedPoint && !board.selectedPoint.expected_value && (pt.expected_value || pt.measurements?.[pt.type]?.value)) {
+                        const val = pt.expected_value || pt.measurements?.[pt.type]?.value;
+                        const valStr = typeof val === 'object' ? 'Scope Data' : String(val);
+                        board.setPoints(board.points.map(p => p.id === board.selectedPoint?.id ? { ...p, expected_value: valStr, tolerance: pt.tolerance || 10 } : p));
+                    }
+                }}
+            />
+
             <NewProjectModal
                 isOpen={isNewProjectModalOpen}
                 onClose={() => setNewProjectModalOpen(false)}
@@ -179,6 +198,8 @@ const BoardLab: React.FC = () => {
                 isCapturing={hardware.isCapturing}
                 analyzeBoard={gemini.analyzeBoard}
                 instrumentConfig={hardware.instrumentConfig}
+                onOpenComparison={() => setComparisonModalOpen(true)}
+                comparisonPoint={comparisonPoint}
             />
 
             {/* Modals that don't need project data can stay as they are */}

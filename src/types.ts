@@ -42,6 +42,8 @@ export interface Point {
     label: string;
     notes?: string;
     type: MeasurementType;
+    tolerance?: number;
+    expected_value?: string;
     // In the frontend, we store latest measurements by type for quick access
     measurements?: Record<string, MeasurementValue>;
     temp_id?: string; // Used during saving to map temp IDs to real IDs

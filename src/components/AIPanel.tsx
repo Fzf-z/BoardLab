@@ -13,6 +13,8 @@ interface AIPanelProps {
     isCapturing: boolean;
     analyzeBoard: (points: Point[]) => void;
     instrumentConfig: InstrumentConfig;
+    onOpenComparison?: () => void;
+    comparisonPoint?: any;
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -21,6 +23,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
     isCapturing,
     analyzeBoard,
     instrumentConfig,
+    onOpenComparison,
+    comparisonPoint
 }) => {
     const { 
         points, 
@@ -33,6 +37,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
     const [history, setHistory] = useState<any[]>([]); 
     const [referenceWaveform, setReferenceWaveform] = useState<any>(null);
+
+    useEffect(() => {
+        if (comparisonPoint && comparisonPoint.type === 'oscilloscope' && comparisonPoint.measurements?.oscilloscope) {
+            setReferenceWaveform(comparisonPoint.measurements.oscilloscope);
+        }
+    }, [comparisonPoint]);
 
     useEffect(() => {
         setHistory([]);
@@ -89,6 +99,33 @@ const AIPanel: React.FC<AIPanelProps> = ({
         { id: 'oscilloscope', icon: Activity, lbl: 'Scope' }
     ];
 
+    const getMeasurementStatusColor = () => {
+        if (!selectedPoint || !selectedPoint.expected_value || !selectedPoint.tolerance) return "text-cyan-400";
+        
+        const currentMeas = selectedPoint.measurements?.[selectedPoint.type];
+        if (!currentMeas) return "text-cyan-400";
+
+        let val: number | undefined;
+        if (selectedPoint.type === 'oscilloscope') {
+             val = currentMeas.vpp;
+        } else {
+             const v = currentMeas.value;
+             if (typeof v === 'number') val = v;
+             else if (typeof v === 'string') val = parseFloat(v);
+        }
+
+        if (val === undefined || isNaN(val)) return "text-cyan-400";
+
+        const expected = parseFloat(selectedPoint.expected_value);
+        if (isNaN(expected)) return "text-cyan-400";
+
+        const tol = selectedPoint.tolerance;
+        const margin = Math.abs(expected * (tol / 100));
+        
+        if (val >= expected - margin && val <= expected + margin) return "text-green-400";
+        return "text-red-500";
+    };
+
     return (
         <div className="w-82 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
             <div className="p-4 border-b border-gray-700">
@@ -138,9 +175,43 @@ const AIPanel: React.FC<AIPanelProps> = ({
                             ))}
                         </div>
 
+                        {/* --- Tolerance & Expected Value --- */}
+                        <div className="grid grid-cols-2 gap-2">
+                             <div>
+                                <label className="text-[10px] text-gray-400 block mb-1">Valor Esperado</label>
+                                <input 
+                                    type="text" 
+                                    value={selectedPoint.expected_value || ''} 
+                                    onChange={(e) => handlePointUpdate('expected_value', e.target.value)}
+                                    placeholder="Ej: 3.3"
+                                    className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white font-mono"
+                                />
+                             </div>
+                             <div>
+                                <label className="text-[10px] text-gray-400 block mb-1">Tolerancia (%)</label>
+                                <input 
+                                    type="number" 
+                                    value={selectedPoint.tolerance || ''} 
+                                    onChange={(e) => handlePointUpdate('tolerance', parseFloat(e.target.value))}
+                                    placeholder="Ej: 10"
+                                    className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white font-mono"
+                                />
+                             </div>
+                        </div>
+
+                        {onOpenComparison && (
+                            <button 
+                                onClick={onOpenComparison} 
+                                className="w-full bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 text-xs py-1.5 rounded border border-purple-800/50 flex items-center justify-center transition"
+                            >
+                                <GitCommit size={12} className="mr-2" />
+                                Comparar con Golden Board
+                            </button>
+                        )}
+
                         {/* --- Live Measurement --- */}
                         <div className="bg-black/40 rounded-lg p-4 border border-gray-700">
-                            <div className="text-2xl font-mono text-cyan-400 font-bold mb-1">
+                            <div className={`text-2xl font-mono font-bold mb-1 ${getMeasurementStatusColor()}`}>
                                 {selectedPoint.type === 'oscilloscope' 
                                     ? `Vpp: ${selectedPoint.measurements?.oscilloscope?.vpp?.toFixed(2) ?? '...'} V / Freq: ${selectedPoint.measurements?.oscilloscope?.freq?.toFixed(2) ?? '...'} Hz` 
                                     : (selectedPoint.measurements && selectedPoint.measurements[selectedPoint.type] ? selectedPoint.measurements[selectedPoint.type]?.value : "---")

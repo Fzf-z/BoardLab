@@ -22,7 +22,7 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   getProjects: () => electron.ipcRenderer.invoke("db:get-projects"),
   getProjectWithImage: (projectId) => electron.ipcRenderer.invoke("db:get-project-with-image", projectId),
   createProject: (projectData) => electron.ipcRenderer.invoke("db:create-project", projectData),
-  getAllAttributes: () => electron.ipcRenderer.invoke("db:get-all-attributes"),
+  getAllAttributes: (boardType) => electron.ipcRenderer.invoke("db:get-all-attributes", { boardType }),
   savePoints: (data) => electron.ipcRenderer.invoke("db:save-points", data),
   // data: { projectId, points }
   getPoints: (projectId) => electron.ipcRenderer.invoke("db:get-points", projectId),

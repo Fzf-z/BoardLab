@@ -35,10 +35,23 @@ db.exec(`
     label TEXT,
     notes TEXT,
     type TEXT,
+    tolerance REAL,
+    expected_value TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (project_id) REFERENCES projects (id)
   );
 `);
+try {
+  const pointTableInfo = db.prepare("PRAGMA table_info(points)").all();
+  const hasTolerance = pointTableInfo.some((col) => col.name === "tolerance");
+  if (!hasTolerance) {
+    db.exec("ALTER TABLE points ADD COLUMN tolerance REAL");
+    db.exec("ALTER TABLE points ADD COLUMN expected_value TEXT");
+    console.log("Worker: Migrated points table to include 'tolerance' and 'expected_value' columns.");
+  }
+} catch (e) {
+  console.error("Worker: Error migrating points table:", e);
+}
 db.exec(`
   CREATE TABLE IF NOT EXISTS measurements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,7 +92,13 @@ async function handleMessage(msg) {
         result = { id: insertResult.lastInsertRowid, ...payload, image_data: imageBuffer };
         break;
       case "db:get-all-attributes":
-        const projectAttrs = db.prepare("SELECT attributes FROM projects WHERE attributes IS NOT NULL").all();
+        const targetBoardType = payload == null ? void 0 : payload.boardType;
+        let projectAttrs;
+        if (targetBoardType) {
+          projectAttrs = db.prepare("SELECT attributes FROM projects WHERE attributes IS NOT NULL AND board_type = ?").all(targetBoardType);
+        } else {
+          projectAttrs = db.prepare("SELECT attributes FROM projects WHERE attributes IS NOT NULL").all();
+        }
         const keys = /* @__PURE__ */ new Set();
         const values = /* @__PURE__ */ new Set();
         for (const proj of projectAttrs) {
@@ -98,20 +117,20 @@ async function handleMessage(msg) {
         break;
       case "db:save-points":
         const { projectId, points } = payload;
-        const insertStmt = db.prepare("INSERT INTO points (project_id, x, y, label, notes, type) VALUES (?, ?, ?, ?, ?, ?)");
-        const updateStmt = db.prepare("UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ? WHERE id = ?");
+        const insertStmt = db.prepare("INSERT INTO points (project_id, x, y, label, notes, type, tolerance, expected_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        const updateStmt = db.prepare("UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ?, tolerance = ?, expected_value = ? WHERE id = ?");
         const savedRows = [];
         const transaction = db.transaction((pts) => {
           for (const point of pts) {
             if (typeof point.id === "string" && point.id.startsWith("temp-")) {
-              const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || "", point.type || "voltage");
+              const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || "", point.type || "voltage", point.tolerance || null, point.expected_value || null);
               const row = db.prepare("SELECT * FROM points WHERE id = ?").get(res.lastInsertRowid);
               if (row) {
                 row.temp_id = point.id;
                 savedRows.push(row);
               }
             } else if (typeof point.id === "number") {
-              updateStmt.run(point.x, point.y, point.label, point.notes || "", point.type || "voltage", point.id);
+              updateStmt.run(point.x, point.y, point.label, point.notes || "", point.type || "voltage", point.tolerance || null, point.expected_value || null, point.id);
               const row = db.prepare("SELECT * FROM points WHERE id = ?").get(point.id);
               if (row) savedRows.push(row);
             }
