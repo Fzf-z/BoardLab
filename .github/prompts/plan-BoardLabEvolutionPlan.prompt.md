@@ -40,28 +40,18 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
 
 ### Fase 1: Refactorización de Arquitectura y Mejoras de Usabilidad (UX)
 
-1.  **[Arquitectura] Migrar a Context API o Zustand (Prioridad Alta)**:
-    *   En lugar de pasar `points` y `setPoints` por todos lados, la creación de un `ProjectContext` centraliza el estado.
-    *   Cualquier componente (el panel lateral, la vista, el modal) puede acceder a los datos del proyecto directamente sin que `BoardLab.jsx` actúe como intermediario.
+1.  **[COMPLETADO] [Arquitectura] Migrar a Context API**:
+    *   **Estado**: ✅ Implementado `ProjectContext.tsx` y `NotifierContext.tsx`.
+    *   Centraliza todo el estado del proyecto y la lógica de negocio, eliminando prop-drilling.
 
-2.  **[Arquitectura] Migrar a TypeScript (A medio plazo)**:
-    *   **Objetivo**: Mejorar la robustez del código y reducir errores en tiempo de ejecución.
-    *   **Tareas**:
-        - Configurar el proyecto para soportar TypeScript.
-        - Migrar gradualmente archivos clave (`BoardLab.jsx`, `main.js`, `db-worker.js`).
-        - Definir tipos para las estructuras de datos principales (puntos, mediciones, etc.).
-    *   **Beneficios**: Detección temprana de errores, mejor autocompletado y mantenibilidad a largo plazo. Muchos errores comunes se evitarían por completo.
+2.  **[COMPLETADO] [Arquitectura] Migrar a TypeScript**:
+    *   **Estado**: ✅ Frontend migrado al 100% (Componentes, Hooks, Contexts).
+    *   **Backend**: Se mantiene en JavaScript (`main.js`, `db-worker.js`) para compatibilidad directa con Electron.
+    *   **Beneficios**: Código robusto, autocompletado y detección de errores en tiempo de desarrollo.
 
-3.  **[UX] Implementar Atajos de Teclado (Prioridad Alta)**:
-    *   **Objetivo**: Acelerar drásticamente el flujo de trabajo.
-    *   **Tareas**:
-        - `M`: Cambiar al modo "Measure".
-        - `V`: Cambiar al modo "View".
-        - `S` o `Ctrl+S`: Guardar el proyecto actual.
-        - `Supr` o `Del`: Borrar el punto seleccionado.
-        - `Esc`: Deseleccionar punto o cerrar modal activo.
-        - `Enter`: Realiza la medición actual en el punto seleccionado.
-    *   **Implementación**: Añadir un `useEffect` en `BoardLab.jsx` que escuche eventos `keydown` globales.
+3.  **[COMPLETADO] [UX] Implementar Atajos de Teclado**:
+    *   **Estado**: ✅ Implementado en `BoardLab.tsx`.
+    *   `M`/`V`: Modos. `Ctrl+S`: Guardar. `Del`: Borrar. `Esc`: Cancelar. `Enter`: Medir.
 
 4.  **[UX - Avanzado] Implementar Sistema de Deshacer/Rehacer (Prioridad Media)**:
     *   **Objetivo**: Permitir a los usuarios revertir acciones accidentales.

@@ -1,6 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, MouseEvent, WheelEvent } from 'react';
+import { Point, MeasurementValue } from '../types';
 
-const Waveform = ({ pointData, referenceData }) => {
+interface WaveformProps {
+    pointData: Point;
+    referenceData?: MeasurementValue;
+}
+
+interface ViewBox {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+const Waveform: React.FC<WaveformProps> = ({ pointData, referenceData }) => {
     const oscilloscopeMeasurement = pointData?.measurements?.oscilloscope;
 
     if (!oscilloscopeMeasurement?.waveform) return null;
@@ -8,8 +21,8 @@ const Waveform = ({ pointData, referenceData }) => {
     const { waveform, timeScale, voltageScale, voltageOffset, vpp, freq } = oscilloscopeMeasurement;
 
     const svgWidth = 450, svgHeight = 360;
-    const initialViewBox = { x: 0, y: 0, width: svgWidth, height: svgHeight };
-    const [viewBox, setViewBox] = useState(initialViewBox);
+    const initialViewBox: ViewBox = { x: 0, y: 0, width: svgWidth, height: svgHeight };
+    const [viewBox, setViewBox] = useState<ViewBox>(initialViewBox);
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
@@ -23,8 +36,8 @@ const Waveform = ({ pointData, referenceData }) => {
     gridLines.push(<line key="ax" x1="0" y1={svgHeight / 2} x2={svgWidth} y2={svgHeight / 2} stroke="#718096" strokeWidth="0.5" />);
     gridLines.push(<line key="ay" x1={svgWidth / 2} y1="0" x2={svgWidth / 2} y2={svgHeight} stroke="#718096" strokeWidth="0.5" />);
 
-    const vRange = numDivY * voltageScale;
-    const vBottom = voltageOffset - (vRange / 2);
+    const vRange = numDivY * (voltageScale || 1);
+    const vBottom = (voltageOffset || 0) - (vRange / 2);
 
     // --- Live Waveform Path ---
     const pointsStr = waveform
@@ -42,7 +55,7 @@ const Waveform = ({ pointData, referenceData }) => {
         // We use the LIVE waveform's scaling to draw the reference waveform for accurate comparison
         referencePointsStr = referenceData.waveform
             .map((val, i) => {
-                const x = (i / (referenceData.waveform.length - 1)) * svgWidth;
+                const x = (i / (referenceData.waveform!.length - 1)) * svgWidth;
                 const yPercent = vRange === 0 ? 0.5 : (val - vBottom) / vRange;
                 const y = Math.max(0, Math.min(svgHeight, svgHeight - (yPercent * svgHeight)));
                 return `${x.toFixed(2)},${y.toFixed(2)}`;
@@ -51,7 +64,8 @@ const Waveform = ({ pointData, referenceData }) => {
     }
 
 
-    const handleWheel = (e) => {
+    const handleWheel = (e: WheelEvent<SVGSVGElement>) => {
+        // @ts-ignore: React types issue with preventDefault on some events
         if (e.cancelable) e.preventDefault();
         const svgElement = e.currentTarget;
         const { left, top, width, height } = svgElement.getBoundingClientRect();
@@ -76,12 +90,12 @@ const Waveform = ({ pointData, referenceData }) => {
         });
     };
 
-    const handleMouseDown = (e) => {
+    const handleMouseDown = (e: MouseEvent<SVGSVGElement>) => {
         setIsDragging(true);
         setDragStart({ x: e.clientX, y: e.clientY });
     };
 
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent<SVGSVGElement>) => {
         if (!isDragging) return;
         const dx = e.clientX - dragStart.x;
         const dy = e.clientY - dragStart.y;
@@ -93,38 +107,60 @@ const Waveform = ({ pointData, referenceData }) => {
 
     const handleMouseUp = () => setIsDragging(false);
 
-    const formatUnits = (value, unit) => {
-        if (value === null || typeof value === 'undefined' || value > 1e12) return `--- ${unit}`;
+    const formatUnits = (value: number | undefined, unit: string) => {
+        if (value === null || typeof value === 'undefined' || Math.abs(value) > 1e12) return `--- ${unit}`;
         if (value === 0) return `0.00 ${unit}`;
         const absValue = Math.abs(value);
         const prefixes = [{ p: 'G', v: 1e9 }, { p: 'M', v: 1e6 }, { p: 'k', v: 1e3 }, { p: '', v: 1 }, { p: 'm', v: 1e-3 }, { p: 'µ', v: 1e-6 }, { p: 'n', v: 1e-9 }];
-        const prefix = prefixes.find(pr => absValue >= pr.v) || { p: '', v: 1 };
+        
+        const prefix = prefixes.find(p => absValue >= p.v) || prefixes[prefixes.length - 1];
         return `${(value / prefix.v).toFixed(2)} ${prefix.p}${unit}`;
-    }
+    };
 
     return (
-        <div className="mt-2 space-y-2">
-            <svg
+        <div className="relative mt-2 border border-gray-700 bg-gray-900 rounded overflow-hidden select-none">
+            <svg 
+                width="100%" 
                 viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
-                className="bg-gray-900 border border-gray-700 rounded-lg w-full"
+                className="block cursor-move"
                 onWheel={handleWheel}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
-                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
             >
+                <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="#1a202c" />
                 {gridLines}
+                <polyline points={pointsStr} fill="none" stroke="#63b3ed" strokeWidth="2" vectorEffect="non-scaling-stroke" />
                 {referencePointsStr && (
-                    <polyline points={referencePointsStr} fill="none" stroke="#a1a1aa" strokeWidth="1.5" strokeDasharray="3,3" />
+                    <polyline points={referencePointsStr} fill="none" stroke="#f6ad55" strokeWidth="2" strokeDasharray="4,4" vectorEffect="non-scaling-stroke" opacity="0.7" />
                 )}
-                <polyline points={pointsStr} fill="none" stroke="#10b981" strokeWidth="1.5" />
             </svg>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 bg-gray-900 p-2 rounded-lg border border-gray-700 text-[10px] font-mono">
-                <div className="text-gray-400">Time/div: <span className="font-bold text-white">{formatUnits(timeScale, 's')}</span></div>
-                <div className="text-gray-400">V/div: <span className="font-bold text-white">{formatUnits(voltageScale, 'V')}</span></div>
-                <div className="text-gray-400">Vpp: <span className="font-bold text-cyan-400">{formatUnits(vpp, 'V')}</span></div>
-                <div className="text-gray-400">Freq: <span className="font-bold text-cyan-400">{formatUnits(freq, 'Hz')}</span></div>
+            
+            <div className="absolute top-2 left-2 bg-black/70 p-2 rounded text-[10px] text-gray-300 font-mono space-y-1 pointer-events-none">
+                <div className="text-cyan-400 font-bold">CH1 (Live)</div>
+                <div>Scale: {formatUnits(voltageScale, 'V')}/div</div>
+                <div>Time: {formatUnits(timeScale, 's')}/div</div>
+                <div>Offset: {formatUnits(voltageOffset, 'V')}</div>
+                <div className="border-t border-gray-600 pt-1 mt-1">
+                    <div>Vpp: {formatUnits(vpp, 'V')}</div>
+                    <div>Freq: {formatUnits(freq, 'Hz')}</div>
+                </div>
+            </div>
+
+            {referenceData && (
+                <div className="absolute top-2 right-2 bg-black/70 p-2 rounded text-[10px] text-gray-300 font-mono space-y-1 pointer-events-none border border-orange-500/30">
+                    <div className="text-orange-400 font-bold">REF (Saved)</div>
+                    <div>Scale: {formatUnits(voltageScale, 'V')}/div</div> {/* Using live scale as ref is drawn on live scale */}
+                    <div className="border-t border-gray-600 pt-1 mt-1">
+                        <div>Vpp: {formatUnits(referenceData.vpp, 'V')}</div>
+                        <div>Freq: {formatUnits(referenceData.freq, 'Hz')}</div>
+                    </div>
+                </div>
+            )}
+            
+            <div className="absolute bottom-1 right-2 text-[9px] text-gray-500 pointer-events-none">
+                Scroll to Zoom • Drag to Pan
             </div>
         </div>
     );

@@ -1,7 +1,18 @@
-// src/report-generator.js
+// Helper for buffer handling if environment differs
+const bufferToBase64 = (buffer) => {
+    if (typeof Buffer !== 'undefined') {
+        return Buffer.from(buffer).toString('base64');
+    } else {
+        let binary = '';
+        const len = buffer.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(buffer[i]);
+        }
+        return window.btoa(binary);
+    }
+};
 
 function generateWaveformSvg(measurement) {
-    // Check if we have valid waveform data
     if (!measurement || !measurement.waveform || !Array.isArray(measurement.waveform)) return 'No waveform data';
     
     const { waveform, voltageScale, voltageOffset, timeScale, vpp, freq } = measurement;
@@ -21,14 +32,12 @@ function generateWaveformSvg(measurement) {
     gridLines += `<line x1="0" y1="${svgHeight/2}" x2="${svgWidth}" y2="${svgHeight/2}" stroke="#9ca3af" stroke-width="1" />`;
 
     // --- Waveform Path ---
-    // Calculate vertical scaling based on voltage settings
-    const vRange = numDivY * voltageScale;
-    const vBottom = voltageOffset - (vRange / 2);
+    const vRange = numDivY * (voltageScale || 1);
+    const vBottom = (voltageOffset || 0) - (vRange / 2);
 
     const pointsStr = waveform
         .map((val, i) => {
             const x = (i / (waveform.length - 1)) * svgWidth;
-            // Map voltage value to Y coordinate (0 at top, height at bottom)
             const yPercent = vRange === 0 ? 0.5 : (val - vBottom) / vRange;
             const y = Math.max(0, Math.min(svgHeight, svgHeight - (yPercent * svgHeight)));
             return `${x.toFixed(1)},${y.toFixed(1)}`;
@@ -52,7 +61,6 @@ function generateWaveformSvg(measurement) {
 
 function renderMeasurementValue(measurement) {
     if (measurement.type === 'oscilloscope') {
-        // Pass the raw measurement object which contains the waveform array and metadata
         return generateWaveformSvg(measurement); 
     }
     if (typeof measurement.value === 'object' && measurement.value !== null) {
@@ -62,10 +70,47 @@ function renderMeasurementValue(measurement) {
 }
 
 function generateReportHtml(project, points) {
-    const imageAsBase64 = project.image_data ? `data:image/png;base64,${Buffer.from(project.image_data).toString('base64')}` : '';
-    const attributesHtml = project.attributes 
-        ? Object.entries(project.attributes).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('')
-        : '<li>No attributes defined.</li>';
+    const imageAsBase64 = project.image_data 
+        ? `data:image/png;base64,${bufferToBase64(project.image_data)}` 
+        : '';
+    
+    let attributesHtml = '<li>No attributes defined.</li>';
+    if (project.attributes) {
+        let attrs = {};
+        if (typeof project.attributes === 'string') {
+            try { attrs = JSON.parse(project.attributes); } catch (e) {}
+        } else {
+            attrs = project.attributes;
+        }
+        attributesHtml = Object.entries(attrs).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('');
+    }
+
+    const pointsHtml = points.map((p, index) => {
+        let measurementsHtml = '<p><em>No measurements recorded.</em></p>';
+        if (p.measurements && Object.keys(p.measurements).length > 0) {
+            measurementsHtml = Object.entries(p.measurements).map(([type, data]) => `
+                <div style="margin-bottom: 15px; border-left: 3px solid #ddd; padding-left: 10px;">
+                    <div style="font-weight: bold; text-transform: capitalize; color: #555;">${type}</div>
+                    <div style="margin-top: 5px;">${renderMeasurementValue(data)}</div>
+                    <div style="font-size: 10px; color: #888; margin-top: 2px;">Captured: ${data.capturedAt ? new Date(data.capturedAt).toLocaleString() : 'N/A'}</div>
+                </div>
+            `).join('');
+        }
+
+        const pointX = (p.x * 1).toFixed(0); 
+        const pointY = (p.y * 1).toFixed(0);
+
+        return `
+            <div class="point-section">
+                <h3>Point ${index + 1}: ${p.label} <span style="font-size: 12px; font-weight: normal; color: #666;">(X:${pointX}, Y:${pointY})</span></h3>
+                ${p.notes ? `<p style="background: #fff3cd; padding: 10px; border-radius: 4px; font-style: italic;"><strong>Note:</strong> ${p.notes}</p>` : ''}
+                <div style="margin-top: 10px;">
+                    ${measurementsHtml}
+                </div>
+                <hr style="border: 0; border-top: 1px dashed #ddd; margin: 20px 0;">
+            </div>
+        `;
+    }).join('');
 
     return `
         <!DOCTYPE html>
@@ -98,59 +143,11 @@ function generateReportHtml(project, points) {
                 <p><i>Generado el: ${new Date().toLocaleString()}</i></p>
             </div>
 
-            ${imageAsBase64 ? `
-                <div>
-                    <h2>Imagen de la Placa</h2>
-                    <div style="position: relative; display: inline-block;">
-                        <img src="${imageAsBase64}" class="board-image" style="max-width: 100%;">
-                        ${points.map(p => `
-                            <div style="position: absolute; left: ${p.x}px; top: ${p.y}px; transform: translate(-50%, -50%); background-color: rgba(255, 255, 0, 0.8); border: 2px solid black; border-radius: 4px; padding: 2px 5px; font-size: 10px; font-weight: bold; pointer-events: none;">
-                                ${p.label || (typeof p.id === 'number' ? p.id : 'N')}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            ` : ''}
+            <h2>Imagen de la Placa</h2>
+            ${imageAsBase64 ? `<img src="${imageAsBase64}" class="board-image" />` : '<p>No image available.</p>'}
 
             <h2>Puntos de Medición</h2>
-            ${points.map(point => {
-                // Filter and sort measurements based on fixed order
-                const orderedTypes = ['voltage', 'resistance', 'diode', 'oscilloscope'];
-                const measurementsToRender = orderedTypes
-                    .map(type => ({ type, data: point.measurements && point.measurements[type] }))
-                    .filter(item => item.data); // Only keep existing measurements
-
-                return `
-                <div class="point-section">
-                    <h3>Punto: ${point.label}</h3>
-                    ${measurementsToRender.length > 0 ? `
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style="width: 25%;">Tipo de Medición</th>
-                                    <th>Valor</th>
-                                    <th style="width: 20%;">Capturado</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${measurementsToRender.map(({ type, data }) => `
-                                    <tr>
-                                        <td style="text-transform: capitalize;">${type}</td>
-                                        <td>${renderMeasurementValue(data)}</td>
-                                        <td>${new Date(data.capturedAt).toLocaleString()}</td>
-                                    </tr>
-                                `).join('')}
-                                ${point.notes ? `
-                                    <tr>
-                                        <td><strong>Notes</strong></td>
-                                        <td colspan="2" style="font-style: italic; background-color: #fffbeb;">${point.notes}</td>
-                                    </tr>
-                                ` : ''}
-                            </tbody>
-                        </table>
-                    ` : '<p>No hay mediciones para este punto.</p>'}
-                </div>
-            `;}).join('')}
+            ${pointsHtml || '<p>No measurement points recorded.</p>'}
         </body>
         </html>
     `;
