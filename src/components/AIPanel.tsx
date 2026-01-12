@@ -90,7 +90,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
     ];
 
     return (
-        <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
+        <div className="w-82 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
             <div className="p-4 border-b border-gray-700">
                 <h2 className="text-lg font-bold text-white flex items-center">
                     <Activity className="mr-2 text-blue-400" />

@@ -1,4 +1,4 @@
-import React, { useState, MouseEvent, WheelEvent } from 'react';
+import React, { useState, useEffect, useRef, MouseEvent } from 'react';
 import { Point, MeasurementValue } from '../types';
 
 interface WaveformProps {
@@ -64,31 +64,51 @@ const Waveform: React.FC<WaveformProps> = ({ pointData, referenceData }) => {
     }
 
 
-    const handleWheel = (e: WheelEvent<SVGSVGElement>) => {
-        // @ts-ignore: React types issue with preventDefault on some events
-        if (e.cancelable) e.preventDefault();
-        const svgElement = e.currentTarget;
-        const { left, top, width, height } = svgElement.getBoundingClientRect();
-        
-        const mouseX = (e.clientX - left) / width * viewBox.width + viewBox.x;
-        const mouseY = (e.clientY - top) / height * viewBox.height + viewBox.y;
+    // Refs for zoom handling
+    const svgRef = useRef<SVGSVGElement>(null);
+    const viewBoxRef = useRef(viewBox);
+    
+    // Keep viewBoxRef up to date for the event listener
+    useEffect(() => { viewBoxRef.current = viewBox; }, [viewBox]);
 
-        const scaleAmount = 0.1;
-        const newScale = e.deltaY > 0 ? 1 + scaleAmount : 1 - scaleAmount;
+    // Attach native wheel listener with passive: false
+    useEffect(() => {
+        const svgElement = svgRef.current;
+        if (!svgElement) return;
 
-        const newWidth = viewBox.width * newScale;
-        const newHeight = viewBox.height * newScale;
-        
-        const clampedWidth = Math.max(svgWidth / 4, Math.min(newWidth, svgWidth * 4));
-        const clampedHeight = Math.max(svgHeight / 4, Math.min(newHeight, svgHeight * 4));
+        const onWheel = (e: globalThis.WheelEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
 
-        setViewBox({
-            x: mouseX - (mouseX - viewBox.x) * newScale,
-            y: mouseY - (mouseY - viewBox.y) * newScale,
-            width: clampedWidth,
-            height: clampedHeight,
-        });
-    };
+            const currentViewBox = viewBoxRef.current;
+            const { left, top, width, height } = svgElement.getBoundingClientRect();
+            
+            const mouseX = (e.clientX - left) / width * currentViewBox.width + currentViewBox.x;
+            const mouseY = (e.clientY - top) / height * currentViewBox.height + currentViewBox.y;
+
+            const scaleAmount = 0.1;
+            const newScale = e.deltaY > 0 ? 1 + scaleAmount : 1 - scaleAmount;
+
+            const newWidth = currentViewBox.width * newScale;
+            const newHeight = currentViewBox.height * newScale;
+            
+            const clampedWidth = Math.max(svgWidth / 4, Math.min(newWidth, svgWidth * 4));
+            const clampedHeight = Math.max(svgHeight / 4, Math.min(newHeight, svgHeight * 4));
+
+            setViewBox({
+                x: mouseX - (mouseX - currentViewBox.x) * newScale,
+                y: mouseY - (mouseY - currentViewBox.y) * newScale,
+                width: clampedWidth,
+                height: clampedHeight,
+            });
+        };
+
+        svgElement.addEventListener('wheel', onWheel, { passive: false });
+
+        return () => {
+            svgElement.removeEventListener('wheel', onWheel);
+        };
+    }, []); // Bind once
 
     const handleMouseDown = (e: MouseEvent<SVGSVGElement>) => {
         setIsDragging(true);
@@ -118,49 +138,58 @@ const Waveform: React.FC<WaveformProps> = ({ pointData, referenceData }) => {
     };
 
     return (
-        <div className="relative mt-2 border border-gray-700 bg-gray-900 rounded overflow-hidden select-none">
-            <svg 
-                width="100%" 
-                viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
-                className="block cursor-move"
-                onWheel={handleWheel}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-            >
-                <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="#1a202c" />
-                {gridLines}
-                <polyline points={pointsStr} fill="none" stroke="#63b3ed" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-                {referencePointsStr && (
-                    <polyline points={referencePointsStr} fill="none" stroke="#f6ad55" strokeWidth="2" strokeDasharray="4,4" vectorEffect="non-scaling-stroke" opacity="0.7" />
-                )}
-            </svg>
-            
-            <div className="absolute top-2 left-2 bg-black/70 p-2 rounded text-[10px] text-gray-300 font-mono space-y-1 pointer-events-none">
-                <div className="text-cyan-400 font-bold">CH1 (Live)</div>
-                <div>Scale: {formatUnits(voltageScale, 'V')}/div</div>
-                <div>Time: {formatUnits(timeScale, 's')}/div</div>
-                <div>Offset: {formatUnits(voltageOffset, 'V')}</div>
-                <div className="border-t border-gray-600 pt-1 mt-1">
-                    <div>Vpp: {formatUnits(vpp, 'V')}</div>
-                    <div>Freq: {formatUnits(freq, 'Hz')}</div>
+        <div className="mt-2 border border-gray-700 bg-gray-900 rounded overflow-hidden select-none">
+            <div className="relative">
+                <svg 
+                    ref={svgRef}
+                    width="100%" 
+                    viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
+                    className="block cursor-move"
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                >
+                    <rect x="0" y="0" width={svgWidth} height={svgHeight} fill="#1a202c" />
+                    {gridLines}
+                    <polyline points={pointsStr} fill="none" stroke="#63b3ed" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                    {referencePointsStr && (
+                        <polyline points={referencePointsStr} fill="none" stroke="#f6ad55" strokeWidth="2" strokeDasharray="4,4" vectorEffect="non-scaling-stroke" opacity="0.7" />
+                    )}
+                </svg>
+                
+                <div className="absolute bottom-1 right-2 text-[9px] text-gray-500 pointer-events-none">
+                    Scroll to Zoom • Drag to Pan
                 </div>
             </div>
-
-            {referenceData && (
-                <div className="absolute top-2 right-2 bg-black/70 p-2 rounded text-[10px] text-gray-300 font-mono space-y-1 pointer-events-none border border-orange-500/30">
-                    <div className="text-orange-400 font-bold">REF (Saved)</div>
-                    <div>Scale: {formatUnits(voltageScale, 'V')}/div</div> {/* Using live scale as ref is drawn on live scale */}
+            
+            <div className="grid grid-cols-2 bg-gray-950/50 border-t border-gray-700 divide-x divide-gray-700">
+                <div className="p-2 text-[10px] text-gray-300 font-mono space-y-1">
+                    <div className="text-cyan-400 font-bold">CH1 (Live)</div>
+                    <div>Scale: {formatUnits(voltageScale, 'V')}/div</div>
+                    <div>Time: {formatUnits(timeScale, 's')}/div</div>
+                    <div>Offset: {formatUnits(voltageOffset, 'V')}</div>
                     <div className="border-t border-gray-600 pt-1 mt-1">
-                        <div>Vpp: {formatUnits(referenceData.vpp, 'V')}</div>
-                        <div>Freq: {formatUnits(referenceData.freq, 'Hz')}</div>
+                        <div>Vpp: {formatUnits(vpp, 'V')}</div>
+                        <div>Freq: {formatUnits(freq, 'Hz')}</div>
                     </div>
                 </div>
-            )}
-            
-            <div className="absolute bottom-1 right-2 text-[9px] text-gray-500 pointer-events-none">
-                Scroll to Zoom • Drag to Pan
+
+                {referenceData ? (
+                    <div className="p-2 text-[10px] text-gray-300 font-mono space-y-1">
+                        <div className="text-orange-400 font-bold">REF (Saved)</div>
+                        <div>Scale: {formatUnits(voltageScale, 'V')}/div</div> 
+                        <div className="invisible">Spacer</div>
+                        <div className="visible border-t border-gray-600 pt-1 mt-1">
+                            <div>Vpp: {formatUnits(referenceData.vpp, 'V')}</div>
+                            <div>Freq: {formatUnits(referenceData.freq, 'Hz')}</div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-center text-[10px] text-gray-600 italic p-2">
+                        No reference loaded
+                    </div>
+                )}
             </div>
         </div>
     );

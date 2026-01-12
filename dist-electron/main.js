@@ -60,8 +60,8 @@ function getRigolData(ip, port) {
     const client = new net.Socket();
     const timeout = setTimeout(() => {
       client.destroy();
-      resolve({ status: "error", message: "Timeout de conexión (15s)" });
-    }, 15e3);
+      resolve({ status: "error", message: "Timeout de conexión (4s)" });
+    }, 4e3);
     const commandString = [
       ":WAV:SOUR CHAN1",
       ":WAV:MODE NORM",
