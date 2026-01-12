@@ -28,10 +28,32 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
     const boardTypes = ['all', ...Array.from(new Set(projects.map(p => p.board_type)))];
 
     const filteredProjects = projects.filter(p => {
-        const textMatch = (p.board_model || '').toLowerCase().includes(filter.toLowerCase()) || 
-                          (p.board_type || '').toLowerCase().includes(filter.toLowerCase());
+        const lowerCaseFilter = filter.toLowerCase();
+        
+        // 1. Check model and type
+        const textMatch = (p.board_model || '').toLowerCase().includes(lowerCaseFilter) || 
+                          (p.board_type || '').toLowerCase().includes(lowerCaseFilter);
+
+        // 2. Check attributes
+        let attributesMatch = false;
+        if (p.attributes) {
+            let attrs: Record<string, string> = {};
+            if (typeof p.attributes === 'string') {
+                try { attrs = JSON.parse(p.attributes); } catch (e) { /* ignore */ }
+            } else if (typeof p.attributes === 'object') {
+                attrs = p.attributes as Record<string, string>;
+            }
+
+            // Check if any attribute value contains the filter text
+            attributesMatch = Object.values(attrs).some(val => 
+                String(val).toLowerCase().includes(lowerCaseFilter)
+            );
+        }
+
+        // 3. Check board type filter dropdown
         const typeMatch = typeFilter === 'all' || p.board_type === typeFilter;
-        return textMatch && typeMatch;
+
+        return (textMatch || attributesMatch) && typeMatch;
     });
 
     const AttributeBadge = ({ attributes }: { attributes: Project['attributes'] }) => {

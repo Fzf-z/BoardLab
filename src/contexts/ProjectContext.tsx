@@ -36,6 +36,10 @@ interface ProjectContextValue {
     addMeasurement: (point: Point, measurementData: MeasurementValue) => Promise<MeasurementValue | null>;
     fetchProjectList: () => Promise<Project[] | undefined>;
     board: ReturnType<typeof useBoard>;
+    undo: () => void;
+    redo: () => void;
+    canUndo: boolean;
+    canRedo: boolean;
 }
 
 const ProjectContext = createContext<ProjectContextValue | undefined>(undefined);
@@ -58,6 +62,9 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
     const [autoSave, setAutoSave] = useState<boolean>(false);
     const board = useBoard();
     const { showNotification } = useNotifier();
+
+    // --- Undo/Redo ---
+    const { undo, redo, canUndo, canRedo } = board;
 
     // Auto-save when a new temporary point is added
     useEffect(() => {
@@ -108,7 +115,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         }
     };
 
-    const fetchProjectList = async () => {
+    const handleFetchProjectList = async () => {
         if (!window.electronAPI) return;
         try {
             const projects = await window.electronAPI.getProjects();
@@ -218,11 +225,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
         let targetPoint = point;
 
-        // 1. Handle Temporary Points (Save Project First)
         if (typeof targetPoint.id === 'string' && targetPoint.id.startsWith('temp-')) {
-            console.log("Saving project to persist temporary point before measuring...");
-            
-            // This function returns the updated list of points from DB, which includes mapping for new IDs
             const savedPoints = await handleSaveProject(); 
             
             if (savedPoints) {
@@ -234,7 +237,6 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
                         board.setSelectedPointId(targetPoint.id);
                     }
                 } else {
-                    console.error("Could not find persistent ID for temp point. Aborting measurement.");
                     showNotification("Error: Could not save point before measuring.", 'error');
                     return null;
                 }
@@ -243,7 +245,6 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             }
         }
 
-        // 2. Update Local State (Optimistic)
         board.setPoints(prevPoints => prevPoints.map(p => {
             if (p.id === targetPoint.id) {
                 const type = measurementData.type || 'unknown';
@@ -258,7 +259,6 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
         if (!window.electronAPI) return measurementData;
 
-        // 3. Persist Measurement
         try {
             const valueToSave = measurementData.type === 'oscilloscope' ? measurementData : measurementData.value;
             const result = await window.electronAPI.createMeasurement({
@@ -281,27 +281,27 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         }
     };
 
-    const value: ProjectContextValue = {
-        currentProject,
-        points: board.points,
-        projectList,
-        autoSave,
-        setAutoSave,
-        
-        createProject: handleCreateProject,
-        saveProject: handleSaveProject,
-        loadProject: handleLoadProject,
-        deleteProject: handleDeleteProject,
-        updateProject: handleUpdateProject,
-        deletePoint: handleDeletePoint,
-        addMeasurement: handleAddMeasurement,
-        fetchProjectList,
-        
-        board,
-    };
-
     return (
-        <ProjectContext.Provider value={value}>
+        <ProjectContext.Provider value={{
+            currentProject,
+            points: board.points,
+            projectList,
+            autoSave,
+            setAutoSave,
+            createProject: handleCreateProject,
+            saveProject: handleSaveProject,
+            loadProject: handleLoadProject,
+            deleteProject: handleDeleteProject,
+            updateProject: handleUpdateProject,
+            deletePoint: handleDeletePoint,
+            addMeasurement: handleAddMeasurement,
+            fetchProjectList: handleFetchProjectList,
+            board,
+            undo,
+            redo,
+            canUndo,
+            canRedo,
+        }}>
             {children}
         </ProjectContext.Provider>
     );

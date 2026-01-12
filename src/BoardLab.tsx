@@ -46,6 +46,8 @@ const BoardLab: React.FC = () => {
         addMeasurement,
         setAutoSave,
         autoSave,
+        undo,
+        redo,
     } = useProject();
 
     // Other Hooks
@@ -59,6 +61,20 @@ const BoardLab: React.FC = () => {
             // Ignore shortcuts if user is typing in an input field
             const target = e.target as HTMLElement;
             if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+            // Undo (Ctrl+Z)
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                undo();
+                return; // Prevent other shortcuts from firing
+            }
+
+            // Redo (Ctrl+Y or Ctrl+Shift+Z)
+            if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) {
+                e.preventDefault();
+                redo();
+                return; // Prevent other shortcuts from firing
+            }
 
             const key = e.key.toUpperCase();
 

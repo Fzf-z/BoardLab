@@ -52,11 +52,12 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
     *   **Estado**: ✅ Implementado en `BoardLab.tsx`.
     *   `M`/`V`: Modos. `Ctrl+S`: Guardar. `Del`: Borrar. `Esc`: Cancelar. `Enter`: Medir.
 
-4.  **[UX - Avanzado] Implementar Sistema de Deshacer/Rehacer (Prioridad Media)**:
-    *   **Objetivo**: Permitir a los usuarios revertir acciones accidentales.
+4.  **[COMPLETADO] [UX - Avanzado] Implementar Sistema de Deshacer/Rehacer (Prioridad Media)**:
+    *   **Estado**: ✅ Implementado.
     *   **Tareas**:
-        - Crear un estado de "historial de acciones" en `ProjectContext`.
-        - Implementar funciones `undo()` y `redo()` y atajos (`Ctrl+Z`, `Ctrl+Y`).
+        -   Se ha modificado el hook `useBoard` para registrar un historial de cambios en los puntos.
+        -   `ProjectContext` ahora expone las funciones `undo` y `redo`.
+        -   Se han añadido los atajos de teclado `Ctrl+Z` y `Ctrl+Y` en `BoardLab.tsx`.
 
 ### Fase 1.5: Blindaje del Backend (TypeScript Full-Stack)
 

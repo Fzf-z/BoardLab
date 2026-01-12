@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, ChangeEvent, MouseEvent, WheelEvent } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, ChangeEvent, MouseEvent, WheelEvent } from 'react';
 import { Point } from '../types';
 
 interface Position {
@@ -6,9 +6,81 @@ interface Position {
     y: number;
 }
 
+// State with undo/redo capabilities
+interface UndoableState<T> {
+    past: T[];
+    present: T;
+    future: T[];
+}
+
 export const useBoard = () => {
     const [imageSrc, setImageSrc] = useState<string | null>(null);
-    const [points, setPoints] = useState<Point[]>([]);
+    const [pointsState, setPointsState] = useState<UndoableState<Point[]>>({
+        past: [],
+        present: [],
+        future: [],
+    });
+
+    const points = pointsState.present;
+    const canUndo = pointsState.past.length > 0;
+    const canRedo = pointsState.future.length > 0;
+
+    const setPoints = useCallback((newPoints: Point[] | ((prevState: Point[]) => Point[])) => {
+        setPointsState(currentState => {
+            const newPresent = newPoints instanceof Function ? newPoints(currentState.present) : newPoints;
+
+            if (JSON.stringify(currentState.present) === JSON.stringify(newPresent)) {
+                return currentState;
+            }
+
+            return {
+                past: [...currentState.past, currentState.present],
+                present: newPresent,
+                future: [], // Clear future on new action
+            };
+        });
+    }, []);
+
+    const undo = useCallback(() => {
+        setPointsState(currentState => {
+            const { past, present, future } = currentState;
+            if (past.length === 0) return currentState;
+
+            const previous = past[past.length - 1];
+            const newPast = past.slice(0, past.length - 1);
+
+            return {
+                past: newPast,
+                present: previous,
+                future: [present, ...future],
+            };
+        });
+    }, []);
+
+    const redo = useCallback(() => {
+        setPointsState(currentState => {
+            const { past, present, future } = currentState;
+            if (future.length === 0) return currentState;
+
+            const next = future[0];
+            const newFuture = future.slice(1);
+
+            return {
+                past: [...past, present],
+                present: next,
+                future: newFuture,
+            };
+        });
+    }, []);
+
+
+    const setImage = (src: string | null) => {
+        setImageSrc(src);
+        // Reset history when a new image is loaded
+        setPointsState({ past: [], present: [], future: [] });
+    };
+
+
     const [selectedPointId, setSelectedPointId] = useState<number | string | null>(null);
     const [scale, setScale] = useState<number>(1);
     const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
@@ -61,9 +133,7 @@ export const useBoard = () => {
         if (file) {
             const reader = new FileReader();
             reader.onload = (ev) => {
-                setImageSrc(ev.target?.result as string);
-                setPoints([]);
-                // Scale and position are now handled by useEffect
+                setImage(ev.target?.result as string);
             };
             reader.readAsDataURL(file);
         }
@@ -71,13 +141,7 @@ export const useBoard = () => {
 
     const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
         if (e.ctrlKey) return;
-        // In React 18+, events are sometimes passive by default, so preventDefault might need check
-        // but for wheel on div it usually works if not passive. 
-        // However, React synthetic events don't have 'cancelable' property always reliable?
-        // Let's keep it simply blocked if possible, but TS might complain if we don't check cancelable
-        // e.preventDefault(); // React synthetic event warning might occur
         
-        // Custom logic for zoom
         const rect = e.currentTarget.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -112,14 +176,9 @@ export const useBoard = () => {
                 return;
             }
             const rect = e.currentTarget.getBoundingClientRect();
-            // rect is already transformed (scaled and translated) because the click target is inside the transformed container.
-            // So rect.left represents the visual left edge of the image on screen.
-            // We need to calculate the relative position relative to the image itself, accounting for pan (position) and zoom (scale).
-            // Click position relative to container
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
             
-            // Transform to image coordinates: (Click - Pan) / Scale
             const x = (clickX - position.x) / scale;
             const y = (clickY - position.y) / scale;
             
@@ -133,14 +192,13 @@ export const useBoard = () => {
                 notes: '',
                 measurements: {}
             };
-            setPoints([...points, newPoint]);
+            setPoints(prevPoints => [...prevPoints, newPoint]);
             setSelectedPointId(newPoint.id);
         }
     };
 
     const resetBoard = () => {
-        setImageSrc(null);
-        setPoints([]);
+        setImage(null);
         setScale(1);
         setPosition({ x: 0, y: 0 });
         setSelectedPointId(null);
@@ -148,7 +206,7 @@ export const useBoard = () => {
 
     return {
         imageSrc,
-        setImage: setImageSrc,
+        setImage,
         points,
         setPoints,
         selectedPointId,
@@ -169,5 +227,9 @@ export const useBoard = () => {
         handleMouseUp,
         handleImageClick,
         resetBoard,
+        undo,
+        redo,
+        canUndo,
+        canRedo
     };
 };
