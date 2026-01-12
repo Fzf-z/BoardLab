@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
+import { InstrumentConfig, MeasurementValue, Point } from '../types';
 
 export const useHardware = () => {
     const { showNotification } = useNotifier();
-    const [isCapturing, setIsCapturing] = useState(false);
-    const [configOpen, setConfigOpen] = useState(false);
-    const [instrumentConfig, setInstrumentConfig] = useState({
+    const [isCapturing, setIsCapturing] = useState<boolean>(false);
+    const [configOpen, setConfigOpen] = useState<boolean>(false);
+    const [instrumentConfig, setInstrumentConfig] = useState<InstrumentConfig>({
         multimeter: {
             ip: "192.168.0.202",
             port: 9876,
@@ -29,10 +30,10 @@ export const useHardware = () => {
     const isElectron = window.electronAPI?.isElectron || false;
 
     useEffect(() => {
-        if (isElectron) {
-            window.electronAPI.loadConfig().then(loadedConfig => {
+        if (isElectron && window.electronAPI) {
+            window.electronAPI.loadConfig().then((loadedConfig: Partial<InstrumentConfig>) => {
                 if (loadedConfig) {
-                    const newConfig = JSON.parse(JSON.stringify(instrumentConfig)); // Deep copy default
+                    const newConfig = JSON.parse(JSON.stringify(instrumentConfig)) as InstrumentConfig; // Deep copy default
 
                     if (loadedConfig.multimeter) {
                         newConfig.multimeter.ip = loadedConfig.multimeter.ip || newConfig.multimeter.ip;
@@ -53,22 +54,22 @@ export const useHardware = () => {
                 }
             });
         }
-    }, [isElectron, instrumentConfig]);
+    }, [isElectron]); // Removed instrumentConfig from dep to avoid loop if object ref changes differently
 
-    const handleSaveConfig = (newConfig) => {
+    const handleSaveConfig = (newConfig: InstrumentConfig) => {
         setInstrumentConfig(newConfig);
-        if (isElectron) {
+        if (isElectron && window.electronAPI) {
             window.electronAPI.saveConfig(newConfig);
         }
     };
 
-    const captureValue = async (selectedPoint) => {
+    const captureValue = async (selectedPoint: Point | null): Promise<MeasurementValue | null> => {
         if (!selectedPoint) return null;
         setIsCapturing(true);
-        let result = { status: 'error', message: 'Not in Electron' };
+        let result: any = { status: 'error', message: 'Not in Electron' };
 
         try {
-            if (isElectron) {
+            if (isElectron && window.electronAPI) {
                 if (selectedPoint.type === 'oscilloscope') {
                     result = await window.electronAPI.measureScope(instrumentConfig.oscilloscope);
                 } else {
@@ -108,7 +109,7 @@ export const useHardware = () => {
                 if (selectedPoint.type === 'oscilloscope') {
                     return {
                         type: 'oscilloscope',
-                        value: `${result.vpp.toFixed(2)} Vpp / ${result.freq.toFixed(2)} Hz`,
+                        value: `${(result.vpp || 0).toFixed(2)} Vpp / ${(result.freq || 0).toFixed(2)} Hz`,
                         ...result
                     };
                 } else {
@@ -121,7 +122,7 @@ export const useHardware = () => {
                 showNotification(`Error capturing value: ${result.message}`, 'error');
                 return null;
             }
-        } catch (e) {
+        } catch (e: any) {
             showNotification(`Communication error: ${e.message}`, 'error');
             return null;
         } finally {

@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
+import { Point } from '../types';
 
-export const useGemini = (apiKey) => {
+export const useGemini = (apiKey: string) => {
     const { showNotification } = useNotifier();
-    const [aiModalOpen, setAiModalOpen] = useState(false);
-    const [aiResponse, setAiResponse] = useState("");
-    const [isAiLoading, setIsAiLoading] = useState(false);
-    const [aiTitle, setAiTitle] = useState("");
+    const [aiModalOpen, setAiModalOpen] = useState<boolean>(false);
+    const [aiResponse, setAiResponse] = useState<string>("");
+    const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+    const [aiTitle, setAiTitle] = useState<string>("");
 
-    const callGemini = async (prompt, title) => {
+    const callGemini = async (prompt: string, title: string) => {
         setAiTitle(title);
         setAiModalOpen(true);
         setIsAiLoading(true);
@@ -36,12 +37,13 @@ export const useGemini = (apiKey) => {
         }
     };
 
-    const analyzeBoard = (points) => {
+    const analyzeBoard = (points: Point[]) => {
         if (points.length === 0) {
             showNotification("Add measurement points first.", 'warning');
             return;
         }
         const measurementsText = points.map(p => {
+            if (!p.measurements) return `- ${p.label}: No measurements`;
             const measuredValues = Object.entries(p.measurements)
                 .map(([type, meas]) => {
                     if (type === 'oscilloscope' && meas.value) {
@@ -57,19 +59,23 @@ export const useGemini = (apiKey) => {
         callGemini(`Analyze these motherboard measurements and provide a possible diagnosis:\n${measurementsText}`, "Intelligent Diagnosis");
     };
 
-    const askAboutPoint = (selectedPoint) => {
+    const askAboutPoint = (selectedPoint: Point) => {
         if (!selectedPoint) return;
-        const measuredValues = Object.entries(selectedPoint.measurements)
-            .map(([type, meas]) => {
-                if (type === 'oscilloscope' && meas.value) {
-                    return `oscilloscope: Vpp=${meas.vpp}, Freq=${meas.freq}`;
-                }
-                return meas.value ? `${type}: ${meas.value}` : null;
-            })
-            .filter(Boolean)
-            .join(', ');
         
-        callGemini(`Analyze this test point on a motherboard: "${selectedPoint.label}" of type ${selectedPoint.type}. Current measurements: ${measuredValues || 'none'}. What is its typical function and what values would be expected?`, `Inquiry about: ${selectedPoint.label}`);
+        let measuredValues = 'none';
+        if (selectedPoint.measurements) {
+            measuredValues = Object.entries(selectedPoint.measurements)
+                .map(([type, meas]) => {
+                    if (type === 'oscilloscope' && meas.value) {
+                        return `oscilloscope: Vpp=${meas.vpp}, Freq=${meas.freq}`;
+                    }
+                    return meas.value ? `${type}: ${meas.value}` : null;
+                })
+                .filter(Boolean)
+                .join(', ') || 'none';
+        }
+        
+        callGemini(`Analyze this test point on a motherboard: "${selectedPoint.label}" of type ${selectedPoint.type}. Current measurements: ${measuredValues}. What is its typical function and what values would be expected?`, `Inquiry about: ${selectedPoint.label}`);
     };
 
     return {

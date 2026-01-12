@@ -2,23 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { useProject } from './contexts/ProjectContext';
 import { useGemini } from './hooks/useGemini';
 import { useHardware } from './hooks/useHardware';
+import { InstrumentConfig, MeasurementValue, Project } from './types';
 
+// Importing JS components
+// @ts-ignore
 import Toolbar from './components/Toolbar';
+// @ts-ignore
 import StatusBar from './components/StatusBar';
+// @ts-ignore
 import BoardView from './components/BoardView';
+// @ts-ignore
 import AIPanel from './components/AIPanel';
+// @ts-ignore
 import Settings from './components/Settings';
+// @ts-ignore
 import PointsTableModal from './components/modals/PointsTableModal';
+// @ts-ignore
 import ProjectManagerModal from './components/modals/ProjectManagerModal';
+// @ts-ignore
 import AIModal from './components/modals/AIModal';
+// @ts-ignore
 import NewProjectModal from './components/modals/NewProjectModal';
 
-const BoardLab = () => {
+const BoardLab: React.FC = () => {
     // UI State - Stays in this component
-    const [mode, setMode] = useState('view');
-    const [pointsTableOpen, setPointsTableOpen] = useState(false);
-    const [isProjectManagerOpen, setProjectManagerOpen] = useState(false);
-    const [isNewProjectModalOpen, setNewProjectModalOpen] = useState(false);
+    const [mode, setMode] = useState<'view' | 'measure'>('view');
+    const [pointsTableOpen, setPointsTableOpen] = useState<boolean>(false);
+    const [isProjectManagerOpen, setProjectManagerOpen] = useState<boolean>(false);
+    const [isNewProjectModalOpen, setNewProjectModalOpen] = useState<boolean>(false);
 
     // Global Project State - Consumed from context
     const {
@@ -38,15 +49,16 @@ const BoardLab = () => {
     } = useProject();
 
     // Other Hooks
-    const [apiKey, setApiKey] = useState(''); // API key can be local UI state for Settings
+    const [apiKey, setApiKey] = useState<string>(''); // API key can be local UI state for Settings
     const hardware = useHardware();
     const gemini = useGemini(apiKey);
 
     // Keyboard Shortcuts
     useEffect(() => {
-        const handleKeyDown = async (e) => {
+        const handleKeyDown = async (e: KeyboardEvent) => {
             // Ignore shortcuts if user is typing in an input field
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
             const key = e.key.toUpperCase();
 
@@ -79,9 +91,6 @@ const BoardLab = () => {
             if (key === 'ENTER') {
                 if (mode === 'measure' && board.selectedPoint && !hardware.isCapturing) {
                     e.preventDefault();
-                    // We need to handle temp points here similar to AIPanel if we want robustness
-                    // For now, assuming point is saved or addMeasurement handles it (it doesn't handle temp conversion yet)
-                    // Ideally we should use a shared 'measurePoint' action.
                     const measurement = await hardware.captureValue(board.selectedPoint);
                     if (measurement) {
                         await addMeasurement(board.selectedPoint, measurement);
@@ -96,9 +105,9 @@ const BoardLab = () => {
 
     // Load API key and settings on mount
     useEffect(() => {
-        if (hardware.isElectron) {
-            window.electronAPI.loadApiKey().then(key => setApiKey(key || ''));
-            window.electronAPI.loadConfig().then(config => {
+        if (hardware.isElectron && window.electronAPI) {
+            window.electronAPI.loadApiKey().then((key: string) => setApiKey(key || ''));
+            window.electronAPI.loadConfig().then((config: any) => {
                 if (config?.appSettings?.autoSave) {
                     setAutoSave(true);
                 }
@@ -111,7 +120,7 @@ const BoardLab = () => {
         setProjectManagerOpen(true);
     };
 
-    const handleCreateProjectAndClose = async (projectData) => {
+    const handleCreateProjectAndClose = async (projectData: any) => {
         await createProject(projectData);
         setNewProjectModalOpen(false);
     };
@@ -122,7 +131,7 @@ const BoardLab = () => {
             <Toolbar
                 mode={mode}
                 setMode={setMode}
-                onUpload={() => board.fileInputRef.current.click()}
+                onUpload={() => board.fileInputRef.current?.click()}
                 onOpenSettings={() => hardware.setConfigOpen(true)}
                 onOpenPointsTable={() => setPointsTableOpen(true)}
                 onNewProject={() => setNewProjectModalOpen(true)}
@@ -142,7 +151,7 @@ const BoardLab = () => {
                 isOpen={isProjectManagerOpen}
                 onClose={() => setProjectManagerOpen(false)}
                 projects={projectList}
-                onLoadProject={(p) => {
+                onLoadProject={(p: Project) => {
                     loadProject(p);
                     setProjectManagerOpen(false);
                 }}
@@ -184,7 +193,7 @@ const BoardLab = () => {
                     setApiKey={setApiKey}
                     autoSave={autoSave}
                     onAutoSaveChange={setAutoSave}
-                    onSave={(newConfig, newApiKey, newAutoSave) => {
+                    onSave={(newConfig: InstrumentConfig, newApiKey: string, newAutoSave: boolean) => {
                         hardware.handleSaveConfig(newConfig);
                         if(window.electronAPI) {
                             window.electronAPI.saveApiKey(newApiKey);
