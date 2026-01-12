@@ -1,6 +1,6 @@
-const net = require('net');
+import net from 'net';
 
-function setOwonConfig(ip, port, configCommand) {
+export function setOwonConfig(ip: string, port: number | string, configCommand: string): Promise<{ status: string; message?: string }> {
     return new Promise((resolve) => {
         const client = new net.Socket();
         const debug_info = `[Config CMD: ${configCommand}]`;
@@ -9,10 +9,10 @@ function setOwonConfig(ip, port, configCommand) {
             resolve({ status: 'error', message: `Timeout setting config. ${debug_info}` });
         }, 2000);
 
-        client.connect(parseInt(port), ip, () => {
+        client.connect(typeof port === 'string' ? parseInt(port) : port, ip, () => {
             client.write(configCommand.trim() + '\n', () => {
                 clearTimeout(timeout);
-                client.destroy();
+                client.end(); // Use end instead of destroy for cleaner close
                 resolve({ status: 'success' });
             });
         });
@@ -25,7 +25,7 @@ function setOwonConfig(ip, port, configCommand) {
     });
 }
 
-function getOwonMeasurement(ip, port, measureCommand) {
+export function getOwonMeasurement(ip: string, port: number | string, measureCommand: string): Promise<{ status: string; value?: string; message?: string }> {
     return new Promise((resolve) => {
         const client = new net.Socket();
         let response = '';
@@ -35,7 +35,7 @@ function getOwonMeasurement(ip, port, measureCommand) {
             resolve({ status: 'error', message: `Timeout getting measurement. ${debug_info}` });
         }, 2000);
 
-        client.connect(parseInt(port), ip, () => {
+        client.connect(typeof port === 'string' ? parseInt(port) : port, ip, () => {
             client.write(measureCommand.trim() + '\n');
         });
 
@@ -43,9 +43,7 @@ function getOwonMeasurement(ip, port, measureCommand) {
             response += data.toString();
             if (response.length > 0) {
                 clearTimeout(timeout);
-                client.destroy();
-                // Clean up non-printable characters or weird encoding artifacts
-                // Keep ASCII printable characters (32-126)
+                client.destroy(); // Destroy immediately after first chunk? Might be risky if fragmented but typical for SCPI
                 const cleanValue = response.replace(/[^\x20-\x7E]/g, '').trim();
                 resolve({ status: 'success', value: cleanValue });
             }
@@ -57,5 +55,3 @@ function getOwonMeasurement(ip, port, measureCommand) {
         });
     });
 }
-
-module.exports = { setOwonConfig, getOwonMeasurement };

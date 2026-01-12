@@ -1,6 +1,6 @@
-const net = require('net');
+import net from 'net';
 
-function testConnection(ip, port) {
+export function testConnection(ip: string, port: number | string): Promise<{ status: string; message?: string }> {
     return new Promise((resolve) => {
         const client = new net.Socket();
         const timeout = setTimeout(() => {
@@ -8,7 +8,7 @@ function testConnection(ip, port) {
             resolve({ status: 'error', message: 'Timeout' });
         }, 2000);
 
-        client.connect(parseInt(port), ip, () => {
+        client.connect(typeof port === 'string' ? parseInt(port) : port, ip, () => {
             clearTimeout(timeout);
             client.end();
             resolve({ status: 'success' });
@@ -20,5 +20,3 @@ function testConnection(ip, port) {
         });
     });
 }
-
-module.exports = { testConnection };

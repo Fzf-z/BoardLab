@@ -1,10 +1,11 @@
-const { parentPort, workerData } = require('worker_threads');
-const Database = require('better-sqlite3');
-const path = require('path');
+import { parentPort, workerData } from 'worker_threads';
+import Database from 'better-sqlite3';
+
+if (!parentPort) throw new Error("This file must be run as a worker thread.");
 
 // The database path is passed in from the main thread
 const db = new Database(workerData.dbPath);
-db.pragma('foreign_keys = ON'); // Enable foreign key constraints (critical for cascading deletes)
+db.pragma('foreign_keys = ON'); // Enable foreign key constraints
 console.log(`Worker: Database initialized at ${workerData.dbPath}`);
 
 // Create schema if it doesn't exist
@@ -22,7 +23,7 @@ db.exec(`
 
 // Migration: Ensure 'notes' column exists in projects
 try {
-  const tableInfo = db.prepare("PRAGMA table_info(projects)").all();
+  const tableInfo = db.prepare("PRAGMA table_info(projects)").all() as any[];
   const hasNotes = tableInfo.some(col => col.name === 'notes');
   if (!hasNotes) {
     db.exec("ALTER TABLE projects ADD COLUMN notes TEXT");
@@ -59,14 +60,14 @@ console.log('Worker: Database schema ensured.');
 
 
 // Function to handle database operations based on message
-async function handleMessage(msg) {
+async function handleMessage(msg: any) {
     const { id, type, payload } = msg;
 
     try {
         let result;
         switch (type) {
             case 'db:get-projects':
-                const projects = db.prepare('SELECT id, board_type, board_model, attributes, notes, created_at FROM projects ORDER BY created_at DESC').all();
+                const projects = db.prepare('SELECT id, board_type, board_model, attributes, notes, created_at FROM projects ORDER BY created_at DESC').all() as any[];
                 result = projects.map(p => ({
                     ...p,
                     attributes: JSON.parse(p.attributes || '{}')
@@ -74,7 +75,7 @@ async function handleMessage(msg) {
                 break;
             
             case 'db:get-project-with-image':
-                const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(payload);
+                const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(payload) as any;
                 if (project) {
                     project.attributes = JSON.parse(project.attributes || '{}');
                 }
@@ -91,7 +92,7 @@ async function handleMessage(msg) {
                 break;
 
             case 'db:get-all-attributes':
-                const projectAttrs = db.prepare('SELECT attributes FROM projects WHERE attributes IS NOT NULL').all();
+                const projectAttrs = db.prepare('SELECT attributes FROM projects WHERE attributes IS NOT NULL').all() as any[];
                 const keys = new Set();
                 const values = new Set();
                 for (const proj of projectAttrs) {
@@ -112,12 +113,12 @@ async function handleMessage(msg) {
                 const { projectId, points } = payload;
                 const insertStmt = db.prepare('INSERT INTO points (project_id, x, y, label, notes, type) VALUES (?, ?, ?, ?, ?, ?)');
                 const updateStmt = db.prepare('UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ? WHERE id = ?');
-                const savedRows = [];
+                const savedRows: any[] = [];
                 const transaction = db.transaction((pts) => {
                     for (const point of pts) {
                         if (typeof point.id === 'string' && point.id.startsWith('temp-')) {
                             const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || '', point.type || 'voltage');
-                            const row = db.prepare('SELECT * FROM points WHERE id = ?').get(res.lastInsertRowid);
+                            const row = db.prepare('SELECT * FROM points WHERE id = ?').get(res.lastInsertRowid) as any;
                             if (row) {
                                 row.temp_id = point.id;
                                 savedRows.push(row);
@@ -130,11 +131,11 @@ async function handleMessage(msg) {
                     }
                 });
                 transaction(points);
-                const finalPoints = db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId);
+                const finalPoints = db.prepare('SELECT * FROM points WHERE project_id = ?').all(projectId) as any[];
                 const getMeasurementsStmt = db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC');
                 result = finalPoints.map(point => {
-                    const measurements = getMeasurementsStmt.all(point.id);
-                    const measurementsByType = {};
+                    const measurements = getMeasurementsStmt.all(point.id) as any[];
+                    const measurementsByType: any = {};
                     for (const m of measurements) {
                         if (!measurementsByType[m.type]) {
                             try {
@@ -155,11 +156,11 @@ async function handleMessage(msg) {
                 break;
 
             case 'db:get-points':
-                const pointsOnly = db.prepare('SELECT * FROM points WHERE project_id = ?').all(payload);
+                const pointsOnly = db.prepare('SELECT * FROM points WHERE project_id = ?').all(payload) as any[];
                 const getMeasStmt = db.prepare('SELECT * FROM measurements WHERE point_id = ? ORDER BY created_at DESC');
                 result = pointsOnly.map(point => {
-                    const measurements = getMeasStmt.all(point.id);
-                    const measurementsByType = {};
+                    const measurements = getMeasStmt.all(point.id) as any[];
+                    const measurementsByType: any = {};
                     for (const m of measurements) {
                         if (!measurementsByType[m.type]) {
                             try {
@@ -247,16 +248,16 @@ async function handleMessage(msg) {
 
             case 'close':
                 db.close();
-                parentPort.postMessage({ id, result: { status: 'closed' } });
+                parentPort?.postMessage({ id, result: { status: 'closed' } });
                 process.exit(0);
                 break;
 
             default:
                 throw new Error(`Unknown database operation: ${type}`);
         }
-        parentPort.postMessage({ id, result });
-    } catch (error) {
-        parentPort.postMessage({ id, error: { message: error.message, stack: error.stack } });
+        parentPort?.postMessage({ id, result });
+    } catch (error: any) {
+        parentPort?.postMessage({ id, error: { message: error.message, stack: error.stack } });
     }
 }
 

@@ -1,13 +1,13 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const path = require('path');
-const net = require('net');
-const { Worker } = require('worker_threads');
-const Store = require('electron-store');
-const puppeteer = require('puppeteer');
-const { setOwonConfig, getOwonMeasurement } = require('./src/drivers/owon');
-const { getRigolData } = require('./src/drivers/rigol');
-const { testConnection } = require('./src/drivers/connection');
-const { generateReportHtml } = require('./src/report-generator');
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import path from 'path';
+import { Worker } from 'worker_threads';
+import Store from 'electron-store';
+import puppeteer from 'puppeteer';
+import { setOwonConfig, getOwonMeasurement } from './drivers/owon';
+import { getRigolData } from './drivers/rigol';
+import { testConnection } from './drivers/connection';
+// @ts-ignore
+const { generateReportHtml } = require('../src/report-generator');
 
 const store = new Store();
 
@@ -16,7 +16,7 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
-let mainWindow = null;
+let mainWindow: BrowserWindow | null = null;
 
 // =================================================================
 // Database Worker

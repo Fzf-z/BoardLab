@@ -2,16 +2,15 @@
   "name": "boardlab-desktop",
   "private": true,
   "version": "1.0.0",
-  "main": "main.js",
+  "main": "dist-electron/main.js",
   "author": "Tu Nombre",
   "description": "BoardLab - Diagnóstico Electrónico Inteligente",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "electron": "wait-on tcp:5173 && set VITE_DEV_SERVER_URL=http://localhost:5173 && electron .",
-    "start": "concurrently -k \"npm run dev\" \"npm run electron\"",
+    "start": "npm run dev",
     "postinstall": "electron-rebuild"
   },
   "dependencies": {
@@ -23,6 +22,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@types/node": "^25.0.6",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@vitejs/plugin-react": "^4.2.1",
@@ -40,6 +40,8 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.9.3",
     "vite": "^5.1.6",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6",
     "wait-on": "^7.2.0"
   }
 }
