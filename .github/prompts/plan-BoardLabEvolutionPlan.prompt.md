@@ -44,9 +44,8 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
     *   **Estado**: ✅ Implementado `ProjectContext.tsx` y `NotifierContext.tsx`.
     *   Centraliza todo el estado del proyecto y la lógica de negocio, eliminando prop-drilling.
 
-2.  **[COMPLETADO] [Arquitectura] Migrar a TypeScript**:
+2.  **[COMPLETADO] [Arquitectura] Migrar a TypeScript (Frontend)**:
     *   **Estado**: ✅ Frontend migrado al 100% (Componentes, Hooks, Contexts).
-    *   **Backend**: Se mantiene en JavaScript (`main.js`, `db-worker.js`) para compatibilidad directa con Electron.
     *   **Beneficios**: Código robusto, autocompletado y detección de errores en tiempo de desarrollo.
 
 3.  **[COMPLETADO] [UX] Implementar Atajos de Teclado**:
@@ -58,6 +57,20 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
     *   **Tareas**:
         - Crear un estado de "historial de acciones" en `ProjectContext`.
         - Implementar funciones `undo()` y `redo()` y atajos (`Ctrl+Z`, `Ctrl+Y`).
+
+### Fase 1.5: Blindaje del Backend (TypeScript Full-Stack)
+
+**Objetivo**: Unificar el lenguaje de todo el proyecto para compartir tipos y evitar errores de comunicación entre procesos.
+
+1.  **[Infraestructura] Configurar Build System para Electron**:
+    *   Instalar `vite-plugin-electron` o configurar `tsc` para compilar el proceso principal.
+    *   Asegurar que el frontend y backend compartan el archivo `src/types.ts`.
+
+2.  **[Migración] Convertir Backend a TypeScript**:
+    *   Migrar `main.js` -> `electron/main.ts`.
+    *   Migrar `preload.js` -> `electron/preload.ts`.
+    *   Migrar `db-worker.js` -> `electron/worker.ts` (o similar).
+    *   Migrar drivers (`owon.js`, `rigol.js`) a TypeScript.
 
 ### Fase 2: Funcionalidades de Diagnóstico Avanzado
 
