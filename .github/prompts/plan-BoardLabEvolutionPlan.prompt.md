@@ -99,7 +99,71 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
         - Implementar la lógica de carga de datos comparativos en `ProjectContext`.
         - Modificar la UI (`AIPanel`, `Waveform.jsx`) para mostrar los datos comparativos.
 
-### Fase 3: Mejoras de Integración, Nube y Comunidad
+### Fase 2.5: Mejoras de Experiencia de Usuario (UX) y Personalización
+
+1.  **[UX] Ventana de Configuración Avanzada**:
+    *   **Objetivo**: Permitir al usuario personalizar la apariencia y comportamiento de la aplicación.
+    *   **Tareas**:
+        -   Crear un nuevo modal de "Configuración".
+        -   Añadir opciones para cambiar el tamaño y color de los puntos de medición.
+        -   Incluir un campo para definir el `timeout` para las mediciones automáticas.
+
+2.  **[UX] Edición de Posición de Puntos en Tabla**:
+    *   **Objetivo**: Facilitar el ajuste fino de la posición de un punto sin necesidad de arrastrarlo en el canvas.
+    *   **Tareas**:
+        -   En el modal `PointsTableModal`, hacer que las coordenadas X e Y de cada punto sean campos de entrada editables.
+        -   Asegurar que los cambios se reflejen en tiempo real en el `BoardView`.
+
+3.  **[UX] Minimapa de Navegación**:
+    *   **Objetivo**: Mejorar la orientación del usuario cuando se aplica un zoom profundo en la imagen de la placa.
+    *   **Tareas**:
+        -   Implementar un componente `Minimap` que se superponga en una esquina del `BoardView`.
+        -   El minimapa mostrará una versión reducida de la imagen completa.
+        -   Dibujar un rectángulo en el minimapa que represente el área visible actualmente en el `BoardView`.
+        -   Permitir arrastrar el rectángulo en el minimapa para mover la vista principal.
+
+### Fase 3: Automatización Avanzada y Flexibilidad
+
+1.  **[Automatización] Secuenciador de Mediciones Automáticas**:
+    *   **Objetivo**: Agilizar la captura de múltiples mediciones en una secuencia predefinida, reduciendo la interacción manual.
+    *   **Tareas**:
+        -   Crear una nueva interfaz o modo "Secuencia" donde el usuario pueda ordenar los puntos a medir.
+        -   Al iniciar la secuencia, centrar la vista en el primer punto.
+        -   Implementar dos modos de disparo para avanzar al siguiente punto:
+            1.  **Manual/Temporizado**: El sistema espera la tecla `Enter` o un `timeout` (configurable en Ajustes) para enviar el comando de medición.
+            2.  **Disparo Externo**: Escuchar en un puerto o canal específico una señal de un hardware externo (como el multímetro modificado) que indique que se ha tomado la medida.
+        -   Al recibir el valor, guardarlo y avanzar automáticamente al siguiente punto de la secuencia, centrando la vista.
+
+2.  **[Arquitectura] Sistema de Instrumentos Personalizables**:
+    *   **Objetivo**: Desacoplar la aplicación de los modelos de hardware específicos (Owon, Rigol), permitiendo al usuario añadir sus propios instrumentos.
+    *   **Tareas**:
+        -   Crear una nueva sección en la base de datos y en la UI de configuración para gestionar "Instrumentos".
+        -   Permitir al usuario definir un nuevo instrumento (ej: "Multímetro KORAD KA3005P") y especificar sus detalles de conexión (IP, puerto).
+        -   Crear campos de texto donde el usuario pueda introducir los comandos SCPI específicos para acciones como "Medir Voltaje DC", "Medir Resistencia", "Configurar Canal de Osciloscopio", etc.
+        -   Modificar los `drivers` en `electron/` para que lean estas configuraciones dinámicas en lugar de usar comandos hardcodeados.
+
+### Fase 4: Mejoras de Integración, Nube y Comunidad
+
+1.  **[Nube] Repositorio de Proyectos (Arquitectura "Local-First")**:
+    *   **Estrategia**: Mantener SQLite local como fuente de verdad y usar la nube solo para intercambio ("Snapshot & Share").
+    *   **Tareas**:
+        -   **Exportación/Empaquetado**: Crear una función que exporte un proyecto completo a un archivo comprimido o JSON firmado.
+        -   **Backend Ligero**: Usar Firebase Storage o Supabase para alojar estos paquetes.
+
+2.  **[Seguridad] Autenticación de Usuarios**:
+    *   **Objetivo**: Gestionar la identidad de los técnicos para asegurar la autoría.
+    *   **Tareas**:
+        -   Integrar Firebase Authentication / Google Identity.
+        -   Crear pantallas de Login simples.
+
+3.  **[Comunidad] Galería de Reparaciones**:
+    *   **Objetivo**: Crear una librería de "Casos de Éxito".
+    *   **Flujo**:
+        -   Usuario marca un proyecto como "Solucionado" y elige "Publicar".
+        -   El sistema sube el paquete a la galería pública.
+        -   Otros técnicos pueden buscar por "Modelo de Placa" y descargar el proyecto como referencia ("Golden Board") para usarlo en la comparativa de la Fase 2.
+
+### Fase 5: Inteligencia Artificial Aplicada
 
 1.  **[IA] Reconocimiento Visual de Componentes**:
     *   **Estrategia**: Aprovechar la capacidad multimodal de Gemini.
@@ -112,22 +176,3 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
     *   **Tareas**:
         -   Convertir los datos del osciloscopio a un formato textual comprimido (CSV/JSON).
         -   Enviar los datos a Gemini junto con el contexto del componente (ej: "Señal I2C") para que detecte anomalías lógicas o ruido.
-
-3.  **[Nube] Repositorio de Proyectos (Arquitectura "Local-First")**:
-    *   **Estrategia**: Mantener SQLite local como fuente de verdad y usar la nube solo para intercambio ("Snapshot & Share").
-    *   **Tareas**:
-        -   **Exportación/Empaquetado**: Crear una función que exporte un proyecto completo a un archivo comprimido o JSON firmado.
-        -   **Backend Ligero**: Usar Firebase Storage o Supabase para alojar estos paquetes.
-
-4.  **[Seguridad] Autenticación de Usuarios**:
-    *   **Objetivo**: Gestionar la identidad de los técnicos para asegurar la autoría.
-    *   **Tareas**:
-        -   Integrar Firebase Authentication / Google Identity.
-        -   Crear pantallas de Login simples.
-
-5.  **[Comunidad] Galería de Reparaciones**:
-    *   **Objetivo**: Crear una librería de "Casos de Éxito".
-    *   **Flujo**:
-        -   Usuario marca un proyecto como "Solucionado" y elige "Publicar".
-        -   El sistema sube el paquete a la galería pública.
-        -   Otros técnicos pueden buscar por "Modelo de Placa" y descargar el proyecto como referencia ("Golden Board") para usarlo en la comparativa de la Fase 2.
