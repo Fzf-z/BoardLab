@@ -4,14 +4,10 @@ import { useGemini } from './hooks/useGemini';
 import { useHardware } from './hooks/useHardware';
 import { InstrumentConfig, MeasurementValue, Project } from './types';
 
-// Importing JS components
-// @ts-ignore
+// Importing Components
 import Toolbar from './components/Toolbar';
-// @ts-ignore
 import StatusBar from './components/StatusBar';
-// @ts-ignore
 import BoardView from './components/BoardView';
-// @ts-ignore
 import AIPanel from './components/AIPanel';
 // @ts-ignore
 import Settings from './components/Settings';

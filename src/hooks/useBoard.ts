@@ -114,10 +114,14 @@ export const useBoard = () => {
             const rect = e.currentTarget.getBoundingClientRect();
             // rect is already transformed (scaled and translated) because the click target is inside the transformed container.
             // So rect.left represents the visual left edge of the image on screen.
-            // We just need to calculate the relative position and divide by scale.
-            // We do NOT subtract position.x/y because rect.left/top already accounts for it.
-            const x = (e.clientX - rect.left) / scale;
-            const y = (e.clientY - rect.top) / scale;
+            // We need to calculate the relative position relative to the image itself, accounting for pan (position) and zoom (scale).
+            // Click position relative to container
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            
+            // Transform to image coordinates: (Click - Pan) / Scale
+            const x = (clickX - position.x) / scale;
+            const y = (clickY - position.y) / scale;
             
             const newPoint: Point = {
                 id: `temp-${Date.now()}`,

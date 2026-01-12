@@ -1,7 +1,13 @@
 import React from 'react';
 import { Plus, Minus, Monitor, Wifi } from 'lucide-react';
 
-const StatusBar = ({ scale, setScale, isElectron }) => {
+interface StatusBarProps {
+    scale: number;
+    setScale: React.Dispatch<React.SetStateAction<number>>; 
+    isElectron: boolean;
+}
+
+const StatusBar: React.FC<StatusBarProps> = ({ scale, setScale, isElectron }) => {
     return (
         <div className="absolute top-4 left-4 z-10 flex space-x-2 bg-gray-800/90 backdrop-blur p-2 rounded-lg shadow-xl border border-gray-700 items-center">
             <button onClick={() => setScale(s => s + 0.1)} className="p-1 hover:bg-gray-700 rounded">

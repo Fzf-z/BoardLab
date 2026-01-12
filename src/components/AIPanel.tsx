@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit } from 'lucide-react';
-import Waveform from './Waveform';
 import { useProject } from '../contexts/ProjectContext';
+import { InstrumentConfig, MeasurementValue, Point } from '../types';
 
-const AIPanel = ({
+// Temporarily import Waveform as any until migrated
+// @ts-ignore
+import Waveform from './Waveform';
+
+interface AIPanelProps {
+    askAboutPoint: (point: Point) => void;
+    captureValue: (point: Point) => Promise<MeasurementValue | null>;
+    isCapturing: boolean;
+    analyzeBoard: (points: Point[]) => void;
+    instrumentConfig: InstrumentConfig;
+}
+
+const AIPanel: React.FC<AIPanelProps> = ({
     askAboutPoint,
     captureValue,
     isCapturing,
@@ -13,30 +25,32 @@ const AIPanel = ({
     const { 
         points, 
         board, 
-        saveProject, 
         deletePoint,
+        addMeasurement
     } = useProject();
     
-    const { setPoints, setSelectedPointId, selectedPoint } = board;
+    const { setPoints, selectedPoint } = board;
 
-    const [history, setHistory] = useState([]);
-    const [referenceWaveform, setReferenceWaveform] = useState(null);
+    const [history, setHistory] = useState<any[]>([]); 
+    const [referenceWaveform, setReferenceWaveform] = useState<any>(null);
 
     useEffect(() => {
         setHistory([]);
         setReferenceWaveform(null);
         if (selectedPoint && selectedPoint.id && typeof selectedPoint.id === 'number' && window.electronAPI) {
             window.electronAPI.getMeasurementsForPoint(selectedPoint.id)
-                .then(measurements => setHistory(measurements || []))
-                .catch(err => console.error("Error fetching measurement history:", err));
+                .then((measurements: any) => setHistory(measurements || []))
+                .catch((err: any) => console.error("Error fetching measurement history:", err));
         }
-    }, [selectedPoint]);
+    }, [selectedPoint?.id]); 
     
-    const handlePointUpdate = (field, value) => {
+    const handlePointUpdate = (field: keyof Point, value: any) => {
+        if (!selectedPoint) return;
         setPoints(points.map(p => (p.id === selectedPoint.id ? { ...p, [field]: value } : p)));
 
         if (field === 'type' && value !== 'oscilloscope') {
-            const configCommand = instrumentConfig.multimeter.commands[`configure_${value}`];
+            const cmdKey = `configure_${value}`;
+            const configCommand = instrumentConfig.multimeter.commands[cmdKey];
             if (configCommand && window.electronAPI) {
                 window.electronAPI.multimeterSetConfig({
                     ip: instrumentConfig.multimeter.ip,
@@ -53,56 +67,27 @@ const AIPanel = ({
             return;
         }
 
-        let pointToMeasure = selectedPoint;
-
-        if (typeof pointToMeasure.id === 'string' && pointToMeasure.id.startsWith('temp-')) {
-            const savedPoints = await saveProject();
-            if (Array.isArray(savedPoints)) {
-                const newlySavedPoint = savedPoints.find(p => p.temp_id === pointToMeasure.id); 
-                if (newlySavedPoint) {
-                    pointToMeasure = newlySavedPoint;
-                    setSelectedPointId(newlySavedPoint.id);
-                } else {
-                    console.error("Could not find the newly saved point. Aborting measurement.");
-                    return;
-                }
-            } else {
-                 console.error("saveProject did not return saved points. Aborting measurement.");
-                 return;
-            }
-        }
-
-        const measurement = await captureValue(pointToMeasure);
-        if (!measurement) return;
-
-        const updatedPoints = points.map(p => {
-            if (p.id === pointToMeasure.id) {
-                const newMeasurements = { ...p.measurements, [measurement.type]: { ...measurement, capturedAt: new Date().toISOString() } };
-                return { ...p, measurements: newMeasurements };
-            }
-            return p;
-        });
-        setPoints(updatedPoints);
-
-        try {
-            const valueToSave = measurement.type === 'oscilloscope' ? measurement : measurement.value;
-
-            const result = await window.electronAPI.createMeasurement({
-                pointId: pointToMeasure.id,
-                type: pointToMeasure.type,
-                value: valueToSave,
-            });
-            
-            if(result.id) {
-                const newHistoryItem = { ...measurement, id: result.id, created_at: new Date().toISOString() };
+        const measurement = await captureValue(selectedPoint);
+        if (measurement) {
+            // New centralized logic handles everything (temp points, saving, state update)
+            const savedMeasurement = await addMeasurement(selectedPoint, measurement);
+            // addMeasurement returns the saved measurement object if successful
+            if (savedMeasurement) {
+                // It might return object with id, or null. 
+                // We add to history manually for instant feedback in the list, though addMeasurement updates context state
+                // We just need to ensure the ID is there if we want to use it
+                const newHistoryItem = { ...savedMeasurement };
                 setHistory([newHistoryItem, ...history]);
-            } else {
-                console.error("Failed to save measurement, backend returned:", JSON.stringify(result, null, 2));
             }
-        } catch (error) {
-            console.error("Error saving measurement:", error);
         }
     };
+
+    const measurementTypes = [
+        { id: 'voltage', icon: Zap, lbl: 'Volt' },
+        { id: 'resistance', icon: Cpu, lbl: 'Ohms' },
+        { id: 'diode', icon: Zap, lbl: 'Diode' },
+        { id: 'oscilloscope', icon: Activity, lbl: 'Scope' }
+    ];
 
     return (
         <div className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
@@ -139,12 +124,14 @@ const AIPanel = ({
                             </button>
                         </div>
 
-                        {/* ... Rest of the component is the same ... */}
-                        
                         {/* --- Measurement Type --- */}
                         <div className="grid grid-cols-4 gap-2">
-                            {[{ id: 'voltage', icon: Zap, lbl: 'Volt' }, { id: 'resistance', icon: Cpu, lbl: 'Ohms' }, { id: 'diode', icon: Zap, lbl: 'Diode' }, { id: 'oscilloscope', icon: Activity, lbl: 'Scope' }].map(t => (
-                                <button key={t.id} onClick={() => handlePointUpdate('type', t.id)} className={`flex flex-col items-center p-2 rounded border ${selectedPoint.type === t.id ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}>
+                            {measurementTypes.map(t => (
+                                <button 
+                                    key={t.id} 
+                                    onClick={() => handlePointUpdate('type', t.id)} 
+                                    className={`flex flex-col items-center p-2 rounded border ${selectedPoint.type === t.id ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+                                >
                                     <t.icon size={16} />
                                     <span className="text-[10px] mt-1">{t.lbl}</span>
                                 </button>
@@ -154,7 +141,10 @@ const AIPanel = ({
                         {/* --- Live Measurement --- */}
                         <div className="bg-black/40 rounded-lg p-4 border border-gray-700">
                             <div className="text-2xl font-mono text-cyan-400 font-bold mb-1">
-                                {selectedPoint.type === 'oscilloscope' ? `Vpp: ${selectedPoint.measurements?.oscilloscope?.vpp?.toFixed(2) ?? '...'} V / Freq: ${selectedPoint.measurements?.oscilloscope?.freq?.toFixed(2) ?? '...'} Hz` : (selectedPoint.measurements && selectedPoint.measurements[selectedPoint.type] ? selectedPoint.measurements[selectedPoint.type].value : "---")}
+                                {selectedPoint.type === 'oscilloscope' 
+                                    ? `Vpp: ${selectedPoint.measurements?.oscilloscope?.vpp?.toFixed(2) ?? '...'} V / Freq: ${selectedPoint.measurements?.oscilloscope?.freq?.toFixed(2) ?? '...'} Hz` 
+                                    : (selectedPoint.measurements && selectedPoint.measurements[selectedPoint.type] ? selectedPoint.measurements[selectedPoint.type]?.value : "---")
+                                }
                             </div>
                             {selectedPoint.type === 'oscilloscope' && (
                                 <Waveform 
@@ -170,7 +160,7 @@ const AIPanel = ({
 
                         {/* --- Notes --- */}
                         <textarea
-                            value={selectedPoint.notes}
+                            value={selectedPoint.notes || ''}
                             onChange={(e) => handlePointUpdate('notes', e.target.value)}
                             className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm text-gray-300 h-24 resize-none"
                             placeholder="Notas técnicas..."
@@ -184,26 +174,30 @@ const AIPanel = ({
                             </h3>
                             <div className="bg-gray-900/70 rounded-lg p-2 space-y-2 max-h-48 overflow-y-auto">
                                 {history.length > 0 ? (
-                                    history.map(m => {
+                                    history.map((m: any) => {
                                         let displayValue;
                                         try {
-                                            const parsed = JSON.parse(m.value);
-                                            displayValue = typeof parsed === 'object' && parsed !== null ? (parsed.value || 'Scope Data') : parsed;
+                                            // Handle various formats of stored values
+                                            const val = typeof m.value === 'string' ? JSON.parse(m.value) : m.value;
+                                            displayValue = typeof val === 'object' && val !== null ? (val.value || 'Scope Data') : val;
                                         } catch (e) {
                                             displayValue = m.value;
                                         }
 
                                         return (
-                                            <div key={m.id} className="text-xs text-gray-300 bg-gray-800/50 p-2 rounded flex justify-between items-center">
+                                            <div key={m.id || Math.random()} className="text-xs text-gray-300 bg-gray-800/50 p-2 rounded flex justify-between items-center">
                                                 <div>
                                                     <span className="font-mono">{displayValue}</span>
-                                                    <span className="text-gray-500 ml-2">{new Date(m.created_at).toLocaleString()}</span>
+                                                    <span className="text-gray-500 ml-2">
+                                                        {m.created_at ? new Date(m.created_at).toLocaleString() : 'Just now'}
+                                                    </span>
                                                 </div>
                                                 {m.type === 'oscilloscope' && m.value &&(
                                                     <button 
                                                         onClick={() => {
                                                             try {
-                                                                setReferenceWaveform(JSON.parse(m.value));
+                                                                const val = typeof m.value === 'string' ? JSON.parse(m.value) : m.value;
+                                                                setReferenceWaveform(val);
                                                             } catch (e) { console.error("Failed to parse ref waveform:", e); }
                                                         }}
                                                         className="p-1 text-blue-400 hover:bg-blue-900/30 rounded"
