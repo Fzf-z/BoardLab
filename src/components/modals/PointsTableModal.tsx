@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ArrowUp, ArrowDown, Search, Trash2 } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
+import { Point, MeasurementValue } from '../../types';
 
-const PointsTableModal = ({ onClose }) => {
+interface PointsTableModalProps {
+    onClose: () => void;
+}
+
+const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
     const { points, deletePoint, board } = useProject();
     const { setPoints, selectedPointId, setSelectedPointId } = board;
 
-    const [editedPoints, setEditedPoints] = useState(JSON.parse(JSON.stringify(points)));
-    const [sortColumn, setSortColumn] = useState('label');
-    const [sortDirection, setSortDirection] = useState('asc');
-    const [filterText, setFilterText] = useState('');
-    const rowRefs = useRef({});
+    const [editedPoints, setEditedPoints] = useState<Point[]>(JSON.parse(JSON.stringify(points)));
+    const [sortColumn, setSortColumn] = useState<string>('label');
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [filterText, setFilterText] = useState<string>('');
+    const rowRefs = useRef<Record<string | number, HTMLTableRowElement | null>>({});
 
     useEffect(() => {
         setEditedPoints(JSON.parse(JSON.stringify(points)));
@@ -18,23 +23,28 @@ const PointsTableModal = ({ onClose }) => {
 
     useEffect(() => {
         if (selectedPointId && rowRefs.current[selectedPointId]) {
-            rowRefs.current[selectedPointId].scrollIntoView({
+            rowRefs.current[selectedPointId]?.scrollIntoView({
                 behavior: 'smooth',
                 block: 'nearest',
             });
         }
     }, [selectedPointId]);
 
-    const handleValueChange = (pointId, measurementType, newValue) => {
+    const handleValueChange = (pointId: string | number, measurementType: string, newValue: string) => {
         setEditedPoints(currentPoints =>
             currentPoints.map(p => {
                 if (p.id === pointId) {
                     const newMeasurements = { ...p.measurements };
-                    newMeasurements[measurementType] = {
-                        ...newMeasurements[measurementType],
-                        value: newValue,
-                        capturedAt: new Date().toISOString(),
-                    };
+                    // Ensure the measurement object exists before updating value
+                    if (!newMeasurements[measurementType]) {
+                        newMeasurements[measurementType] = { type: measurementType as any, value: newValue, capturedAt: new Date().toISOString() };
+                    } else {
+                        newMeasurements[measurementType] = {
+                            ...newMeasurements[measurementType],
+                            value: newValue,
+                            capturedAt: new Date().toISOString(),
+                        };
+                    }
                     return { ...p, measurements: newMeasurements };
                 }
                 return p;
@@ -42,13 +52,13 @@ const PointsTableModal = ({ onClose }) => {
         );
     };
     
-    const handleNotesChange = (pointId, newNotes) => {
+    const handleNotesChange = (pointId: string | number, newNotes: string) => {
         setEditedPoints(currentPoints =>
             currentPoints.map(p => (p.id === pointId ? { ...p, notes: newNotes } : p))
         );
     };
 
-    const handleSort = (column) => {
+    const handleSort = (column: string) => {
         if (sortColumn === column) {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
         } else {
@@ -57,7 +67,7 @@ const PointsTableModal = ({ onClose }) => {
         }
     };
 
-    const handleDelete = (pointId) => {
+    const handleDelete = (pointId: string | number) => {
         if (window.confirm('Are you sure you want to delete this point?')) {
             deletePoint(pointId);
             // The useEffect listening to `points` prop will update `editedPoints`
@@ -68,6 +78,7 @@ const PointsTableModal = ({ onClose }) => {
         const lowerCaseFilterText = filterText.toLowerCase();
         const labelMatch = point.label.toLowerCase().includes(lowerCaseFilterText);
         const notesMatch = point.notes?.toLowerCase().includes(lowerCaseFilterText);
+        // Check if any measurement value matches
         const measurementMatch = point.measurements && Object.values(point.measurements).some(m => 
             m?.value?.toString().toLowerCase().includes(lowerCaseFilterText)
         );
@@ -75,22 +86,22 @@ const PointsTableModal = ({ onClose }) => {
     });
 
     const sortedAndFilteredPoints = [...filteredPoints].sort((a, b) => {
-        let compareA, compareB;
+        let compareA: any, compareB: any;
         if (sortColumn === 'label' || sortColumn === 'notes') {
-            compareA = a[sortColumn] || '';
-            compareB = b[sortColumn] || '';
+            compareA = (a as any)[sortColumn] || '';
+            compareB = (b as any)[sortColumn] || '';
             return sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
         } else if (['voltage', 'resistance', 'diode'].includes(sortColumn)) {
-            compareA = parseFloat(a.measurements?.[sortColumn]?.value) || 0;
-            compareB = parseFloat(b.measurements?.[sortColumn]?.value) || 0;
+            compareA = parseFloat((a.measurements?.[sortColumn]?.value as string)) || 0;
+            compareB = parseFloat((b.measurements?.[sortColumn]?.value as string)) || 0;
             return sortDirection === 'asc' ? compareA - compareB : compareB - compareA;
         }
         return 0;
     });
 
-    const SortIcon = ({ column }) => {
+    const SortIcon = ({ column }: { column: string }) => {
         if (sortColumn === column) {
-            return sortDirection === 'asc' ? <ArrowUp size={14} className="ml-1" /> : <ArrowDown size={14} className="ml-1" />;
+            return sortDirection === 'asc' ? <ArrowUp size={14} className="ml-1 inline" /> : <ArrowDown size={14} className="ml-1 inline" />;
         }
         return null;
     };
@@ -131,20 +142,20 @@ const PointsTableModal = ({ onClose }) => {
                             {sortedAndFilteredPoints.map((point, index) => (
                                 <tr
                                     key={point.id}
-                                    ref={el => (rowRefs.current[point.id] = el)}
+                                    ref={el => { rowRefs.current[point.id] = el; }}
                                     className={`border-b border-gray-700 hover:bg-gray-700/50 cursor-pointer ${selectedPointId === point.id ? 'bg-blue-600/50' : ''}`}
                                     onClick={() => setSelectedPointId(point.id)}
                                 >
                                     <td className="px-4 py-2 text-right">{sortedAndFilteredPoints.length - index}</td>
                                     <td className="px-4 py-2 font-bold">{point.label}</td>
                                     <td className="px-4 py-2">
-                                        <input type="text" defaultValue={point.measurements?.voltage?.value || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
+                                        <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
                                     </td>
                                     <td className="px-4 py-2">
-                                        <input type="text" defaultValue={point.measurements?.resistance?.value || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
+                                        <input type="text" defaultValue={(point.measurements?.resistance?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
                                     </td>
                                     <td className="px-4 py-2">
-                                        <input type="text" defaultValue={point.measurements?.diode?.value || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
+                                        <input type="text" defaultValue={(point.measurements?.diode?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
                                     </td>
                                     <td className="px-4 py-2">
                                         <input type="text" value={point.notes || ''} onChange={(e) => handleNotesChange(point.id, e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full" />

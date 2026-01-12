@@ -1,7 +1,15 @@
 import React from 'react';
 import { Sparkles, X, Loader2 } from 'lucide-react';
 
-const AIModal = ({ isOpen, onClose, title, response, isLoading }) => {
+interface AIModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    title: string;
+    response: string;
+    isLoading: boolean;
+}
+
+const AIModal: React.FC<AIModalProps> = ({ isOpen, onClose, title, response, isLoading }) => {
     if (!isOpen) return null;
 
     return (
