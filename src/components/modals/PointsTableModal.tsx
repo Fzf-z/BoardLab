@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ArrowUp, ArrowDown, Search, Trash2 } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
-import { Point, MeasurementValue } from '../../types';
+import { Point } from '../../types';
 
 interface PointsTableModalProps {
     onClose: () => void;

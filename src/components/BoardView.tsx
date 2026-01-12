@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, Activity, Zap, Cpu } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
-import { Point, MeasurementValue } from '../types';
+import { MeasurementValue } from '../types';
 
 interface MiniWaveformProps {
     data: MeasurementValue;
@@ -48,7 +48,6 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
         handleMouseUp, 
         handleImageClick, 
         selectedPointId, 
-        isDragging, 
         setSelectedPointId, 
         containerRef 
     } = board;

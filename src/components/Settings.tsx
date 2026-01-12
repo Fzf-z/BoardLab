@@ -19,9 +19,6 @@ const Settings: React.FC<SettingsProps> = ({
   const [activeTab, setActiveTab] = useState<'app' | 'multimeter' | 'oscilloscope'>('app');
   const { showNotification } = useNotifier();
 
-  // Helper to safely access instrument by key
-  const getInstrument = (key: 'multimeter' | 'oscilloscope') => localInstruments[key];
-
   const handleInstrumentChange = (instrument: 'multimeter' | 'oscilloscope', field: string, value: string | number) => {
     setLocalInstruments(prev => ({
       ...prev,

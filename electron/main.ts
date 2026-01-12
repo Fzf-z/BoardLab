@@ -53,7 +53,7 @@ dbWorker.on('exit', code => {
 });
 
 // Helper function to query the database worker
-function dbQuery(type, payload) {
+function dbQuery(type: string, payload?: any) {
   return new Promise((resolve, reject) => {
     const id = queryId++;
     pendingQueries.set(id, { resolve, reject });
@@ -107,7 +107,7 @@ app.on('activate', () => {
 });
 
 app.on('window-all-closed', () => {
-  dbQuery('close').finally(() => {
+  dbQuery('close', undefined).finally(() => {
     if (process.platform !== 'darwin') {
       app.quit();
     }
@@ -118,10 +118,10 @@ app.on('window-all-closed', () => {
 // IPC Handlers for Database (Now non-blocking)
 // =================================================================
 
-ipcMain.handle('db:get-projects', () => dbQuery('db:get-projects'));
+ipcMain.handle('db:get-projects', () => dbQuery('db:get-projects', undefined));
 ipcMain.handle('db:get-project-with-image', (event, projectId) => dbQuery('db:get-project-with-image', projectId));
 ipcMain.handle('db:create-project', (event, projectData) => dbQuery('db:create-project', projectData));
-ipcMain.handle('db:get-all-attributes', () => dbQuery('db:get-all-attributes'));
+ipcMain.handle('db:get-all-attributes', () => dbQuery('db:get-all-attributes', undefined));
 ipcMain.handle('db:save-points', (event, payload) => dbQuery('db:save-points', payload));
 ipcMain.handle('db:get-points', (event, projectId) => dbQuery('db:get-points', projectId));
 ipcMain.handle('db:save-measurement', (event, payload) => dbQuery('db:save-measurement', payload));
@@ -174,14 +174,14 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
 
         const htmlContent = generateReportHtml(project, pointsWithMeasurements);
 
-        const browser = await puppeteer.launch({ headless: "new" });
+        const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
         await page.pdf({ path: filePath, format: 'A4', printBackground: true });
         await browser.close();
 
         return { status: 'success', filePath };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to generate PDF:', error);
         return { status: 'error', message: error.message };
     }
@@ -190,13 +190,13 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
 // Board Types Management
 ipcMain.handle('get-board-types', () => {
     const defaultTypes = ["Laptop", "Desktop", "Industrial", "Mobile", "Other"];
-    const savedTypes = store.get('boardTypes', []);
+    const savedTypes = store.get('boardTypes', []) as string[];
     return [...new Set([...defaultTypes, ...savedTypes])];
 });
 
 ipcMain.handle('add-board-type', (event, newType) => {
     if (!newType) return;
-    const currentTypes = store.get('boardTypes', []);
+    const currentTypes = store.get('boardTypes', []) as string[];
     if (!currentTypes.includes(newType)) {
         store.set('boardTypes', [...currentTypes, newType]);
     }

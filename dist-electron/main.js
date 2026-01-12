@@ -260,16 +260,16 @@ electron.app.on("activate", () => {
   }
 });
 electron.app.on("window-all-closed", () => {
-  dbQuery("close").finally(() => {
+  dbQuery("close", void 0).finally(() => {
     if (process.platform !== "darwin") {
       electron.app.quit();
     }
   });
 });
-electron.ipcMain.handle("db:get-projects", () => dbQuery("db:get-projects"));
+electron.ipcMain.handle("db:get-projects", () => dbQuery("db:get-projects", void 0));
 electron.ipcMain.handle("db:get-project-with-image", (event, projectId) => dbQuery("db:get-project-with-image", projectId));
 electron.ipcMain.handle("db:create-project", (event, projectData) => dbQuery("db:create-project", projectData));
-electron.ipcMain.handle("db:get-all-attributes", () => dbQuery("db:get-all-attributes"));
+electron.ipcMain.handle("db:get-all-attributes", () => dbQuery("db:get-all-attributes", void 0));
 electron.ipcMain.handle("db:save-points", (event, payload) => dbQuery("db:save-points", payload));
 electron.ipcMain.handle("db:get-points", (event, projectId) => dbQuery("db:get-points", projectId));
 electron.ipcMain.handle("db:save-measurement", (event, payload) => dbQuery("db:save-measurement", payload));
@@ -306,7 +306,7 @@ electron.ipcMain.handle("exportPdf", async (event, projectId) => {
     }
     const pointsWithMeasurements = await dbQuery("db:get-points", projectId);
     const htmlContent = generateReportHtml(project, pointsWithMeasurements);
-    const browser = await puppeteer.launch({ headless: "new" });
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: "networkidle0" });
     await page.pdf({ path: filePath, format: "A4", printBackground: true });

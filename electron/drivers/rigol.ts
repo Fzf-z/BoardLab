@@ -113,7 +113,7 @@ export function getRigolData(ip: string, port: number | string): Promise<any> {
         });
 
         client.on('data', (data) => {
-            receivedData = Buffer.concat([receivedData, data]);
+            receivedData = Buffer.concat([receivedData, data as Buffer]);
             
             // Optimization: Only try to parse if buffer is reasonably large
             if (receivedData.length > 50) { 

@@ -11,11 +11,13 @@ interface ProjectManagerModalProps {
     onUpdateProject: (project: Partial<Project>) => void;
 }
 
+type EditingProject = Omit<Project, 'attributes'> & { attributes: Record<string, string> };
+
 const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({ 
     isOpen, onClose, projects, onLoadProject, onDeleteProject, onUpdateProject 
 }) => {
     const [filter, setFilter] = useState<string>('');
-    const [editingProject, setEditingProject] = useState<Project | null>(null);
+    const [editingProject, setEditingProject] = useState<EditingProject | null>(null);
     const [newAttrKey, setNewAttrKey] = useState<string>('');
     const [newAttrValue, setNewAttrValue] = useState<string>('');
 
@@ -37,7 +39,8 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                 // ignore
             }
         } else if (typeof project.attributes === 'object' && project.attributes !== null) {
-            attrs = { ...project.attributes as Record<string, string> };
+             // @ts-ignore
+            attrs = { ...project.attributes };
         }
 
         setEditingProject({ ...project, attributes: attrs });
@@ -51,15 +54,10 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
 
     const handleEditSave = () => {
         if (onUpdateProject && editingProject) {
-            // Convert attributes back to whatever the update function expects?
-            // Usually DB expects string, but updateProject context method might handle stringify.
-            // Let's assume context handles it or we pass object.
-            // Based on db-worker, updateProject expects attributes as... let's check.
-            // Actually usually we keep it as object in frontend and stringify before sending to DB-worker via IPC.
-            // In ProjectContext.tsx we passed updatedProjectData directly to window.electronAPI.updateProject.
-            // The API probably expects object.
-            
-            onUpdateProject(editingProject);
+            onUpdateProject({
+                ...editingProject,
+                attributes: JSON.stringify(editingProject.attributes)
+            });
             setEditingProject(null);
         }
     };
@@ -68,7 +66,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
         if (!editingProject) return;
         setEditingProject(prev => {
             if (!prev) return null;
-            const currentAttrs = prev.attributes as Record<string, string>;
+            const currentAttrs = prev.attributes;
             return {
                 ...prev,
                 attributes: { ...currentAttrs, [key]: value }
@@ -80,7 +78,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
         if (newAttrKey.trim() && newAttrValue.trim() && editingProject) {
             setEditingProject(prev => {
                 if (!prev) return null;
-                const currentAttrs = prev.attributes as Record<string, string>;
+                const currentAttrs = prev.attributes;
                 return {
                     ...prev,
                     attributes: { ...currentAttrs, [newAttrKey.trim()]: newAttrValue.trim() }
@@ -93,7 +91,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
 
     // --- Render Edit View ---
     if (editingProject) {
-        const attributes = editingProject.attributes as Record<string, string> || {};
+        const attributes = editingProject.attributes || {};
         
         return (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">

@@ -114,7 +114,7 @@ async function handleMessage(msg: any) {
                 const insertStmt = db.prepare('INSERT INTO points (project_id, x, y, label, notes, type) VALUES (?, ?, ?, ?, ?, ?)');
                 const updateStmt = db.prepare('UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ? WHERE id = ?');
                 const savedRows: any[] = [];
-                const transaction = db.transaction((pts) => {
+                const transaction = db.transaction((pts: any[]) => {
                     for (const point of pts) {
                         if (typeof point.id === 'string' && point.id.startsWith('temp-')) {
                             const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || '', point.type || 'voltage');
@@ -202,7 +202,7 @@ async function handleMessage(msg: any) {
                 if (!payload) {
                     throw new Error('projectId required');
                 }
-                const deleteTransaction = db.transaction((pid) => {
+                const deleteTransaction = db.transaction((pid: number) => {
                     db.prepare('DELETE FROM measurements WHERE point_id IN (SELECT id FROM points WHERE project_id = ?)').run(pid);
                     db.prepare('DELETE FROM points WHERE project_id = ?').run(pid);
                     db.prepare('DELETE FROM projects WHERE id = ?').run(pid);
@@ -215,7 +215,7 @@ async function handleMessage(msg: any) {
                 if (!payload) {
                     throw new Error('Point ID is required');
                 }
-                const deletePointTransaction = db.transaction((pointId) => {
+                const deletePointTransaction = db.transaction((pointId: number | string) => {
                     // Manually delete measurements first to avoid FK constraint issues
                     db.prepare('DELETE FROM measurements WHERE point_id = ?').run(pointId);
                     const res = db.prepare('DELETE FROM points WHERE id = ?').run(pointId);

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useProject } from './contexts/ProjectContext';
 import { useGemini } from './hooks/useGemini';
 import { useHardware } from './hooks/useHardware';
-import { InstrumentConfig, MeasurementValue, Project } from './types';
+import { InstrumentConfig, Project } from './types';
 
 // Importing Components
 import Toolbar from './components/Toolbar';
