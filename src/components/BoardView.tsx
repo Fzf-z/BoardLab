@@ -46,6 +46,7 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
         handleMouseDown, 
         handleMouseMove, 
         handleMouseUp, 
+        handlePointMouseDown,
         handleImageClick, 
         selectedPointId, 
         setSelectedPointId, 
@@ -178,7 +179,8 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                 <div
                                     key={point.id}
                                     className={`absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-2 flex items-center justify-center shadow-lg transition-transform ${bgColor} ${borderColor} ${isSelected ? 'scale-125 z-20' : 'z-10'}`}
-                                    style={{ left: point.x, top: point.y, cursor: 'pointer' }}
+                                    style={{ left: point.x, top: point.y, cursor: mode === 'measure' ? 'grab' : 'pointer' }}
+                                    onMouseDown={(e) => mode === 'measure' && handlePointMouseDown(e, point.id)}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedPointId(point.id);

@@ -110,9 +110,9 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
         -   Incluir un campo para definir el `timeout` para las mediciones automáticas.
 
 2.  **[UX] Edición de Posición de Puntos en Tabla**:
-    *   **Objetivo**: Facilitar el ajuste fino de la posición de un punto sin necesidad de arrastrarlo en el canvas.
+    *   **Objetivo**: poder editar la posición del punto una vez creado.
     *   **Tareas**:
-        -   En el modal `PointsTableModal`, hacer que las coordenadas X e Y de cada punto sean campos de entrada editables.
+        -   En el modal `PointsTableModal`, hacer que el punto pueda ser arrastrado y soltado.
         -   Asegurar que los cambios se reflejen en tiempo real en el `BoardView`.
 
 3.  **[UX] Minimapa de Navegación**:
