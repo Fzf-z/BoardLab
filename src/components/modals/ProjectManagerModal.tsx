@@ -20,6 +20,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
     const [editingProject, setEditingProject] = useState<EditingProject | null>(null);
     const [newAttrKey, setNewAttrKey] = useState<string>('');
     const [newAttrValue, setNewAttrValue] = useState<string>('');
+    const [fetchedAttributes, setFetchedAttributes] = useState<{ keys: string[], values: string[] }>({ keys: [], values: [] });
 
     if (!isOpen) return null;
 
@@ -46,6 +47,15 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
         setEditingProject({ ...project, attributes: attrs });
         setNewAttrKey('');
         setNewAttrValue('');
+
+        // Fetch attributes for autocomplete
+        if (window.electronAPI) {
+            window.electronAPI.getAllAttributes(project.board_type)
+                .then((attrs: { keys: string[], values: string[] }) => {
+                    setFetchedAttributes(attrs || { keys: [], values: [] });
+                })
+                .catch(console.error);
+        }
     };
 
     const handleEditCancel = () => {
@@ -54,10 +64,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
 
     const handleEditSave = () => {
         if (onUpdateProject && editingProject) {
-            onUpdateProject({
-                ...editingProject,
-                attributes: JSON.stringify(editingProject.attributes)
-            });
+            onUpdateProject(editingProject);
             setEditingProject(null);
         }
     };
@@ -148,6 +155,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                                             value={val}
                                             onChange={(e) => handleAttributeChange(key, e.target.value)}
                                             className="w-full bg-gray-900 border border-gray-600 rounded p-1.5 text-sm text-white"
+                                            list="known-values"
                                         />
                                     </div>
                                 ))}
@@ -162,6 +170,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                                         value={newAttrKey}
                                         onChange={e => setNewAttrKey(e.target.value)}
                                         className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white"
+                                        list="known-keys"
                                     />
                                 </div>
                                 <div className="flex-1">
@@ -172,6 +181,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                                         onChange={e => setNewAttrValue(e.target.value)}
                                         className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white"
                                         onKeyDown={e => e.key === 'Enter' && handleAddAttribute()}
+                                        list="known-values"
                                     />
                                 </div>
                                 <button 
@@ -191,6 +201,14 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                             <Save size={18} className="mr-2" /> Save Changes
                         </button>
                     </div>
+                    
+                    {/* Datalists for Autocomplete */}
+                    <datalist id="known-keys">
+                        {fetchedAttributes.keys.map((k, i) => <option key={`k-${i}`} value={k} />)}
+                    </datalist>
+                    <datalist id="known-values">
+                        {fetchedAttributes.values.map((v, i) => <option key={`v-${i}`} value={v} />)}
+                    </datalist>
                 </div>
             </div>
         );
