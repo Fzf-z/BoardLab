@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, Activity, Zap, Cpu } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { MeasurementValue } from '../types';
+import Minimap from './Minimap';
 
 interface MiniWaveformProps {
     data: MeasurementValue;
@@ -39,9 +40,11 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
     const { board } = useProject();
     const { 
         imageSrc, 
+        imageDimensions,
         points, 
         scale, 
         position, 
+        setPosition,
         handleWheel, 
         handleMouseDown, 
         handleMouseMove, 
@@ -54,6 +57,26 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
     } = board;
     
     const [hoveredPointId, setHoveredPointId] = useState<number | string | null>(null);
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        
+        const updateSize = () => {
+            if (containerRef.current) {
+                setContainerSize({
+                    width: containerRef.current.clientWidth,
+                    height: containerRef.current.clientHeight
+                });
+            }
+        };
+
+        const resizeObserver = new ResizeObserver(updateSize);
+        resizeObserver.observe(containerRef.current);
+        updateSize();
+
+        return () => resizeObserver.disconnect();
+    }, [containerRef]);
 
     const renderTooltip = () => {
         if (!hoveredPointId) return null;
@@ -202,6 +225,17 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
             )}
             
             {renderTooltip()}
+
+            {imageSrc && (
+                <Minimap 
+                    imageSrc={imageSrc}
+                    imageDimensions={imageDimensions}
+                    scale={scale}
+                    position={position}
+                    setPosition={setPosition}
+                    containerDimensions={containerSize}
+                />
+            )}
 
             {/* Scale Indicator */}
             <div className="absolute bottom-4 right-4 bg-black/60 px-2 py-1 rounded text-xs text-gray-400 pointer-events-none">

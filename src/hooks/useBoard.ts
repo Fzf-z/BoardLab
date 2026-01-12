@@ -91,6 +91,7 @@ export const useBoard = () => {
     const [selectedPointId, setSelectedPointId] = useState<number | string | null>(null);
     const [scale, setScale] = useState<number>(1);
     const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
+    const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const [isDraggingPoint, setIsDraggingPoint] = useState<boolean>(false);
     const [draggedPointId, setDraggedPointId] = useState<number | string | null>(null);
@@ -110,6 +111,8 @@ export const useBoard = () => {
                     if (!container) return; // Guard against component unmount
 
                     const { naturalWidth, naturalHeight } = img;
+                    setImageDimensions({ width: naturalWidth, height: naturalHeight });
+                    
                     if (naturalWidth === 0 || naturalHeight === 0 || container.clientWidth === 0 || container.clientHeight === 0) {
                         return;
                     }
@@ -267,6 +270,7 @@ export const useBoard = () => {
     return {
         imageSrc,
         setImage,
+        imageDimensions,
         points,
         setPoints,
         selectedPointId,

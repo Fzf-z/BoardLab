@@ -115,13 +115,12 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
         -   En el modal `PointsTableModal`, hacer que el punto pueda ser arrastrado y soltado.
         -   Asegurar que los cambios se reflejen en tiempo real en el `BoardView`.
 
-3.  **[UX] Minimapa de Navegación**:
-    *   **Objetivo**: Mejorar la orientación del usuario cuando se aplica un zoom profundo en la imagen de la placa.
+3.  **[COMPLETADO] [UX] Minimapa de Navegación**:
+    *   **Estado**: ✅ Implementado.
     *   **Tareas**:
-        -   Implementar un componente `Minimap` que se superponga en una esquina del `BoardView`.
-        -   El minimapa mostrará una versión reducida de la imagen completa.
-        -   Dibujar un rectángulo en el minimapa que represente el área visible actualmente en el `BoardView`.
-        -   Permitir arrastrar el rectángulo en el minimapa para mover la vista principal.
+        -   Implementado componente `Minimap` en una esquina del `BoardView`.
+        -   Muestra una versión reducida de la imagen completa con el área visible resaltada.
+        -   Permite hacer clic o arrastrar en el minimapa para mover rápidamente la vista principal.
 
 ### Fase 3: Automatización Avanzada y Flexibilidad
 
