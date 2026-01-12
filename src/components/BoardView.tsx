@@ -76,7 +76,7 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
         updateSize();
 
         return () => resizeObserver.disconnect();
-    }, [containerRef]);
+    }, [containerRef, imageSrc]);
 
     const renderTooltip = () => {
         if (!hoveredPointId) return null;
