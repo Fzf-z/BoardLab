@@ -270,7 +270,10 @@ async function handleMessage(msg: any) {
                 break;
 
             case 'close':
+                console.log('Worker: Compacting database before closing...');
+                db.exec('VACUUM');
                 db.close();
+                console.log('Worker: Database connection closed.');
                 parentPort?.postMessage({ id, result: { status: 'closed' } });
                 process.exit(0);
                 break;

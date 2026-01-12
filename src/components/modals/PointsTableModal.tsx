@@ -58,13 +58,7 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
         );
     };
 
-    const handleCoordinateChange = (pointId: string | number, coord: 'x' | 'y', newValue: string) => {
-        const val = parseFloat(newValue);
-        if (isNaN(val)) return;
-        setEditedPoints(currentPoints =>
-            currentPoints.map(p => (p.id === pointId ? { ...p, [coord]: val } : p))
-        );
-    };
+
 
     const handleSort = (column: string) => {
         if (sortColumn === column) {
@@ -139,8 +133,6 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
                             <tr className="bg-gray-700">
                                 <th className="p-3 w-12 text-right">#</th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('label')}>Label <SortIcon column="label" /></th>
-                                <th className="p-3">Pos X</th>
-                                <th className="p-3">Pos Y</th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('voltage')}>Voltage <SortIcon column="voltage" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('resistance')}>Resistance <SortIcon column="resistance" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('diode')}>Diode <SortIcon column="diode" /></th>
@@ -158,12 +150,6 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
                                 >
                                     <td className="px-4 py-2 text-right">{sortedAndFilteredPoints.length - index}</td>
                                     <td className="px-4 py-2 font-bold">{point.label}</td>
-                                    <td className="px-4 py-2">
-                                        <input type="number" defaultValue={Math.round(point.x)} onBlur={(e) => handleCoordinateChange(point.id, 'x', e.target.value)} className="bg-gray-700 w-20 p-1 rounded" />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                        <input type="number" defaultValue={Math.round(point.y)} onBlur={(e) => handleCoordinateChange(point.id, 'y', e.target.value)} className="bg-gray-700 w-20 p-1 rounded" />
-                                    </td>
                                     <td className="px-4 py-2">
                                         <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
                                     </td>

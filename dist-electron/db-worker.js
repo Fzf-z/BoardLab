@@ -240,7 +240,10 @@ async function handleMessage(msg) {
         }
         break;
       case "close":
+        console.log("Worker: Compacting database before closing...");
+        db.exec("VACUUM");
         db.close();
+        console.log("Worker: Database connection closed.");
         (_a = worker_threads.parentPort) == null ? void 0 : _a.postMessage({ id, result: { status: "closed" } });
         process.exit(0);
         break;
