@@ -7,6 +7,7 @@ export const useHardware = () => {
     const [isCapturing, setIsCapturing] = useState<boolean>(false);
     const [configOpen, setConfigOpen] = useState<boolean>(false);
     const [instrumentConfig, setInstrumentConfig] = useState<InstrumentConfig>({
+        timeout: 2000,
         multimeter: {
             ip: "192.168.0.202",
             port: 9876,
@@ -34,6 +35,10 @@ export const useHardware = () => {
             window.electronAPI.loadConfig().then((loadedConfig: Partial<InstrumentConfig>) => {
                 if (loadedConfig) {
                     const newConfig = JSON.parse(JSON.stringify(instrumentConfig)) as InstrumentConfig; // Deep copy default
+
+                    if (loadedConfig.timeout) {
+                        newConfig.timeout = loadedConfig.timeout;
+                    }
 
                     if (loadedConfig.multimeter) {
                         newConfig.multimeter.ip = loadedConfig.multimeter.ip || newConfig.multimeter.ip;
@@ -71,7 +76,10 @@ export const useHardware = () => {
         try {
             if (isElectron && window.electronAPI) {
                 if (selectedPoint.type === 'oscilloscope') {
-                    result = await window.electronAPI.measureScope(instrumentConfig.oscilloscope);
+                    result = await window.electronAPI.measureScope({
+                        ...instrumentConfig.oscilloscope,
+                        timeout: instrumentConfig.timeout
+                    });
                 } else {
                     const measureCommand = instrumentConfig.multimeter.commands.measure;
                     if (!measureCommand) {
@@ -83,6 +91,7 @@ export const useHardware = () => {
                         ip: instrumentConfig.multimeter.ip,
                         port: instrumentConfig.multimeter.port,
                         measureCommand: measureCommand,
+                        timeout: instrumentConfig.timeout
                     });
                 }
             } else {

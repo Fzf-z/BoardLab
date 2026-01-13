@@ -141,8 +141,8 @@ ipcMain.handle('hardware:measure-resistance', async () => {
 
 // Medición
 ipcMain.handle('multimeter-set-config', async (event, config) => setOwonConfig(config.ip, config.port, config.configCommand));
-ipcMain.handle('multimeter-get-measurement', async (event, config) => getOwonMeasurement(config.ip, config.port, config.measureCommand));
-ipcMain.handle('measure-scope', async (event, config) => getRigolData(config.ip, config.port));
+ipcMain.handle('multimeter-get-measurement', async (event, config) => getOwonMeasurement(config.ip, config.port, config.measureCommand, config.timeout));
+ipcMain.handle('measure-scope', async (event, config) => getRigolData(config.ip, config.port, config.timeout));
 
 // Configuración
 ipcMain.handle('test-connection', async (event, { ip, port }) => testConnection(ip, port));

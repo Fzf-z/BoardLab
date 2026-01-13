@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useBoard } from '../hooks/useBoard';
 import { useNotifier } from './NotifierContext';
-import { Project, Point, MeasurementValue } from '../types';
+import { Project, Point, MeasurementValue, AppSettings } from '../types';
 
 // Extend global window interface for Electron API
 declare global {
@@ -25,8 +25,8 @@ interface ProjectContextValue {
     currentProject: Project | null;
     points: Point[];
     projectList: Project[];
-    autoSave: boolean;
-    setAutoSave: (value: boolean) => void;
+    appSettings: AppSettings;
+    setAppSettings: (settings: AppSettings) => void;
     createProject: (data: any) => Promise<void>;
     saveProject: () => Promise<Point[] | undefined>;
     loadProject: (project: Project) => Promise<void>;
@@ -59,7 +59,11 @@ interface ProjectProviderProps {
 export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) => {
     const [currentProject, setCurrentProject] = useState<Project | null>(null);
     const [projectList, setProjectList] = useState<Project[]>([]);
-    const [autoSave, setAutoSave] = useState<boolean>(false);
+    const [appSettings, setAppSettings] = useState<AppSettings>({
+        autoSave: false,
+        pointSize: 24,
+        pointColor: '#4b5563'
+    });
     const board = useBoard();
     const { showNotification } = useNotifier();
 
@@ -69,10 +73,10 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
     // Auto-save when a new temporary point is added
     useEffect(() => {
         const hasTempPoint = board.points.some(p => typeof p.id === 'string' && p.id.startsWith('temp-'));
-        if (hasTempPoint && autoSave && currentProject) {
+        if (hasTempPoint && appSettings.autoSave && currentProject) {
             handleSaveProject();
         }
-    }, [board.points, autoSave, currentProject]);
+    }, [board.points, appSettings.autoSave, currentProject]);
 
     // --- Project Data Logic ---
     
@@ -286,8 +290,8 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             currentProject,
             points: board.points,
             projectList,
-            autoSave,
-            setAutoSave,
+            appSettings,
+            setAppSettings,
             createProject: handleCreateProject,
             saveProject: handleSaveProject,
             loadProject: handleLoadProject,

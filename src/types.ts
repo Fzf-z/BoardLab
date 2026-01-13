@@ -50,6 +50,7 @@ export interface Point {
 }
 
 export interface InstrumentConfig {
+    timeout?: number;
     multimeter: {
         ip: string;
         port: number;
@@ -60,4 +61,10 @@ export interface InstrumentConfig {
         port: number;
         commands: Record<string, string>;
     };
+}
+
+export interface AppSettings {
+    autoSave: boolean;
+    pointSize: number; // in pixels
+    pointColor: string; // hex
 }

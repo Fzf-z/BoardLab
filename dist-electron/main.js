@@ -27,7 +27,7 @@ function setOwonConfig(ip, port, configCommand) {
     });
   });
 }
-function getOwonMeasurement(ip, port, measureCommand) {
+function getOwonMeasurement(ip, port, measureCommand, timeoutMs = 2e3) {
   return new Promise((resolve) => {
     const client = new net.Socket();
     let response = "";
@@ -35,7 +35,7 @@ function getOwonMeasurement(ip, port, measureCommand) {
     const timeout = setTimeout(() => {
       client.destroy();
       resolve({ status: "error", message: `Timeout getting measurement. ${debug_info}` });
-    }, 2e3);
+    }, timeoutMs);
     client.connect(typeof port === "string" ? parseInt(port) : port, ip, () => {
       client.write(measureCommand.trim() + "\n");
     });
@@ -54,14 +54,14 @@ function getOwonMeasurement(ip, port, measureCommand) {
     });
   });
 }
-function getRigolData(ip, port) {
+function getRigolData(ip, port, timeoutMs = 4e3) {
   return new Promise((resolve) => {
     let processingDone = false;
     const client = new net.Socket();
     const timeout = setTimeout(() => {
       client.destroy();
       resolve({ status: "error", message: "Timeout de conexión (4s)" });
-    }, 4e3);
+    }, timeoutMs);
     const commandString = [
       ":WAV:SOUR CHAN1",
       ":WAV:MODE NORM",
@@ -281,8 +281,8 @@ electron.ipcMain.handle("db:update-project", (event, projectData) => dbQuery("db
 electron.ipcMain.handle("hardware:measure-resistance", async () => {
 });
 electron.ipcMain.handle("multimeter-set-config", async (event, config) => setOwonConfig(config.ip, config.port, config.configCommand));
-electron.ipcMain.handle("multimeter-get-measurement", async (event, config) => getOwonMeasurement(config.ip, config.port, config.measureCommand));
-electron.ipcMain.handle("measure-scope", async (event, config) => getRigolData(config.ip, config.port));
+electron.ipcMain.handle("multimeter-get-measurement", async (event, config) => getOwonMeasurement(config.ip, config.port, config.measureCommand, config.timeout));
+electron.ipcMain.handle("measure-scope", async (event, config) => getRigolData(config.ip, config.port, config.timeout));
 electron.ipcMain.handle("test-connection", async (event, { ip, port }) => testConnection(ip, port));
 electron.ipcMain.handle("save-config", (event, config) => store.set("instrumentConfig", config));
 electron.ipcMain.handle("load-config", () => store.get("instrumentConfig"));

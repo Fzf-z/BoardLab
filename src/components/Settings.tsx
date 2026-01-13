@@ -1,21 +1,21 @@
 import React, { useState } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
-import { InstrumentConfig } from '../types';
+import { InstrumentConfig, AppSettings } from '../types';
 
 interface SettingsProps {
     instruments: InstrumentConfig;
     apiKey: string;
     setApiKey: (key: string) => void;
-    autoSave: boolean;
-    onAutoSaveChange: (val: boolean) => void;
-    onSave: (config: InstrumentConfig, apiKey: string, autoSave: boolean) => void;
+    appSettings: AppSettings;
+    onSave: (config: InstrumentConfig, apiKey: string, appSettings: AppSettings) => void;
     onClose: () => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({ 
-    instruments, apiKey, setApiKey, autoSave, onAutoSaveChange, onSave, onClose 
+    instruments, apiKey, setApiKey, appSettings, onSave, onClose 
 }) => {
   const [localInstruments, setLocalInstruments] = useState<InstrumentConfig>(JSON.parse(JSON.stringify(instruments)));
+  const [localAppSettings, setLocalAppSettings] = useState<AppSettings>(JSON.parse(JSON.stringify(appSettings)));
   const [activeTab, setActiveTab] = useState<'app' | 'multimeter' | 'oscilloscope'>('app');
   const { showNotification } = useNotifier();
 
@@ -165,11 +165,44 @@ const Settings: React.FC<SettingsProps> = ({
                             <input 
                                 type="checkbox" 
                                 id="autosave" 
-                                checked={autoSave} 
-                                onChange={(e) => onAutoSaveChange(e.target.checked)}
+                                checked={localAppSettings.autoSave} 
+                                onChange={(e) => setLocalAppSettings(prev => ({ ...prev, autoSave: e.target.checked }))}
                                 className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
                             />
                             <label htmlFor="autosave" className="ml-2 text-sm text-gray-300">Auto-save project on changes</label>
+                         </div>
+                         <div className="grid grid-cols-2 gap-4 mt-4">
+                             <div>
+                                <label className="block text-sm font-medium text-gray-400">Point Size (px)</label>
+                                <input
+                                    type="number"
+                                    value={localAppSettings.pointSize || 24}
+                                    onChange={(e) => setLocalAppSettings(prev => ({ ...prev, pointSize: parseInt(e.target.value) || 24 }))}
+                                    className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm text-white"
+                                />
+                             </div>
+                             <div>
+                                <label className="block text-sm font-medium text-gray-400">Default Point Color</label>
+                                <div className="flex items-center mt-1 space-x-2">
+                                    <input
+                                        type="color"
+                                        value={localAppSettings.pointColor || '#4b5563'}
+                                        onChange={(e) => setLocalAppSettings(prev => ({ ...prev, pointColor: e.target.value }))}
+                                        className="h-9 w-16 bg-gray-700 border border-gray-600 rounded cursor-pointer"
+                                    />
+                                    <span className="text-xs text-gray-500 font-mono">{localAppSettings.pointColor}</span>
+                                </div>
+                             </div>
+                         </div>
+                         <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-400">Measurement Timeout (ms)</label>
+                            <input
+                                type="number"
+                                value={localInstruments.timeout || 2000}
+                                onChange={(e) => setLocalInstruments(prev => ({ ...prev, timeout: parseInt(e.target.value) || 2000 }))}
+                                className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-white"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Time to wait for instrument response before failing.</p>
                          </div>
                     </div>
                 </div>
@@ -189,7 +222,7 @@ const Settings: React.FC<SettingsProps> = ({
           </button>
           <button
             onClick={() => {
-                onSave(localInstruments, apiKey, autoSave);
+                onSave(localInstruments, apiKey, localAppSettings);
                 onClose();
             }}
             className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-500 shadow-lg transition-colors"

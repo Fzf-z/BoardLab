@@ -37,7 +37,7 @@ interface BoardViewProps {
 }
 
 const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
-    const { board } = useProject();
+    const { board, appSettings } = useProject();
     const { 
         imageSrc, 
         imageDimensions,
@@ -185,24 +185,31 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                             const isSelected = selectedPointId === point.id;
                             const isHovered = hoveredPointId === point.id;
                             
-                            // Determine color based on status (e.g., has measurements)
                             const hasMeas = point.measurements && Object.keys(point.measurements).length > 0;
-                            let bgColor = hasMeas ? 'bg-blue-600/80' : 'bg-gray-600/80';
-                            let borderColor = hasMeas ? 'border-blue-400' : 'border-gray-400';
                             
-                            if (isSelected) {
-                                bgColor = 'bg-yellow-500';
-                                borderColor = 'border-white';
-                            } else if (isHovered) {
-                                bgColor = hasMeas ? 'bg-blue-500' : 'bg-gray-500';
-                                borderColor = 'border-white';
-                            }
+                            const size = appSettings.pointSize || 24;
+                            const defaultColor = appSettings.pointColor || '#4b5563';
+                            
+                            // Dynamic Styles
+                            const pointStyle: React.CSSProperties = {
+                                left: point.x, 
+                                top: point.y, 
+                                width: `${size}px`,
+                                height: `${size}px`,
+                                marginLeft: `-${size/2}px`,
+                                marginTop: `-${size/2}px`,
+                                cursor: mode === 'measure' ? 'grab' : 'pointer',
+                                backgroundColor: isSelected ? '#eab308' : (hasMeas ? '#2563eb' : defaultColor), // Yellow, Blue, or Custom
+                                borderColor: isSelected || isHovered ? 'white' : (hasMeas ? '#60a5fa' : '#9ca3af'),
+                                transform: isSelected ? 'scale(1.25)' : 'scale(1)',
+                                zIndex: isSelected ? 20 : 10
+                            };
 
                             return (
                                 <div
                                     key={point.id}
-                                    className={`absolute w-6 h-6 -ml-3 -mt-3 rounded-full border-2 flex items-center justify-center shadow-lg transition-transform ${bgColor} ${borderColor} ${isSelected ? 'scale-125 z-20' : 'z-10'}`}
-                                    style={{ left: point.x, top: point.y, cursor: mode === 'measure' ? 'grab' : 'pointer' }}
+                                    className={`absolute rounded-full border-2 flex items-center justify-center shadow-lg transition-transform`}
+                                    style={pointStyle}
                                     onMouseDown={(e) => mode === 'measure' && handlePointMouseDown(e, point.id)}
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -211,7 +218,7 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                     onMouseEnter={() => setHoveredPointId(point.id)}
                                     onMouseLeave={() => setHoveredPointId(null)}
                                 >
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                    <div className="bg-white rounded-full" style={{ width: size/4, height: size/4 }} />
                                     
                                     {/* Label Tag */}
                                     <div className={`absolute left-full ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${isSelected ? 'bg-yellow-500 text-black' : 'bg-black/50 text-white'}`}>

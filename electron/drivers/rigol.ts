@@ -1,13 +1,13 @@
 import net from 'net';
 
-export function getRigolData(ip: string, port: number | string): Promise<any> {
+export function getRigolData(ip: string, port: number | string, timeoutMs: number = 4000): Promise<any> {
     return new Promise((resolve) => {
         let processingDone = false;
         const client = new net.Socket();
         const timeout = setTimeout(() => {
             client.destroy();
             resolve({ status: 'error', message: 'Timeout de conexión (4s)' });
-        }, 4000);
+        }, timeoutMs);
 
         const commandString = [
             ':WAV:SOUR CHAN1', ':WAV:MODE NORM', ':WAV:FORM BYTE',

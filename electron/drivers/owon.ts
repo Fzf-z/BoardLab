@@ -25,7 +25,7 @@ export function setOwonConfig(ip: string, port: number | string, configCommand: 
     });
 }
 
-export function getOwonMeasurement(ip: string, port: number | string, measureCommand: string): Promise<{ status: string; value?: string; message?: string }> {
+export function getOwonMeasurement(ip: string, port: number | string, measureCommand: string, timeoutMs: number = 2000): Promise<{ status: string; value?: string; message?: string }> {
     return new Promise((resolve) => {
         const client = new net.Socket();
         let response = '';
@@ -33,7 +33,7 @@ export function getOwonMeasurement(ip: string, port: number | string, measureCom
         const timeout = setTimeout(() => {
             client.destroy();
             resolve({ status: 'error', message: `Timeout getting measurement. ${debug_info}` });
-        }, 2000);
+        }, timeoutMs);
 
         client.connect(typeof port === 'string' ? parseInt(port) : port, ip, () => {
             client.write(measureCommand.trim() + '\n');

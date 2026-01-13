@@ -44,8 +44,8 @@ const BoardLab: React.FC = () => {
         fetchProjectList,
         deletePoint,
         addMeasurement,
-        setAutoSave,
-        autoSave,
+        appSettings,
+        setAppSettings,
         undo,
         redo,
     } = useProject();
@@ -124,12 +124,12 @@ const BoardLab: React.FC = () => {
         if (hardware.isElectron && window.electronAPI) {
             window.electronAPI.loadApiKey().then((key: string) => setApiKey(key || ''));
             window.electronAPI.loadConfig().then((config: any) => {
-                if (config?.appSettings?.autoSave) {
-                    setAutoSave(true);
+                if (config?.appSettings) {
+                    setAppSettings(config.appSettings);
                 }
             });
         }
-    }, [hardware.isElectron, setAutoSave]);
+    }, [hardware.isElectron, setAppSettings]);
 
     const handleOpenProject = async () => {
         await fetchProjectList();
@@ -224,16 +224,15 @@ const BoardLab: React.FC = () => {
                     instruments={hardware.instrumentConfig}
                     apiKey={apiKey}
                     setApiKey={setApiKey}
-                    autoSave={autoSave}
-                    onAutoSaveChange={setAutoSave}
-                    onSave={(newConfig: InstrumentConfig, newApiKey: string, newAutoSave: boolean) => {
+                    appSettings={appSettings}
+                    onSave={(newConfig: InstrumentConfig, newApiKey: string, newAppSettings: AppSettings) => {
                         hardware.handleSaveConfig(newConfig);
                         if(window.electronAPI) {
                             window.electronAPI.saveApiKey(newApiKey);
-                            window.electronAPI.saveConfig({ ...newConfig, appSettings: { autoSave: newAutoSave } });
+                            window.electronAPI.saveConfig({ ...newConfig, appSettings: newAppSettings });
                         }
                         setApiKey(newApiKey);
-                        setAutoSave(newAutoSave);
+                        setAppSettings(newAppSettings);
                     }}
                     onClose={() => hardware.setConfigOpen(false)}
                 />
