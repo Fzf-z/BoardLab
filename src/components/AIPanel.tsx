@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit } from 'lucide-react';
+import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit, CheckCircle2 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, MeasurementValue, Point } from '../types';
 
@@ -99,6 +99,15 @@ const AIPanel: React.FC<AIPanelProps> = ({
         { id: 'oscilloscope', icon: Activity, lbl: 'Scope' }
     ];
 
+    const categories = [
+        { id: 'power', label: 'Power', color: '#ef4444' },
+        { id: 'ground', label: 'Ground', color: '#1f2937' },
+        { id: 'signal', label: 'Signal', color: '#3b82f6' },
+        { id: 'clock', label: 'Clock', color: '#10b981' },
+        { id: 'data', label: 'Data', color: '#8b5cf6' },
+        { id: 'component', label: 'Comp', color: '#f59e0b' },
+    ];
+
     const getMeasurementStatusColor = () => {
         if (!selectedPoint || !selectedPoint.expected_value || !selectedPoint.tolerance) return "text-cyan-400";
         
@@ -171,6 +180,22 @@ const AIPanel: React.FC<AIPanelProps> = ({
                                 >
                                     <t.icon size={16} />
                                     <span className="text-[10px] mt-1">{t.lbl}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* --- Category --- */}
+                        <div className="flex flex-wrap gap-1">
+                            {categories.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => handlePointUpdate('category', selectedPoint.category === cat.id ? undefined : cat.id)}
+                                    className={`px-2 py-1 rounded text-[10px] border font-bold flex items-center transition-all ${selectedPoint.category === cat.id ? 'ring-1 ring-white' : 'opacity-60 hover:opacity-100'}`}
+                                    style={{ backgroundColor: cat.color, borderColor: cat.color, color: 'white' }}
+                                    title={cat.label}
+                                >
+                                    {selectedPoint.category === cat.id && <CheckCircle2 size={10} className="mr-1" />}
+                                    {cat.label}
                                 </button>
                             ))}
                         </div>

@@ -4,6 +4,15 @@ import { useProject } from '../contexts/ProjectContext';
 import { MeasurementValue } from '../types';
 import Minimap from './Minimap';
 
+const CATEGORY_COLORS: Record<string, string> = {
+    'power': '#ef4444',   // Red
+    'ground': '#1f2937',  // Dark/Black
+    'signal': '#3b82f6',  // Blue
+    'clock': '#10b981',   // Green
+    'data': '#8b5cf6',    // Purple
+    'component': '#f59e0b' // Amber
+};
+
 interface MiniWaveformProps {
     data: MeasurementValue;
 }
@@ -188,7 +197,12 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                             const hasMeas = point.measurements && Object.keys(point.measurements).length > 0;
                             
                             const size = appSettings.pointSize || 24;
-                            const defaultColor = appSettings.pointColor || '#4b5563';
+                            let defaultColor = appSettings.pointColor || '#4b5563';
+                            
+                            // Use category color if defined
+                            if (point.category && CATEGORY_COLORS[point.category]) {
+                                defaultColor = CATEGORY_COLORS[point.category];
+                            }
                             
                             // Dynamic Styles
                             const pointStyle: React.CSSProperties = {
@@ -199,7 +213,7 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                 marginLeft: `-${size/2}px`,
                                 marginTop: `-${size/2}px`,
                                 cursor: mode === 'measure' ? 'grab' : 'pointer',
-                                backgroundColor: isSelected ? '#eab308' : (hasMeas ? '#2563eb' : defaultColor), // Yellow, Blue, or Custom
+                                backgroundColor: isSelected ? '#eab308' : (hasMeas ? '#2563eb' : defaultColor), // Yellow, Blue (if measured), or Category/Default
                                 borderColor: isSelected || isHovered ? 'white' : (hasMeas ? '#60a5fa' : '#9ca3af'),
                                 transform: isSelected ? 'scale(1.25)' : 'scale(1)',
                                 zIndex: isSelected ? 20 : 10

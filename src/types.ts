@@ -42,6 +42,7 @@ export interface Point {
     label: string;
     notes?: string;
     type: MeasurementType;
+    category?: string; // e.g., 'power', 'ground', 'signal', 'clock'
     tolerance?: number;
     expected_value?: string;
     // In the frontend, we store latest measurements by type for quick access

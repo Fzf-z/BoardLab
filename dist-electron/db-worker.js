@@ -35,6 +35,7 @@ db.exec(`
     label TEXT,
     notes TEXT,
     type TEXT,
+    category TEXT,
     tolerance REAL,
     expected_value TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -44,10 +45,15 @@ db.exec(`
 try {
   const pointTableInfo = db.prepare("PRAGMA table_info(points)").all();
   const hasTolerance = pointTableInfo.some((col) => col.name === "tolerance");
+  const hasCategory = pointTableInfo.some((col) => col.name === "category");
   if (!hasTolerance) {
     db.exec("ALTER TABLE points ADD COLUMN tolerance REAL");
     db.exec("ALTER TABLE points ADD COLUMN expected_value TEXT");
     console.log("Worker: Migrated points table to include 'tolerance' and 'expected_value' columns.");
+  }
+  if (!hasCategory) {
+    db.exec("ALTER TABLE points ADD COLUMN category TEXT");
+    console.log("Worker: Migrated points table to include 'category' column.");
   }
 } catch (e) {
   console.error("Worker: Error migrating points table:", e);
@@ -117,20 +123,20 @@ async function handleMessage(msg) {
         break;
       case "db:save-points":
         const { projectId, points } = payload;
-        const insertStmt = db.prepare("INSERT INTO points (project_id, x, y, label, notes, type, tolerance, expected_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        const updateStmt = db.prepare("UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ?, tolerance = ?, expected_value = ? WHERE id = ?");
+        const insertStmt = db.prepare("INSERT INTO points (project_id, x, y, label, notes, type, category, tolerance, expected_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        const updateStmt = db.prepare("UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ?, category = ?, tolerance = ?, expected_value = ? WHERE id = ?");
         const savedRows = [];
         const transaction = db.transaction((pts) => {
           for (const point of pts) {
             if (typeof point.id === "string" && point.id.startsWith("temp-")) {
-              const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || "", point.type || "voltage", point.tolerance || null, point.expected_value || null);
+              const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || "", point.type || "voltage", point.category || null, point.tolerance || null, point.expected_value || null);
               const row = db.prepare("SELECT * FROM points WHERE id = ?").get(res.lastInsertRowid);
               if (row) {
                 row.temp_id = point.id;
                 savedRows.push(row);
               }
             } else if (typeof point.id === "number") {
-              updateStmt.run(point.x, point.y, point.label, point.notes || "", point.type || "voltage", point.tolerance || null, point.expected_value || null, point.id);
+              updateStmt.run(point.x, point.y, point.label, point.notes || "", point.type || "voltage", point.category || null, point.tolerance || null, point.expected_value || null, point.id);
               const row = db.prepare("SELECT * FROM points WHERE id = ?").get(point.id);
               if (row) savedRows.push(row);
             }
