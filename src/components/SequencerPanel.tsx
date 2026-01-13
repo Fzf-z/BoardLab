@@ -13,24 +13,14 @@ const SequencerPanel: React.FC = () => {
     // Use timeout from config as delay (converted to seconds, min 1s)
     const autoDelaySec = Math.max(1, Math.round((hardware.instrumentConfig.timeout || 3000) / 1000));
     
-    const [lockedType, setLockedType] = useState<string | null>(null);
+    // Derive Locked Type directly from the first point in the sequence
+    // This ensures that whatever the user set as the first point's type dictates the mode for the whole run
+    const firstPointId = sequence.order[0];
+    const firstPoint = points.find(p => p.id === firstPointId);
+    const lockedType = firstPoint?.type || null;
 
     const currentPointId = sequence.order[sequence.currentIndex];
     const currentPoint = points.find(p => p.id === currentPointId);
-
-    // Lock type on sequence start
-    useEffect(() => {
-        if (sequence.active && sequence.currentIndex === 0 && points.length > 0) {
-            // If locking is needed, take type from first point.
-            // But actually currentPoint updates, so we need to capture it once.
-            // Let's rely on the first point in sequence.order
-            const firstId = sequence.order[0];
-            const firstPoint = points.find(p => p.id === firstId);
-            if (firstPoint && firstPoint.type) {
-                setLockedType(firstPoint.type);
-            }
-        }
-    }, [sequence.active]);
 
     // Calculate progress
     const progress = Math.round(((sequence.currentIndex + 1) / sequence.order.length) * 100);
@@ -101,10 +91,17 @@ const SequencerPanel: React.FC = () => {
                     </span>
                 </div>
                 <div className="text-white text-lg font-mono truncate flex items-center justify-between">
-                    <span>{currentPoint?.label || 'Unknown Point'}</span>
+                    <div className="flex flex-col">
+                        <span>{currentPoint?.label || 'Unknown Point'}</span>
+                        {lockedType && (
+                            <span className="text-xs text-blue-300 font-bold uppercase tracking-wider">
+                                MODE: {lockedType}
+                            </span>
+                        )}
+                    </div>
                     {countdown !== null && (
                         <span className="text-yellow-400 font-bold animate-pulse">
-                            Measuring in {countdown}s...
+                            {countdown}s
                         </span>
                     )}
                 </div>

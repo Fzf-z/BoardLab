@@ -101,7 +101,22 @@ export const useHardware = () => {
                         timeout: instrumentConfig.timeout
                     });
                 } else {
+                    const type = selectedPoint.type;
+                    const configKey = `configure_${type}`;
+                    const configCommand = instrumentConfig.multimeter.commands[configKey];
                     const measureCommand = instrumentConfig.multimeter.commands.measure;
+                    
+                    if (configCommand) {
+                         // Always send config command first to ensure correct mode
+                         await window.electronAPI.multimeterSetConfig({
+                            ip: instrumentConfig.multimeter.ip,
+                            port: instrumentConfig.multimeter.port,
+                            configCommand: configCommand
+                        });
+                        // Small delay to allow relay switching
+                        await new Promise(r => setTimeout(r, 200)); 
+                    }
+
                     if (!measureCommand) {
                         showNotification('"measure" command is missing in the settings.', 'error');
                         setIsCapturing(false);
