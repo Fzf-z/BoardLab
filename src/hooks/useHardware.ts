@@ -101,22 +101,8 @@ export const useHardware = () => {
                         timeout: instrumentConfig.timeout
                     });
                 } else {
-                    const type = selectedPoint.type;
-                    const configKey = `configure_${type}`;
-                    const configCommand = instrumentConfig.multimeter.commands[configKey];
                     const measureCommand = instrumentConfig.multimeter.commands.measure;
                     
-                    if (configCommand) {
-                         // Always send config command first to ensure correct mode
-                         await window.electronAPI.multimeterSetConfig({
-                            ip: instrumentConfig.multimeter.ip,
-                            port: instrumentConfig.multimeter.port,
-                            configCommand: configCommand
-                        });
-                        // Small delay to allow relay switching
-                        await new Promise(r => setTimeout(r, 200)); 
-                    }
-
                     if (!measureCommand) {
                         showNotification('"measure" command is missing in the settings.', 'error');
                         setIsCapturing(false);
@@ -157,12 +143,23 @@ export const useHardware = () => {
                         ...result
                     };
                 } else {
+                    let finalValue = result.value;
+                    const type = selectedPoint.type;
+
+                    // Fix for known Overload/Open indicators
+                    if (type === 'resistance' && finalValue.includes('Overload')) {
+                        finalValue = 'OL';
+                    }
+                    if (type === 'diode' && finalValue.includes('open')) {
+                        finalValue = 'OL';
+                    }
+
                     return {
                         // FORCE the type to match the point we were intending to measure
                         // This effectively "locks" the type if the user sets a sequence of points
                         // even if the hardware sent a generic value without type info
-                        type: selectedPoint.type,
-                        value: result.value,
+                        type: type,
+                        value: finalValue,
                     };
                 }
             } else {

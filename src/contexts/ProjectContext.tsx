@@ -129,10 +129,14 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             if (!prev.active) return prev;
             const nextIndex = prev.currentIndex + 1;
             if (nextIndex >= prev.order.length) {
-                showNotification('Sequence Completed!', 'success');
+                // Use setTimeout to defer the side effect (notification) out of the reducer
+                setTimeout(() => showNotification('Sequence Completed!', 'success'), 0);
                 return { ...prev, active: false, currentIndex: 0 };
             }
-            board.selectPoint(prev.order[nextIndex]);
+            // Side effect in reducer is bad practice, but selectPoint triggers state update too.
+            // Ideally we should calculate next index, setSequence, and THEN select point.
+            // But selectPoint is on 'board' hook.
+            setTimeout(() => board.selectPoint(prev.order[nextIndex]), 0);
             return { ...prev, currentIndex: nextIndex };
         });
     };
@@ -142,7 +146,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             if (!prev.active) return prev;
             const nextIndex = prev.currentIndex - 1;
             if (nextIndex < 0) return prev;
-            board.selectPoint(prev.order[nextIndex]);
+            setTimeout(() => board.selectPoint(prev.order[nextIndex]), 0);
             return { ...prev, currentIndex: nextIndex };
         });
     };

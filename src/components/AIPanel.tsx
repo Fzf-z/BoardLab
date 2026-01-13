@@ -56,7 +56,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
         }
     }, [selectedPoint?.id]); 
     
-    const handlePointUpdate = (field: keyof Point, value: any) => {
+    const handlePointUpdate = async (field: keyof Point, value: any) => {
         if (!selectedPoint) return;
         const newPoints = points.map(p => (p.id === selectedPoint.id ? { ...p, [field]: value } : p));
         setPoints(newPoints);
@@ -69,11 +69,16 @@ const AIPanel: React.FC<AIPanelProps> = ({
             const cmdKey = `configure_${value}`;
             const configCommand = instrumentConfig.multimeter.commands[cmdKey];
             if (configCommand && window.electronAPI) {
-                window.electronAPI.multimeterSetConfig({
-                    ip: instrumentConfig.multimeter.ip,
-                    port: instrumentConfig.multimeter.port,
-                    configCommand: configCommand,
-                });
+                try {
+                    await window.electronAPI.multimeterSetConfig({
+                        ip: instrumentConfig.multimeter.ip,
+                        port: instrumentConfig.multimeter.port,
+                        configCommand: configCommand,
+                    });
+                    // Optional notification or feedback could go here
+                } catch (err) {
+                    console.error("Failed to configure multimeter:", err);
+                }
             }
         }
     };
