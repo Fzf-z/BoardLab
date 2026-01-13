@@ -28,7 +28,7 @@ interface ProjectContextValue {
     appSettings: AppSettings;
     setAppSettings: (settings: AppSettings) => void;
     createProject: (data: any) => Promise<void>;
-    saveProject: () => Promise<Point[] | undefined>;
+    saveProject: (pointsToSave?: Point[]) => Promise<Point[] | undefined>;
     loadProject: (project: Project) => Promise<void>;
     deleteProject: (id: number) => Promise<void>;
     updateProject: (data: Partial<Project>) => Promise<void>;
@@ -62,7 +62,15 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
     const [appSettings, setAppSettings] = useState<AppSettings>({
         autoSave: false,
         pointSize: 24,
-        pointColor: '#4b5563'
+        pointColor: '#4b5563',
+        categories: [
+            { id: 'power', label: 'Power', color: '#ef4444' },
+            { id: 'ground', label: 'Ground', color: '#1f2937' },
+            { id: 'signal', label: 'Signal', color: '#3b82f6' },
+            { id: 'clock', label: 'Clock', color: '#10b981' },
+            { id: 'data', label: 'Data', color: '#8b5cf6' },
+            { id: 'component', label: 'Comp', color: '#f59e0b' },
+        ]
     });
     const board = useBoard();
     const { showNotification } = useNotifier();
@@ -99,16 +107,19 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         }
     };
 
-    const handleSaveProject = async () => {
+    const handleSaveProject = async (pointsToSave?: Point[]) => {
         if (!currentProject) {
             showNotification("No active project to save. Create one first.", 'warning');
             return;
         }
         if (!window.electronAPI) return;
         try {
+            // Deep clone/sanitize points to avoid "object could not be cloned" errors with IPC
+            const pointsPayload = JSON.parse(JSON.stringify(pointsToSave || board.points));
+            
             const savedPoints = await window.electronAPI.savePoints({
                 projectId: currentProject.id,
-                points: board.points
+                points: pointsPayload
             });
             board.setPoints(savedPoints);
             showNotification('Project saved successfully!', 'success');

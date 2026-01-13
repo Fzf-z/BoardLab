@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
-import { InstrumentConfig, AppSettings } from '../types';
+import { InstrumentConfig, AppSettings, PointCategory } from '../types';
+import { Plus, Trash2 } from 'lucide-react';
 
 interface SettingsProps {
     instruments: InstrumentConfig;
@@ -15,9 +16,39 @@ const Settings: React.FC<SettingsProps> = ({
     instruments, apiKey, setApiKey, appSettings, onSave, onClose 
 }) => {
   const [localInstruments, setLocalInstruments] = useState<InstrumentConfig>(JSON.parse(JSON.stringify(instruments)));
-  const [localAppSettings, setLocalAppSettings] = useState<AppSettings>(JSON.parse(JSON.stringify(appSettings)));
-  const [activeTab, setActiveTab] = useState<'app' | 'multimeter' | 'oscilloscope'>('app');
+  const [localAppSettings, setLocalAppSettings] = useState<AppSettings>(() => {
+      const settings = JSON.parse(JSON.stringify(appSettings));
+      if (!settings.categories) settings.categories = [];
+      return settings;
+  });
+  const [activeTab, setActiveTab] = useState<'app' | 'categories' | 'multimeter' | 'oscilloscope'>('app');
   const { showNotification } = useNotifier();
+  
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatColor, setNewCatColor] = useState('#ffffff');
+
+  const handleAddCategory = () => {
+    if (!newCatName.trim()) return;
+    const id = newCatName.toLowerCase().replace(/\s+/g, '_');
+    const categories = localAppSettings.categories || [];
+    if (categories.some(c => c.id === id)) {
+        showNotification('Category already exists', 'error');
+        return;
+    }
+    setLocalAppSettings(prev => ({
+        ...prev,
+        categories: [...(prev.categories || []), { id, label: newCatName, color: newCatColor }]
+    }));
+    setNewCatName('');
+    setNewCatColor('#ffffff');
+  };
+
+  const handleDeleteCategory = (id: string) => {
+    setLocalAppSettings(prev => ({
+        ...prev,
+        categories: (prev.categories || []).filter(c => c.id !== id)
+    }));
+  };
 
   const handleInstrumentChange = (instrument: 'multimeter' | 'oscilloscope', field: string, value: string | number) => {
     setLocalInstruments(prev => ({
@@ -126,8 +157,12 @@ const Settings: React.FC<SettingsProps> = ({
                     className={`px-3 py-1 rounded text-sm ${activeTab === 'app' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
                 >
                     Application
-                </button>
-                <button 
+                </button>                <button 
+                    onClick={() => setActiveTab('categories')} 
+                    className={`px-3 py-1 rounded text-sm ${activeTab === 'categories' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                >
+                    Categories
+                </button>                <button 
                     onClick={() => setActiveTab('multimeter')} 
                     className={`px-3 py-1 rounded text-sm ${activeTab === 'multimeter' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
                 >
@@ -204,6 +239,54 @@ const Settings: React.FC<SettingsProps> = ({
                             />
                             <p className="text-xs text-gray-500 mt-1">Time to wait for instrument response before failing.</p>
                          </div>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'categories' && (
+                <div className="animate-in fade-in space-y-4">
+                    <h3 className="text-xl font-semibold mb-4 text-blue-400 border-b border-gray-700 pb-2">Point Categories</h3>
+                    
+                    <div className="flex space-x-2 mb-6 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                        <div className="flex-1">
+                            <label className="block text-xs text-gray-400 mb-1">New Category Name</label>
+                            <input
+                                type="text"
+                                value={newCatName}
+                                onChange={(e) => setNewCatName(e.target.value)}
+                                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-white text-sm"
+                                placeholder="e.g. 1.8V Rail"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">Color</label>
+                             <input
+                                type="color"
+                                value={newCatColor}
+                                onChange={(e) => setNewCatColor(e.target.value)}
+                                className="h-9 w-16 bg-gray-700 border border-gray-600 rounded cursor-pointer"
+                            />
+                        </div>
+                        <div className="flex items-end">
+                            <button onClick={handleAddCategory} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 flex items-center">
+                                <Plus size={16} className="mr-1" /> Add
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        {localAppSettings.categories && localAppSettings.categories.map(cat => (
+                            <div key={cat.id} className="flex items-center justify-between bg-gray-700/50 p-3 rounded border border-gray-700">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-6 h-6 rounded-full border border-gray-500 shadow-sm" style={{ backgroundColor: cat.color }}></div>
+                                    <span className="font-mono font-bold">{cat.label}</span>
+                                    <span className="text-xs text-gray-500">({cat.id})</span>
+                                </div>
+                                <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 text-red-400 hover:bg-red-900/30 rounded">
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}

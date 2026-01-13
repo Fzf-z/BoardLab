@@ -4,15 +4,6 @@ import { useProject } from '../contexts/ProjectContext';
 import { MeasurementValue } from '../types';
 import Minimap from './Minimap';
 
-const CATEGORY_COLORS: Record<string, string> = {
-    'power': '#ef4444',   // Red
-    'ground': '#1f2937',  // Dark/Black
-    'signal': '#3b82f6',  // Blue
-    'clock': '#10b981',   // Green
-    'data': '#8b5cf6',    // Purple
-    'component': '#f59e0b' // Amber
-};
-
 interface MiniWaveformProps {
     data: MeasurementValue;
 }
@@ -200,8 +191,9 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                             let defaultColor = appSettings.pointColor || '#4b5563';
                             
                             // Use category color if defined
-                            if (point.category && CATEGORY_COLORS[point.category]) {
-                                defaultColor = CATEGORY_COLORS[point.category];
+                            if (point.category && appSettings.categories) {
+                                const cat = appSettings.categories.find(c => c.id === point.category);
+                                if (cat) defaultColor = cat.color;
                             }
                             
                             // Dynamic Styles

@@ -30,7 +30,9 @@ const AIPanel: React.FC<AIPanelProps> = ({
         points, 
         board, 
         deletePoint,
-        addMeasurement
+        addMeasurement,
+        appSettings,
+        saveProject
     } = useProject();
     
     const { setPoints, selectedPoint } = board;
@@ -56,7 +58,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
     
     const handlePointUpdate = (field: keyof Point, value: any) => {
         if (!selectedPoint) return;
-        setPoints(points.map(p => (p.id === selectedPoint.id ? { ...p, [field]: value } : p)));
+        const newPoints = points.map(p => (p.id === selectedPoint.id ? { ...p, [field]: value } : p));
+        setPoints(newPoints);
+
+        if (appSettings.autoSave) {
+            saveProject(newPoints);
+        }
 
         if (field === 'type' && value !== 'oscilloscope') {
             const cmdKey = `configure_${value}`;
@@ -97,15 +104,6 @@ const AIPanel: React.FC<AIPanelProps> = ({
         { id: 'resistance', icon: Cpu, lbl: 'Ohms' },
         { id: 'diode', icon: Zap, lbl: 'Diode' },
         { id: 'oscilloscope', icon: Activity, lbl: 'Scope' }
-    ];
-
-    const categories = [
-        { id: 'power', label: 'Power', color: '#ef4444' },
-        { id: 'ground', label: 'Ground', color: '#1f2937' },
-        { id: 'signal', label: 'Signal', color: '#3b82f6' },
-        { id: 'clock', label: 'Clock', color: '#10b981' },
-        { id: 'data', label: 'Data', color: '#8b5cf6' },
-        { id: 'component', label: 'Comp', color: '#f59e0b' },
     ];
 
     const getMeasurementStatusColor = () => {
@@ -186,7 +184,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
                         {/* --- Category --- */}
                         <div className="flex flex-wrap gap-1">
-                            {categories.map(cat => (
+                            {appSettings.categories && appSettings.categories.map(cat => (
                                 <button
                                     key={cat.id}
                                     onClick={() => handlePointUpdate('category', selectedPoint.category === cat.id ? undefined : cat.id)}

@@ -64,8 +64,15 @@ export interface InstrumentConfig {
     };
 }
 
+export interface PointCategory {
+    id: string;
+    label: string;
+    color: string;
+}
+
 export interface AppSettings {
     autoSave: boolean;
     pointSize: number; // in pixels
     pointColor: string; // hex
+    categories: PointCategory[];
 }
