@@ -15,16 +15,23 @@ interface ViewBox {
 
 const Waveform: React.FC<WaveformProps> = ({ pointData, referenceData }) => {
     const oscilloscopeMeasurement = pointData?.measurements?.oscilloscope;
-
-    if (!oscilloscopeMeasurement?.waveform) return null;
-
-    const { waveform, timeScale, voltageScale, voltageOffset, vpp, freq } = oscilloscopeMeasurement;
+    
+    // Default values to prevent hooks from breaking if data is missing
+    const waveform = oscilloscopeMeasurement?.waveform || [];
+    const timeScale = oscilloscopeMeasurement?.timeScale || 1;
+    const voltageScale = oscilloscopeMeasurement?.voltageScale || 1;
+    const voltageOffset = oscilloscopeMeasurement?.voltageOffset || 0;
+    const vpp = oscilloscopeMeasurement?.vpp;
+    const freq = oscilloscopeMeasurement?.freq;
 
     const svgWidth = 450, svgHeight = 360;
     const initialViewBox: ViewBox = { x: 0, y: 0, width: svgWidth, height: svgHeight };
     const [viewBox, setViewBox] = useState<ViewBox>(initialViewBox);
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+    // Early return ONLY after hooks are initialized is tricky with useEffect below.
+    // Better to just render nothing at the end if no data.
 
     const numDivX = 10, numDivY = 8;
     const stepX = svgWidth / numDivX, stepY = svgHeight / numDivY;
@@ -136,6 +143,8 @@ const Waveform: React.FC<WaveformProps> = ({ pointData, referenceData }) => {
         const prefix = prefixes.find(p => absValue >= p.v) || prefixes[prefixes.length - 1];
         return `${(value / prefix.v).toFixed(2)} ${prefix.p}${unit}`;
     };
+
+    if (!oscilloscopeMeasurement?.waveform) return null;
 
     return (
         <div className="mt-2 border border-gray-700 bg-gray-900 rounded overflow-hidden select-none">

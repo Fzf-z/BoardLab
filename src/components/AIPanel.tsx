@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit, CheckCircle2 } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, MeasurementValue, Point } from '../types';
-
-// Temporarily import Waveform as any until migrated
-// @ts-ignore
 import Waveform from './Waveform';
 
 interface AIPanelProps {
