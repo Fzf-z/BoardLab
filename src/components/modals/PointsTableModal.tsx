@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, ArrowUp, ArrowDown, Search, Trash2 } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
 import { Point } from '../../types';
+import WaveformThumbnail from '../WaveformThumbnail';
 
 interface PointsTableModalProps {
     onClose: () => void;
 }
 
 const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
-    const { points, deletePoint, board } = useProject();
+    const { points, deletePoint, board, appSettings } = useProject();
     const { setPoints, selectedPointId, setSelectedPointId } = board;
 
     const [editedPoints, setEditedPoints] = useState<Point[]>(JSON.parse(JSON.stringify(points)));
@@ -58,7 +59,17 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
         );
     };
 
+    const handleCategoryChange = (pointId: string | number, newCategory: string) => {
+        setEditedPoints(currentPoints =>
+            currentPoints.map(p => (p.id === pointId ? { ...p, category: newCategory } : p))
+        );
+    };
 
+    const handleLabelChange = (pointId: string | number, newLabel: string) => {
+        setEditedPoints(currentPoints =>
+            currentPoints.map(p => (p.id === pointId ? { ...p, label: newLabel } : p))
+        );
+    };
 
     const handleSort = (column: string) => {
         if (sortColumn === column) {
@@ -80,16 +91,17 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
         const lowerCaseFilterText = filterText.toLowerCase();
         const labelMatch = point.label.toLowerCase().includes(lowerCaseFilterText);
         const notesMatch = point.notes?.toLowerCase().includes(lowerCaseFilterText);
+        const categoryMatch = point.category?.toLowerCase().includes(lowerCaseFilterText);
         // Check if any measurement value matches
         const measurementMatch = point.measurements && Object.values(point.measurements).some(m => 
             m?.value?.toString().toLowerCase().includes(lowerCaseFilterText)
         );
-        return labelMatch || notesMatch || measurementMatch;
+        return labelMatch || notesMatch || measurementMatch || categoryMatch;
     });
 
     const sortedAndFilteredPoints = [...filteredPoints].sort((a, b) => {
         let compareA: any, compareB: any;
-        if (sortColumn === 'label' || sortColumn === 'notes') {
+        if (sortColumn === 'label' || sortColumn === 'notes' || sortColumn === 'category') {
             compareA = (a as any)[sortColumn] || '';
             compareB = (b as any)[sortColumn] || '';
             return sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
@@ -132,10 +144,12 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
                         <thead>
                             <tr className="bg-gray-700">
                                 <th className="p-3 w-12 text-right">#</th>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('category')}>Cat <SortIcon column="category" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('label')}>Label <SortIcon column="label" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('voltage')}>Voltage <SortIcon column="voltage" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('resistance')}>Resistance <SortIcon column="resistance" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('diode')}>Diode <SortIcon column="diode" /></th>
+                                <th className="p-3">Scope</th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('notes')}>Notes <SortIcon column="notes" /></th>
                                 <th className="p-3 w-24 text-center">Actions</th>
                             </tr>
@@ -149,18 +163,44 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
                                     onClick={() => setSelectedPointId(point.id)}
                                 >
                                     <td className="px-4 py-2 text-right">{sortedAndFilteredPoints.length - index}</td>
-                                    <td className="px-4 py-2 font-bold">{point.label}</td>
                                     <td className="px-4 py-2">
-                                        <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
+                                        <select 
+                                            value={point.category || ''} 
+                                            onChange={(e) => handleCategoryChange(point.id, e.target.value)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="bg-gray-700 w-24 p-1 rounded text-sm text-white border border-gray-600"
+                                        >
+                                            <option value="">-</option>
+                                            {appSettings.categories.map(cat => (
+                                                <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                            ))}
+                                        </select>
                                     </td>
                                     <td className="px-4 py-2">
-                                        <input type="text" defaultValue={(point.measurements?.resistance?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
+                                        <input 
+                                            type="text" 
+                                            value={point.label} 
+                                            onChange={(e) => handleLabelChange(point.id, e.target.value)} 
+                                            onClick={(e) => e.stopPropagation()} 
+                                            className="bg-gray-700 w-full p-1 rounded font-bold text-white" 
+                                        />
                                     </td>
                                     <td className="px-4 py-2">
-                                        <input type="text" defaultValue={(point.measurements?.diode?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} className="bg-gray-700 w-full p-1 rounded" />
+                                        <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-700 w-full p-1 rounded" />
                                     </td>
                                     <td className="px-4 py-2">
-                                        <input type="text" value={point.notes || ''} onChange={(e) => handleNotesChange(point.id, e.target.value)} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full" />
+                                        <input type="text" defaultValue={(point.measurements?.resistance?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-700 w-full p-1 rounded" />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        <input type="text" defaultValue={(point.measurements?.diode?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-700 w-full p-1 rounded" />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        {point.measurements?.oscilloscope ? (
+                                             <WaveformThumbnail measurement={point.measurements.oscilloscope} />
+                                        ) : <span className="text-gray-600 text-xs">-</span>}
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        <input type="text" value={point.notes || ''} onChange={(e) => handleNotesChange(point.id, e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full" />
                                     </td>
                                     <td className="px-4 py-2 text-center">
                                         <button onClick={(e) => { e.stopPropagation(); handleDelete(point.id); }} className="p-2 text-red-400 hover:bg-red-900/30 rounded-lg" title="Delete Point">
