@@ -197,6 +197,15 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                             }
                             
                             // Dynamic Styles
+                            // Priority: Selected > Measured (Blue) > Category Color
+                            // Actually, maybe we want Category color to persist even if measured?
+                            // Let's make measured state an indicator (border or inner dot) instead of full color override
+                            // Or: keep full override for 'measured' if that's preferred.
+                            // User request: "ver con el color de su categoria si corresponde".
+                            // So let's prioritize category color over "measured blue".
+                            
+                            const finalColor = isSelected ? '#eab308' : defaultColor;
+
                             const pointStyle: React.CSSProperties = {
                                 left: point.x, 
                                 top: point.y, 
@@ -205,8 +214,9 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                 marginLeft: `-${size/2}px`,
                                 marginTop: `-${size/2}px`,
                                 cursor: mode === 'measure' ? 'grab' : 'pointer',
-                                backgroundColor: isSelected ? '#eab308' : (hasMeas ? '#2563eb' : defaultColor), // Yellow, Blue (if measured), or Category/Default
+                                backgroundColor: finalColor,
                                 borderColor: isSelected || isHovered ? 'white' : (hasMeas ? '#60a5fa' : '#9ca3af'),
+                                borderWidth: hasMeas ? '3px' : '2px', // Make border thicker if measured
                                 transform: isSelected ? 'scale(1.25)' : 'scale(1)',
                                 zIndex: isSelected ? 20 : 10
                             };
