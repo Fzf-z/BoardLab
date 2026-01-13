@@ -62,6 +62,9 @@ export interface InstrumentConfig {
         port: number;
         commands: Record<string, string>;
     };
+    monitor: {
+        enabled: boolean;
+    };
 }
 
 export interface PointCategory {

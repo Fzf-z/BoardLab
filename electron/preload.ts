@@ -17,7 +17,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveApiKey: (apiKey: string) => ipcRenderer.invoke('save-api-key', apiKey),
   loadApiKey: () => ipcRenderer.invoke('load-api-key'),
 
-
+  // External Monitor (Multimeter)
+  startMonitor: (ip: string, port: number) => ipcRenderer.invoke('start-monitor', { ip, port }),
+  stopMonitor: () => ipcRenderer.invoke('stop-monitor'),
+  onMonitorStatus: (callback: (status: string) => void) => {
+    const subscription = (_event: any, value: any) => callback(value);
+    ipcRenderer.on('monitor-status', subscription);
+    return () => ipcRenderer.removeListener('monitor-status', subscription);
+  },
+  onExternalTrigger: (callback: (data: any) => void) => {
+    const subscription = (_event: any, value: any) => callback(value);
+    ipcRenderer.on('external-trigger', subscription);
+    return () => {
+        ipcRenderer.removeListener('external-trigger', subscription);
+    };
+  },
 
   // Exportación
   exportPdf: (projectId: number) => ipcRenderer.invoke('exportPdf', projectId),

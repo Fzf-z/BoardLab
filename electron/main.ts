@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import { Worker } from 'worker_threads';
 import Store from 'electron-store';
-import puppeteer from 'puppeteer';
+import net from 'net';
 import { setOwonConfig, getOwonMeasurement } from './drivers/owon';
 import { getRigolData } from './drivers/rigol';
 import { testConnection } from './drivers/connection';
@@ -60,6 +60,71 @@ function dbQuery(type: string, payload?: any) {
     dbWorker.postMessage({ id, type, payload });
   });
 }
+
+// =================================================================
+// Multimeter Monitor (Persistent Connection)
+// =================================================================
+let multimeterSocket: net.Socket | null = null;
+let monitorReconnectTimeout: NodeJS.Timeout | null = null;
+
+function startMultimeterMonitor(ip: string, port: number) {
+  stopMultimeterMonitor(); // Close existing if any
+
+  console.log(`Starting Multimeter Monitor on ${ip}:${port}`);
+  multimeterSocket = new net.Socket();
+  
+  multimeterSocket.connect(port, ip, () => {
+    console.log('Multimeter Monitor Connected');
+    if (mainWindow) mainWindow.webContents.send('monitor-status', 'connected');
+  });
+
+  multimeterSocket.on('data', (data) => {
+    const rawData = data.toString().trim();
+    if (rawData) {
+      console.log('Monitor Data Received:', rawData);
+      // Clean the value (remove non-printable)
+      const cleanValue = rawData.replace(/[^\x20-\x7E]/g, '');
+      
+      // Emit as external trigger with the value
+      if (mainWindow) {
+        mainWindow.webContents.send('external-trigger', cleanValue);
+      }
+    }
+  });
+
+  multimeterSocket.on('error', (err) => {
+    console.error('Multimeter Monitor Error:', err);
+    if (mainWindow) mainWindow.webContents.send('monitor-status', 'error');
+  });
+
+  multimeterSocket.on('close', () => {
+    console.log('Multimeter Monitor Closed');
+    if (mainWindow) mainWindow.webContents.send('monitor-status', 'disconnected');
+    multimeterSocket = null;
+  });
+}
+
+function stopMultimeterMonitor() {
+  if (monitorReconnectTimeout) clearTimeout(monitorReconnectTimeout);
+  if (multimeterSocket) {
+    multimeterSocket.destroy();
+    multimeterSocket = null;
+  }
+}
+
+ipcMain.handle('start-monitor', async (event, { ip, port }) => {
+  try {
+    startMultimeterMonitor(ip, port);
+    return { status: 'success' };
+  } catch (error: any) {
+    return { status: 'error', message: error.message };
+  }
+});
+
+ipcMain.handle('stop-monitor', async () => {
+   stopMultimeterMonitor();
+   return { status: 'success' };
+});
 
 // =================================================================
 // Main Window

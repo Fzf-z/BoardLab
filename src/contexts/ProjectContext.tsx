@@ -16,6 +16,10 @@ declare global {
             updateProject: (data: Partial<Project>) => Promise<{ status: string; message?: string }>;
             deletePoint: (id: number | string) => Promise<{ status: string; message?: string }>;
             createMeasurement: (data: { pointId: number | string, type: string, value: any }) => Promise<{ id?: number; status: string; message?: string }>;
+            startMonitor: (ip: string, port: number) => Promise<any>;
+            stopMonitor: () => Promise<any>;
+            onMonitorStatus: (callback: (status: string) => void) => () => void;
+            onExternalTrigger: (callback: (data: any) => void) => () => void;
             [key: string]: any;
         };
     }
@@ -95,14 +99,9 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
     });
 
     const startSequence = () => {
-        // Create order based on y (top to bottom) then x (left to right)
-        // This is a simple heuristic for reading order
-        const sortedPoints = [...board.points].sort((a, b) => {
-            const yDiff = a.y - b.y;
-            if (Math.abs(yDiff) > 50) return yDiff; // Row-based sorting
-            return a.x - b.x;
-        });
-        const order = sortedPoints.map(p => p.id);
+        // Use the current order of points (usually creation order or ID)
+        // This respects the order shown in the points table
+        const order = board.points.map(p => p.id);
         
         if (order.length === 0) {
             showNotification('No points to sequence.', 'warning');
@@ -177,7 +176,10 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         }
     };
 
-    const handleSaveProject = async (pointsToSave?: Point[]) => {
+    const handleSaveProject = async (pointsToSave?: Point[] | any) => {
+        // Handle case where function is called as event handler
+        const validPointsToSave = Array.isArray(pointsToSave) ? pointsToSave : undefined;
+
         if (!currentProject) {
             showNotification("No active project to save. Create one first.", 'warning');
             return;
@@ -185,7 +187,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         if (!window.electronAPI) return;
         try {
             // Deep clone/sanitize points to avoid "object could not be cloned" errors with IPC
-            const pointsPayload = JSON.parse(JSON.stringify(pointsToSave || board.points));
+            const pointsPayload = JSON.parse(JSON.stringify(validPointsToSave || board.points));
             
             const savedPoints = await window.electronAPI.savePoints({
                 projectId: currentProject.id,
@@ -346,9 +348,12 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
         try {
             const valueToSave = measurementData.type === 'oscilloscope' ? measurementData : measurementData.value;
+            // Use measurementData.type if available (to support type overriding in sequence), fallback to point type
+            const finalType = measurementData.type || targetPoint.type;
+            
             const result = await window.electronAPI.createMeasurement({
                 pointId: targetPoint.id,
-                type: targetPoint.type,
+                type: finalType,
                 value: valueToSave,
             });
 

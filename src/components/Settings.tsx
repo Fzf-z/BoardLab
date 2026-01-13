@@ -15,7 +15,11 @@ interface SettingsProps {
 const Settings: React.FC<SettingsProps> = ({ 
     instruments, apiKey, setApiKey, appSettings, onSave, onClose 
 }) => {
-  const [localInstruments, setLocalInstruments] = useState<InstrumentConfig>(JSON.parse(JSON.stringify(instruments)));
+  const [localInstruments, setLocalInstruments] = useState<InstrumentConfig>(() => {
+      const inst = JSON.parse(JSON.stringify(instruments));
+      if (!inst.monitor) inst.monitor = { enabled: false };
+      return inst;
+  });
   const [localAppSettings, setLocalAppSettings] = useState<AppSettings>(() => {
       const settings = JSON.parse(JSON.stringify(appSettings));
       if (!settings.categories) settings.categories = [];
@@ -114,6 +118,41 @@ const Settings: React.FC<SettingsProps> = ({
                 />
               </div>
             </div>
+
+            {instrumentKey === 'multimeter' && (
+                <div className="mt-4 p-3 bg-gray-700/50 rounded border border-gray-600">
+                     <div className="flex items-center">
+                         <input 
+                            type="checkbox" 
+                            id="monitorEnabled"
+                            checked={localInstruments.monitor?.enabled || false} 
+                            onChange={(e) => setLocalInstruments(prev => ({
+                                ...prev,
+                                monitor: { enabled: e.target.checked }
+                            }))}
+                            className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="monitorEnabled" className="ml-2 text-sm text-white font-medium">Enable Continuous Monitoring</label>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 ml-6">
+                        Automatically captures measurements when the multimeter sends data (e.g. from probe button).
+                    </p>
+                </div>
+            )}
+
+            {instrumentKey === 'multimeter' && (
+                 <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-400">Measurement Timeout (ms)</label>
+                    <input
+                        type="number"
+                        value={localInstruments.timeout || 2000}
+                        onChange={(e) => setLocalInstruments(prev => ({ ...prev, timeout: parseInt(e.target.value) || 2000 }))}
+                        className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-white"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Time to wait for instrument response before failing.</p>
+                 </div>
+            )}
+
             <div className="mt-6">
                 <h4 className="text-lg font-medium text-gray-300 mb-2">SCPI Commands</h4>
                 <div className="bg-gray-800 p-3 rounded border border-gray-700 space-y-3">
@@ -228,16 +267,6 @@ const Settings: React.FC<SettingsProps> = ({
                                     <span className="text-xs text-gray-500 font-mono">{localAppSettings.pointColor}</span>
                                 </div>
                              </div>
-                         </div>
-                         <div className="mt-4">
-                            <label className="block text-sm font-medium text-gray-400">Measurement Timeout (ms)</label>
-                            <input
-                                type="number"
-                                value={localInstruments.timeout || 2000}
-                                onChange={(e) => setLocalInstruments(prev => ({ ...prev, timeout: parseInt(e.target.value) || 2000 }))}
-                                className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-white"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Time to wait for instrument response before failing.</p>
                          </div>
                     </div>
                 </div>

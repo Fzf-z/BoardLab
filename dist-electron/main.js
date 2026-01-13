@@ -3,7 +3,6 @@ const electron = require("electron");
 const path = require("path");
 const worker_threads = require("worker_threads");
 const Store = require("electron-store");
-const puppeteer = require("puppeteer");
 const net = require("net");
 function setOwonConfig(ip, port, configCommand) {
   return new Promise((resolve) => {
@@ -225,6 +224,53 @@ function dbQuery(type, payload) {
     dbWorker.postMessage({ id, type, payload });
   });
 }
+let multimeterSocket = null;
+function startMultimeterMonitor(ip, port) {
+  stopMultimeterMonitor();
+  console.log(`Starting Multimeter Monitor on ${ip}:${port}`);
+  multimeterSocket = new net.Socket();
+  multimeterSocket.connect(port, ip, () => {
+    console.log("Multimeter Monitor Connected");
+    if (mainWindow) mainWindow.webContents.send("monitor-status", "connected");
+  });
+  multimeterSocket.on("data", (data) => {
+    const rawData = data.toString().trim();
+    if (rawData) {
+      console.log("Monitor Data Received:", rawData);
+      const cleanValue = rawData.replace(/[^\x20-\x7E]/g, "");
+      if (mainWindow) {
+        mainWindow.webContents.send("external-trigger", cleanValue);
+      }
+    }
+  });
+  multimeterSocket.on("error", (err) => {
+    console.error("Multimeter Monitor Error:", err);
+    if (mainWindow) mainWindow.webContents.send("monitor-status", "error");
+  });
+  multimeterSocket.on("close", () => {
+    console.log("Multimeter Monitor Closed");
+    if (mainWindow) mainWindow.webContents.send("monitor-status", "disconnected");
+    multimeterSocket = null;
+  });
+}
+function stopMultimeterMonitor() {
+  if (multimeterSocket) {
+    multimeterSocket.destroy();
+    multimeterSocket = null;
+  }
+}
+electron.ipcMain.handle("start-monitor", async (event, { ip, port }) => {
+  try {
+    startMultimeterMonitor(ip, port);
+    return { status: "success" };
+  } catch (error) {
+    return { status: "error", message: error.message };
+  }
+});
+electron.ipcMain.handle("stop-monitor", async () => {
+  stopMultimeterMonitor();
+  return { status: "success" };
+});
 function createWindow() {
   mainWindow = new electron.BrowserWindow({
     width: 1400,

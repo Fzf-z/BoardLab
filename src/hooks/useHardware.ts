@@ -25,10 +25,27 @@ export const useHardware = () => {
                 prepare_waveform: ":WAV:SOUR CHAN1",
                 request_waveform: ":WAV:DATA?"
             }
+        },
+        monitor: {
+            enabled: false
         }
     });
 
     const isElectron = window.electronAPI?.isElectron || false;
+
+    // Manage Multimeter Monitor based on config
+    useEffect(() => {
+        if (!isElectron || !window.electronAPI) return;
+
+        if (instrumentConfig.monitor?.enabled) {
+            window.electronAPI.startMonitor(instrumentConfig.multimeter.ip, instrumentConfig.multimeter.port)
+                .then(() => console.log('Multimeter Monitor Started'))
+                .catch(err => console.error('Failed to start monitor', err));
+        } else {
+            window.electronAPI.stopMonitor()
+                .catch(err => console.error('Failed to stop monitor', err));
+        }
+    }, [isElectron, instrumentConfig.monitor?.enabled, instrumentConfig.multimeter.ip, instrumentConfig.multimeter.port]);
 
     useEffect(() => {
         if (isElectron && window.electronAPI) {
@@ -53,6 +70,9 @@ export const useHardware = () => {
                         if (loadedConfig.oscilloscope.commands) {
                             newConfig.oscilloscope.commands = { ...newConfig.oscilloscope.commands, ...loadedConfig.oscilloscope.commands };
                         }
+                    }
+                    if (loadedConfig.monitor) {
+                        newConfig.monitor = { ...newConfig.monitor, ...loadedConfig.monitor };
                     }
                     
                     setInstrumentConfig(newConfig);
@@ -123,6 +143,9 @@ export const useHardware = () => {
                     };
                 } else {
                     return {
+                        // FORCE the type to match the point we were intending to measure
+                        // This effectively "locks" the type if the user sets a sequence of points
+                        // even if the hardware sent a generic value without type info
                         type: selectedPoint.type,
                         value: result.value,
                     };

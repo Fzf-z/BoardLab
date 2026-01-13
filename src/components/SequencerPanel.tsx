@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useProject } from '../contexts/ProjectContext';
 import { useHardware } from '../hooks/useHardware';
-import { Play, SkipForward, SkipBack, Square, Timer, Zap } from 'lucide-react';
+import { Play, SkipForward, SkipBack, Square, Timer, Zap, Radio } from 'lucide-react';
 
 const SequencerPanel: React.FC = () => {
     const { sequence, stopSequence, nextInSequence, prevInSequence, points, addMeasurement } = useProject();
@@ -9,18 +9,39 @@ const SequencerPanel: React.FC = () => {
     
     const [autoMode, setAutoMode] = useState(false);
     const [countdown, setCountdown] = useState<number | null>(null);
-    const AUTO_DELAY_SEC = 3;
+    
+    // Use timeout from config as delay (converted to seconds, min 1s)
+    const autoDelaySec = Math.max(1, Math.round((hardware.instrumentConfig.timeout || 3000) / 1000));
+    
+    const [lockedType, setLockedType] = useState<string | null>(null);
 
     const currentPointId = sequence.order[sequence.currentIndex];
     const currentPoint = points.find(p => p.id === currentPointId);
-    
+
+    // Lock type on sequence start
+    useEffect(() => {
+        if (sequence.active && sequence.currentIndex === 0 && points.length > 0) {
+            // If locking is needed, take type from first point.
+            // But actually currentPoint updates, so we need to capture it once.
+            // Let's rely on the first point in sequence.order
+            const firstId = sequence.order[0];
+            const firstPoint = points.find(p => p.id === firstId);
+            if (firstPoint && firstPoint.type) {
+                setLockedType(firstPoint.type);
+            }
+        }
+    }, [sequence.active]);
+
     // Calculate progress
     const progress = Math.round(((sequence.currentIndex + 1) / sequence.order.length) * 100);
 
     const captureAndAdvance = async () => {
         if (!currentPoint || hardware.isCapturing) return;
         
-        const measurement = await hardware.captureValue(currentPoint);
+        // Use locked type if available, otherwise point type
+        const pointToMeasure = lockedType ? { ...currentPoint, type: lockedType } : currentPoint;
+        
+        const measurement = await hardware.captureValue(pointToMeasure as any);
         if (measurement) {
             await addMeasurement(currentPoint, measurement);
             nextInSequence();
@@ -34,7 +55,7 @@ const SequencerPanel: React.FC = () => {
             return;
         }
 
-        setCountdown(AUTO_DELAY_SEC);
+        setCountdown(autoDelaySec);
         
         const timer = setInterval(() => {
             setCountdown((prev) => {
@@ -49,7 +70,19 @@ const SequencerPanel: React.FC = () => {
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [sequence.currentIndex, autoMode]); // Reset when index changes or mode toggles
+    }, [sequence.currentIndex, autoMode, autoDelaySec]); // Reset when index changes or mode toggles
+
+    // External Trigger Logic
+    useEffect(() => {
+        if (!sequence.active || !currentPoint || !window.electronAPI) return;
+
+        const cleanup = window.electronAPI.onExternalTrigger((data: any) => {
+            console.log('External trigger received:', data);
+            captureAndAdvance();
+        });
+
+        return cleanup;
+    }, [sequence.active, currentPoint, hardware.isCapturing]); // Re-bind if point changes to capture correct one
 
     if (!sequence.active) return null;
 
@@ -58,7 +91,12 @@ const SequencerPanel: React.FC = () => {
             <div className="flex-1">
                 <div className="flex justify-between items-center mb-1">
                     <span className="text-sm font-bold text-blue-400">SEQUENCE MODE</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 flex items-center gap-2">
+                        {hardware.instrumentConfig.monitor?.enabled && (
+                            <span className="text-green-400 flex items-center gap-1" title="Listening for Multimeter Data">
+                                <Radio size={12} className="animate-pulse"/> MONITORING
+                            </span>
+                        )}
                         {sequence.currentIndex + 1} / {sequence.order.length}
                     </span>
                 </div>
