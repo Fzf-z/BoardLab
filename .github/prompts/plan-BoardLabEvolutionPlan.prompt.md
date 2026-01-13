@@ -105,17 +105,11 @@ Con la base actual, podemos enfocarnos en mejorar la experiencia de usuario y a�
 1.  **[UX] Ventana de Configuración Avanzada**:
     *   **Objetivo**: Permitir al usuario personalizar la apariencia y comportamiento de la aplicación.
     *   **Tareas**:
-        -   Crear un nuevo modal de "Configuración".
+        -   Crear un nuevo modal de "Configuración" para configuraciones actuales y futuras opciones.
         -   Añadir opciones para cambiar el tamaño y color de los puntos de medición.
         -   Incluir un campo para definir el `timeout` para las mediciones automáticas.
 
-2.  **[UX] Edición de Posición de Puntos en Tabla**:
-    *   **Objetivo**: poder editar la posición del punto una vez creado.
-    *   **Tareas**:
-        -   En el modal `PointsTableModal`, hacer que el punto pueda ser arrastrado y soltado.
-        -   Asegurar que los cambios se reflejen en tiempo real en el `BoardView`.
-
-3.  **[COMPLETADO] [UX] Minimapa de Navegación**:
+2.  **[COMPLETADO] [UX] Minimapa de Navegación**:
     *   **Estado**: ✅ Implementado.
     *   **Tareas**:
         -   Implementado componente `Minimap` en una esquina del `BoardView`.

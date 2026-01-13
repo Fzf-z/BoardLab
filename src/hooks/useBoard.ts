@@ -267,6 +267,25 @@ export const useBoard = () => {
         setSelectedPointId(null);
     };
 
+    const selectPoint = (id: number | string | null) => {
+        setSelectedPointId(id);
+        if (id && containerRef.current) {
+            const point = points.find(p => p.id === id);
+            if (point) {
+                 const container = containerRef.current;
+                 const centerX = container.clientWidth / 2;
+                 const centerY = container.clientHeight / 2;
+                 
+                 // Center the point
+                 // We keep the current scale
+                 const newX = centerX - point.x * scale;
+                 const newY = centerY - point.y * scale;
+                 
+                 setPosition({ x: newX, y: newY });
+            }
+        }
+    };
+
     return {
         imageSrc,
         setImage,
@@ -275,6 +294,7 @@ export const useBoard = () => {
         setPoints,
         selectedPointId,
         setSelectedPointId,
+        selectPoint,
         scale,
         setScale,
         position,

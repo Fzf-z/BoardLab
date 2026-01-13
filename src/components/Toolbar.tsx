@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu, Move, Crosshair, Upload, Settings as SettingsIcon, Table, FilePlus, FolderOpen, Save, FileDown } from 'lucide-react';
+import { Cpu, Move, Crosshair, Upload, Settings as SettingsIcon, Table, FilePlus, FolderOpen, Save, FileDown, Play } from 'lucide-react';
 
 interface ToolbarProps {
     mode: 'view' | 'measure';
@@ -11,6 +11,7 @@ interface ToolbarProps {
     onOpenProject: () => void;
     onSaveProject: () => void;
     onExportPdf: () => void;
+    onStartSequence: () => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({ 
@@ -22,7 +23,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onNewProject, 
     onOpenProject, 
     onSaveProject, 
-    onExportPdf 
+    onExportPdf,
+    onStartSequence
 }) => {
     return (
         <div className="w-16 bg-gray-800 border-r border-gray-700 flex flex-col items-center py-4 space-y-4 z-20 shadow-lg">
@@ -57,6 +59,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
             </button>
             <button onClick={onExportPdf} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Export to PDF">
                 <FileDown size={20} />
+            </button>
+            
+            <button onClick={onStartSequence} className="p-3 text-green-400 hover:bg-gray-700 rounded-xl" title="Start Sequence">
+                <Play size={20} />
             </button>
 
             <div className="h-px w-8 bg-gray-700 my-2"></div>

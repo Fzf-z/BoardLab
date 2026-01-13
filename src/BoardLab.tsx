@@ -9,6 +9,7 @@ import Toolbar from './components/Toolbar';
 import StatusBar from './components/StatusBar';
 import BoardView from './components/BoardView';
 import AIPanel from './components/AIPanel';
+import SequencerPanel from './components/SequencerPanel';
 // @ts-ignore
 import Settings from './components/Settings';
 // @ts-ignore
@@ -48,6 +49,9 @@ const BoardLab: React.FC = () => {
         setAppSettings,
         undo,
         redo,
+        sequence,
+        startSequence,
+        nextInSequence,
     } = useProject();
 
     // Other Hooks
@@ -105,7 +109,16 @@ const BoardLab: React.FC = () => {
 
             // Measure (Enter)
             if (key === 'ENTER') {
-                if (mode === 'measure' && board.selectedPoint && !hardware.isCapturing) {
+                if (sequence.active && board.selectedPoint && !hardware.isCapturing) {
+                    e.preventDefault();
+                    const measurement = await hardware.captureValue(board.selectedPoint);
+                    if (measurement) {
+                        await addMeasurement(board.selectedPoint, measurement);
+                        // Small delay to let the user see the result briefly if needed, 
+                        // but usually instant for efficiency. 
+                        nextInSequence();
+                    }
+                } else if (mode === 'measure' && board.selectedPoint && !hardware.isCapturing) {
                     e.preventDefault();
                     const measurement = await hardware.captureValue(board.selectedPoint);
                     if (measurement) {
@@ -117,7 +130,7 @@ const BoardLab: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [mode, board.selectedPointId, board.selectedPoint, hardware.isCapturing, isNewProjectModalOpen, isProjectManagerOpen, pointsTableOpen]);
+    }, [mode, board.selectedPointId, board.selectedPoint, hardware.isCapturing, isNewProjectModalOpen, isProjectManagerOpen, pointsTableOpen, sequence.active]);
 
     // Load API key and settings on mount
     useEffect(() => {
@@ -154,6 +167,7 @@ const BoardLab: React.FC = () => {
                 onOpenProject={handleOpenProject}
                 onSaveProject={saveProject}
                 onExportPdf={() => { /* Logic to be added */ }}
+                onStartSequence={startSequence}
             />
             <input
                 type="file"
@@ -197,6 +211,7 @@ const BoardLab: React.FC = () => {
             />
 
             <div className="flex-1 flex flex-col relative">
+                <SequencerPanel />
                 <StatusBar
                     scale={board.scale}
                     setScale={board.setScale}

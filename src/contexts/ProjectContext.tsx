@@ -40,6 +40,15 @@ interface ProjectContextValue {
     redo: () => void;
     canUndo: boolean;
     canRedo: boolean;
+    sequence: {
+        active: boolean;
+        currentIndex: number;
+        order: (number | string)[];
+    };
+    startSequence: () => void;
+    stopSequence: () => void;
+    nextInSequence: () => void;
+    prevInSequence: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextValue | undefined>(undefined);
@@ -77,6 +86,67 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
     // --- Undo/Redo ---
     const { undo, redo, canUndo, canRedo } = board;
+
+    // --- Sequencing State ---
+    const [sequence, setSequence] = useState<{ active: boolean; currentIndex: number; order: (number | string)[] }>({
+        active: false,
+        currentIndex: -1,
+        order: []
+    });
+
+    const startSequence = () => {
+        // Create order based on y (top to bottom) then x (left to right)
+        // This is a simple heuristic for reading order
+        const sortedPoints = [...board.points].sort((a, b) => {
+            const yDiff = a.y - b.y;
+            if (Math.abs(yDiff) > 50) return yDiff; // Row-based sorting
+            return a.x - b.x;
+        });
+        const order = sortedPoints.map(p => p.id);
+        
+        if (order.length === 0) {
+            showNotification('No points to sequence.', 'warning');
+            return;
+        }
+
+        setSequence({
+            active: true,
+            currentIndex: 0,
+            order
+        });
+        
+        // Select first point
+        board.selectPoint(order[0]);
+        showNotification('Sequence Mode Started', 'info');
+    };
+
+    const stopSequence = () => {
+        setSequence(prev => ({ ...prev, active: false }));
+        showNotification('Sequence Mode Stopped', 'info');
+    };
+
+    const nextInSequence = () => {
+        setSequence(prev => {
+            if (!prev.active) return prev;
+            const nextIndex = prev.currentIndex + 1;
+            if (nextIndex >= prev.order.length) {
+                showNotification('Sequence Completed!', 'success');
+                return { ...prev, active: false, currentIndex: 0 };
+            }
+            board.selectPoint(prev.order[nextIndex]);
+            return { ...prev, currentIndex: nextIndex };
+        });
+    };
+
+    const prevInSequence = () => {
+        setSequence(prev => {
+            if (!prev.active) return prev;
+            const nextIndex = prev.currentIndex - 1;
+            if (nextIndex < 0) return prev;
+            board.selectPoint(prev.order[nextIndex]);
+            return { ...prev, currentIndex: nextIndex };
+        });
+    };
 
     // Auto-save when a new temporary point is added
     useEffect(() => {
@@ -316,6 +386,11 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             redo,
             canUndo,
             canRedo,
+            sequence,
+            startSequence,
+            stopSequence,
+            nextInSequence,
+            prevInSequence
         }}>
             {children}
         </ProjectContext.Provider>
