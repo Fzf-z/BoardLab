@@ -12,6 +12,7 @@ declare global {
             getProjects: () => Promise<Project[]>;
             getProjectWithImage: (id: number) => Promise<Project>;
             getPoints: (projectId: number) => Promise<Point[]>;
+            searchProjectsByPoint: (searchTerm: string) => Promise<number[]>;
             deleteProject: (id: number) => Promise<{ status: string; message?: string }>;
             updateProject: (data: Partial<Project>) => Promise<{ status: string; message?: string }>;
             deletePoint: (id: number | string) => Promise<{ status: string; message?: string }>;

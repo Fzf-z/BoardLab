@@ -245,6 +245,16 @@ async function handleMessage(msg) {
           result = { status: "error", message: "Project not found or no changes made" };
         }
         break;
+      case "db:search-projects-by-point":
+        const searchTerm = `%${payload}%`;
+        const searchResults = db.prepare(`
+                    SELECT DISTINCT p.id 
+                    FROM projects p
+                    JOIN points pt ON p.id = pt.project_id
+                    WHERE pt.label LIKE ? OR pt.category LIKE ?
+                `).all(searchTerm, searchTerm);
+        result = searchResults.map((row) => row.id);
+        break;
       case "close":
         console.log("Worker: Compacting database before closing...");
         db.exec("VACUUM");

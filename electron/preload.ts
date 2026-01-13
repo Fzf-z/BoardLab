@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllAttributes: (boardType?: string) => ipcRenderer.invoke('db:get-all-attributes', { boardType }),
   savePoints: (data: any) => ipcRenderer.invoke('db:save-points', data), // data: { projectId, points }
   getPoints: (projectId: number) => ipcRenderer.invoke('db:get-points', projectId),
+  searchProjectsByPoint: (searchTerm: string) => ipcRenderer.invoke('db:search-projects-by-point', searchTerm),
   createMeasurement: (data: any) => ipcRenderer.invoke('db:createMeasurement', data), // data: { pointId, type, value }
   getMeasurementsForPoint: (pointId: number | string) => ipcRenderer.invoke('db:getMeasurementsForPoint', pointId),
   deletePoint: (pointId: number | string) => ipcRenderer.invoke('db:delete-point', pointId),

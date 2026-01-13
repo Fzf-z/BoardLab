@@ -92,7 +92,6 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
         const labelMatch = point.label.toLowerCase().includes(lowerCaseFilterText);
         const notesMatch = point.notes?.toLowerCase().includes(lowerCaseFilterText);
         const categoryMatch = point.category?.toLowerCase().includes(lowerCaseFilterText);
-        // Check if any measurement value matches
         const measurementMatch = point.measurements && Object.values(point.measurements).some(m => 
             m?.value?.toString().toLowerCase().includes(lowerCaseFilterText)
         );
@@ -144,8 +143,8 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
                         <thead>
                             <tr className="bg-gray-700">
                                 <th className="p-3 w-12 text-right">#</th>
-                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('category')}>Cat <SortIcon column="category" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('label')}>Label <SortIcon column="label" /></th>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('category')}>Categ <SortIcon column="category" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('voltage')}>Voltage <SortIcon column="voltage" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('resistance')}>Resistance <SortIcon column="resistance" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('diode')}>Diode <SortIcon column="diode" /></th>
@@ -164,6 +163,15 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
                                 >
                                     <td className="px-4 py-2 text-right">{sortedAndFilteredPoints.length - index}</td>
                                     <td className="px-4 py-2">
+                                        <input 
+                                            type="text" 
+                                            value={point.label} 
+                                            onChange={(e) => handleLabelChange(point.id, e.target.value)} 
+                                            onClick={(e) => e.stopPropagation()} 
+                                            className="bg-gray-700 w-full p-1 rounded font-bold text-white" 
+                                        />
+                                    </td>
+                                    <td className="px-4 py-2">
                                         <select 
                                             value={point.category || ''} 
                                             onChange={(e) => handleCategoryChange(point.id, e.target.value)}
@@ -175,15 +183,6 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
                                                 <option key={cat.id} value={cat.id}>{cat.label}</option>
                                             ))}
                                         </select>
-                                    </td>
-                                    <td className="px-4 py-2">
-                                        <input 
-                                            type="text" 
-                                            value={point.label} 
-                                            onChange={(e) => handleLabelChange(point.id, e.target.value)} 
-                                            onClick={(e) => e.stopPropagation()} 
-                                            className="bg-gray-700 w-full p-1 rounded font-bold text-white" 
-                                        />
                                     </td>
                                     <td className="px-4 py-2">
                                         <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-700 w-full p-1 rounded" />

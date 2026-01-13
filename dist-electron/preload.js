@@ -41,6 +41,7 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   savePoints: (data) => electron.ipcRenderer.invoke("db:save-points", data),
   // data: { projectId, points }
   getPoints: (projectId) => electron.ipcRenderer.invoke("db:get-points", projectId),
+  searchProjectsByPoint: (searchTerm) => electron.ipcRenderer.invoke("db:search-projects-by-point", searchTerm),
   createMeasurement: (data) => electron.ipcRenderer.invoke("db:createMeasurement", data),
   // data: { pointId, type, value }
   getMeasurementsForPoint: (pointId) => electron.ipcRenderer.invoke("db:getMeasurementsForPoint", pointId),

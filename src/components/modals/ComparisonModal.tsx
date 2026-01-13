@@ -19,7 +19,15 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
     // Filters
     const [pointSearchTerm, setPointSearchTerm] = useState('');
     const [projectSearchTerm, setProjectSearchTerm] = useState('');
+    const [selectedBoardType, setSelectedBoardType] = useState<string>('');
+    
+    // Deep Search (search inside points of all projects)
+    const [pointFilterQuery, setPointFilterQuery] = useState('');
+    const [matchingProjectIds, setMatchingProjectIds] = useState<number[] | null>(null);
+
     const [matchType, setMatchType] = useState(true);
+
+    const uniqueBoardTypes = Array.from(new Set(projectList.map(p => p.board_type))).filter(Boolean);
 
     useEffect(() => {
         if (isOpen) {
@@ -27,9 +35,25 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
             setPoints([]);
             setPointSearchTerm(currentPoint?.label || '');
             setProjectSearchTerm('');
+            setSelectedBoardType('');
+            setPointFilterQuery('');
+            setMatchingProjectIds(null);
             setMatchType(true);
         }
     }, [isOpen, currentPoint]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (pointFilterQuery.trim().length > 0 && window.electronAPI) {
+                window.electronAPI.searchProjectsByPoint(pointFilterQuery)
+                    .then(ids => setMatchingProjectIds(ids))
+                    .catch(err => console.error("Search points failed", err));
+            } else {
+                setMatchingProjectIds(null);
+            }
+        }, 400); // Debounce
+        return () => clearTimeout(timer);
+    }, [pointFilterQuery]);
 
     useEffect(() => {
         if (selectedProject && window.electronAPI) {
@@ -67,7 +91,11 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
             }
         } catch (e) { /* ignore */ }
 
-        return modelMatch || typeMatch || attrMatch;
+        const matchesSearch = modelMatch || typeMatch || attrMatch;
+        const matchesTypeFilter = selectedBoardType ? proj.board_type === selectedBoardType : true;
+        const matchesDeepSearch = matchingProjectIds === null || matchingProjectIds.includes(proj.id);
+
+        return matchesSearch && matchesTypeFilter && matchesDeepSearch;
     });
 
     // Filter Points
@@ -126,6 +154,18 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                 <Filter size={12} className="mr-1" />
                                 Filtrar Proyectos
                             </h3>
+                            
+                            <select 
+                                value={selectedBoardType} 
+                                onChange={(e) => setSelectedBoardType(e.target.value)}
+                                className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white mb-2 outline-none focus:border-purple-500"
+                            >
+                                <option value="">Todos los tipos</option>
+                                {uniqueBoardTypes.map(type => (
+                                    <option key={type} value={type}>{type}</option>
+                                ))}
+                            </select>
+
                             <div className="relative">
                                 <Search className="absolute left-2 top-2 text-gray-500" size={12} />
                                 <input
@@ -133,7 +173,18 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                     value={projectSearchTerm}
                                     onChange={(e) => setProjectSearchTerm(e.target.value)}
                                     placeholder="Modelo, tipo, CPU..."
-                                    className="w-full bg-gray-900 border border-gray-600 rounded pl-7 pr-2 py-1 text-xs text-white focus:border-purple-500 outline-none transition"
+                                    className="w-full bg-gray-900 border border-gray-600 rounded pl-7 pr-2 py-1 text-xs text-white focus:border-purple-500 outline-none transition mb-2"
+                                />
+                            </div>
+
+                             <div className="relative">
+                                <Zap className="absolute left-2 top-2 text-yellow-500" size={12} />
+                                <input
+                                    type="text"
+                                    value={pointFilterQuery}
+                                    onChange={(e) => setPointFilterQuery(e.target.value)}
+                                    placeholder="Contiene punto (ej. 3.3V)..."
+                                    className="w-full bg-gray-900 border border-gray-600 rounded pl-7 pr-2 py-1 text-xs text-white focus:border-yellow-500 outline-none transition"
                                 />
                             </div>
                         </div>

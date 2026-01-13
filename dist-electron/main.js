@@ -458,6 +458,7 @@ electron.ipcMain.handle("db:getMeasurementsForPoint", (event, pointId) => dbQuer
 electron.ipcMain.handle("db:delete-project", (event, projectId) => dbQuery("db:delete-project", projectId));
 electron.ipcMain.handle("db:delete-point", (event, pointId) => dbQuery("db:delete-point", pointId));
 electron.ipcMain.handle("db:update-project", (event, projectData) => dbQuery("db:update-project", projectData));
+electron.ipcMain.handle("db:search-projects-by-point", (event, searchTerm) => dbQuery("db:search-projects-by-point", searchTerm));
 electron.ipcMain.handle("hardware:measure-resistance", async () => {
 });
 electron.ipcMain.handle("multimeter-set-config", async (event, config) => setOwonConfig(config.ip, config.port, config.configCommand));
