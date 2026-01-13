@@ -1,21 +1,30 @@
+import { Project, Point, MeasurementValue } from './types';
+
 // Helper for buffer handling if environment differs
-const bufferToBase64 = (buffer) => {
+const bufferToBase64 = (buffer: Uint8Array | number[] | any): string => {
     if (typeof Buffer !== 'undefined') {
-        return Buffer.from(buffer).toString('base64');
+        return Buffer.from(buffer as any).toString('base64');
     } else {
         let binary = '';
-        const len = buffer.byteLength;
+        const bytes = new Uint8Array(buffer as any);
+        const len = bytes.byteLength;
         for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(buffer[i]);
+            binary += String.fromCharCode(bytes[i]);
         }
         return window.btoa(binary);
     }
 };
 
-function generateWaveformSvg(measurement) {
+function generateWaveformSvg(measurement: MeasurementValue): string {
     if (!measurement || !measurement.waveform || !Array.isArray(measurement.waveform)) return 'No waveform data';
     
-    const { waveform, voltageScale, voltageOffset, timeScale, vpp, freq } = measurement;
+    const waveform = measurement.waveform || [];
+    const voltageScale = measurement.voltageScale || 1;
+    const voltageOffset = measurement.voltageOffset || 0;
+    const timeScale = measurement.timeScale || 1;
+    const vpp = measurement.vpp;
+    const freq = measurement.freq;
+
     const svgWidth = 500, svgHeight = 300;
     const numDivX = 10, numDivY = 8;
     const stepX = svgWidth / numDivX, stepY = svgHeight / numDivY;
@@ -32,8 +41,8 @@ function generateWaveformSvg(measurement) {
     gridLines += `<line x1="0" y1="${svgHeight/2}" x2="${svgWidth}" y2="${svgHeight/2}" stroke="#9ca3af" stroke-width="1" />`;
 
     // --- Waveform Path ---
-    const vRange = numDivY * (voltageScale || 1);
-    const vBottom = (voltageOffset || 0) - (vRange / 2);
+    const vRange = numDivY * voltageScale;
+    const vBottom = voltageOffset - (vRange / 2);
 
     const pointsStr = waveform
         .map((val, i) => {
@@ -59,27 +68,28 @@ function generateWaveformSvg(measurement) {
     `;
 }
 
-function renderMeasurementValue(measurement) {
+function renderMeasurementValue(measurement: MeasurementValue): string {
     if (measurement.type === 'oscilloscope') {
         return generateWaveformSvg(measurement); 
     }
     if (typeof measurement.value === 'object' && measurement.value !== null) {
         return `<pre>${JSON.stringify(measurement.value, null, 2)}</pre>`;
     }
-    return measurement.value;
+    return String(measurement.value ?? '');
 }
 
-function generateReportHtml(project, points) {
+export function generateReportHtml(project: Project, points: Point[]): string {
     const imageAsBase64 = project.image_data 
         ? `data:image/png;base64,${bufferToBase64(project.image_data)}` 
         : '';
     
     let attributesHtml = '<li>No attributes defined.</li>';
     if (project.attributes) {
-        let attrs = {};
+        let attrs: Record<string, any> = {};
         if (typeof project.attributes === 'string') {
             try { attrs = JSON.parse(project.attributes); } catch (e) {}
         } else {
+            // @ts-ignore: In case it's already an object
             attrs = project.attributes;
         }
         attributesHtml = Object.entries(attrs).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('');
@@ -152,6 +162,3 @@ function generateReportHtml(project, points) {
         </html>
     `;
 }
-
-module.exports = { generateReportHtml };
-

@@ -30,46 +30,48 @@ export function getRigolData(ip: string, port: number | string, timeoutMs: numbe
             try {
                 if (receivedData.length === 0) throw new Error("No se recibió respuesta alguna del instrumento.");
                 
-                const bufferAsString = receivedData.toString('ascii');
-                const binaryStartIndex = bufferAsString.indexOf('#');
+                // Find start of binary block (#)
+                const binaryStartIndex = receivedData.indexOf(0x23); // 0x23 is '#'
 
-                if (binaryStartIndex === -1) throw new Error("No se encontró el bloque de datos binarios (#). Buffer: " + receivedData.toString('ascii').substring(0, 100));
+                if (binaryStartIndex === -1) throw new Error("No se encontró el bloque de datos binarios (#).");
 
-                const textPart = bufferAsString.substring(0, binaryStartIndex);
+                const textPart = receivedData.subarray(0, binaryStartIndex).toString('utf-8');
                 // Filter out empty lines caused by extra newlines
                 const lines = textPart.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-                if (lines.length < 4) {
-                    throw new Error(`Se esperaban al menos 4 líneas de texto, recibidas ${lines.length}. Buffer text: "${textPart}"`);
+                if (lines.length === 0) {
+                    throw new Error(`No se recibieron líneas de configuración antes de los datos binarios.`);
                 }
 
-                // Parse textual values
-                const vScaleStr = lines[0];
-                const voltageScale = parseFloat(vScaleStr);
-                
-                const vppStr = lines[1];
-                let vpp = parseFloat(vppStr);
-                if (isNaN(vpp) || vpp > 1e30) vpp = 0; 
-
-                const freqStr = lines[2];
-                let freq = parseFloat(freqStr);
-                if (isNaN(freq) || freq > 1e30) freq = 0;
-
-                const preambleStr = lines[3];
+                // We expect 4 lines, but we try to be robust. 
+                // The preamble is the most critical part, usually the last line before binary.
+                const preambleStr = lines[lines.length - 1];
                 const preamble = preambleStr.split(',');
                 if (preamble.length < 10) throw new Error(`Preamble incompleto: ${preambleStr}`);
 
+                // Try to map other values from previous lines if they exist
+                const freqStr = lines.length >= 2 ? lines[lines.length - 2] : "0";
+                const vppStr = lines.length >= 3 ? lines[lines.length - 3] : "0";
+                const vScaleStr = lines.length >= 4 ? lines[lines.length - 4] : "1";
+
+                const voltageScale = parseFloat(vScaleStr) || 1;
+                
+                let vpp = parseFloat(vppStr);
+                if (isNaN(vpp) || vpp > 1e30) vpp = 0; 
+
+                let freq = parseFloat(freqStr);
+                if (isNaN(freq) || freq > 1e30) freq = 0;
+
                 // Preamble Parsing
                 const xInc = parseFloat(preamble[4]);
-                // const xOrg = parseFloat(preamble[5]);
-                // const xRef = parseFloat(preamble[6]);
                 const yInc = parseFloat(preamble[7]);
                 const yOrg = parseFloat(preamble[8]);
                 const yRef = parseFloat(preamble[9]);
 
                 // Binary Block Parsing
                 // #<N><Length><Data>
-                const numDigitsChar = bufferAsString[binaryStartIndex + 1];
+                // We use the raw buffer from binaryStartIndex
+                const numDigitsChar = String.fromCharCode(receivedData[binaryStartIndex + 1]);
                 const numDigits = parseInt(numDigitsChar);
                 if (isNaN(numDigits)) throw new Error("Error parseando el número de dígitos del bloque binario.");
 
@@ -77,7 +79,7 @@ export function getRigolData(ip: string, port: number | string, timeoutMs: numbe
                 const rawDataStart = binaryStartIndex + 2 + numDigits;
                 
                 // Extract raw bytes
-                const rawData = receivedData.subarray(rawDataStart, receivedData.length);
+                const rawData = receivedData.subarray(rawDataStart);
                 
                 // Convert raw bytes to voltage values
                 const waveform = [];
@@ -117,23 +119,18 @@ export function getRigolData(ip: string, port: number | string, timeoutMs: numbe
             
             // Optimization: Only try to parse if buffer is reasonably large
             if (receivedData.length > 50) { 
-                const str = receivedData.toString('ascii');
-                const hashIdx = str.indexOf('#');
+                const hashIdx = receivedData.indexOf(0x23); // '#'
                 if (hashIdx !== -1) {
-                    // Check if we have 4 lines of text before hash
-                    const textPart = str.substring(0, hashIdx);
-                    const lines = textPart.trim().split('\n').filter(l => l.trim().length > 0);
-                    
-                    if (lines.length >= 4) {
-                        const nDigits = parseInt(str[hashIdx + 1]);
+                    // We found the hash, check if we have the length digits
+                    if (receivedData.length > hashIdx + 1) {
+                        const nDigits = parseInt(String.fromCharCode(receivedData[hashIdx + 1]));
                         if (!isNaN(nDigits)) {
                             // Ensure we have length bytes
-                            if (str.length >= hashIdx + 2 + nDigits) {
-                                const lengthStr = str.substring(hashIdx + 2, hashIdx + 2 + nDigits);
+                            if (receivedData.length >= hashIdx + 2 + nDigits) {
+                                const lengthStr = receivedData.subarray(hashIdx + 2, hashIdx + 2 + nDigits).toString('utf-8');
                                 const dataLength = parseInt(lengthStr);
                                 if (!isNaN(dataLength)) {
-                                    // Total bytes expected: header_bytes + # + N + length_bytes + binary_data
-                                    // hashIdx is the number of bytes before #
+                                    // Total bytes expected: hashIdx + 1 (#) + 1 (N) + N (length bytes) + dataLength
                                     const totalExpected = hashIdx + 2 + nDigits + dataLength;
                                     
                                     // If we have enough data (ignoring potential trailing newline)

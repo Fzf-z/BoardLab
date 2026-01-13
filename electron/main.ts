@@ -6,8 +6,7 @@ import net from 'net';
 import { setOwonConfig, getOwonMeasurement } from './drivers/owon';
 import { getRigolData } from './drivers/rigol';
 import { testConnection } from './drivers/connection';
-// @ts-ignore
-const { generateReportHtml } = require('../src/report-generator');
+import { generateReportHtml } from '../src/report-generator';
 
 const store = new Store();
 

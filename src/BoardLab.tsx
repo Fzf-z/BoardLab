@@ -10,17 +10,11 @@ import StatusBar from './components/StatusBar';
 import BoardView from './components/BoardView';
 import AIPanel from './components/AIPanel';
 import SequencerPanel from './components/SequencerPanel';
-// @ts-ignore
 import Settings from './components/Settings';
-// @ts-ignore
 import PointsTableModal from './components/modals/PointsTableModal';
-// @ts-ignore
 import ProjectManagerModal from './components/modals/ProjectManagerModal';
-// @ts-ignore
 import AIModal from './components/modals/AIModal';
-// @ts-ignore
 import NewProjectModal from './components/modals/NewProjectModal';
-// @ts-ignore
 import ComparisonModal from './components/modals/ComparisonModal';
 
 const BoardLab: React.FC = () => {
