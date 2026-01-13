@@ -41,10 +41,15 @@ export const useHardware = () => {
             window.electronAPI.startMonitor(instrumentConfig.multimeter.ip, instrumentConfig.multimeter.port)
                 .then(() => console.log('Multimeter Monitor Started'))
                 .catch(err => console.error('Failed to start monitor', err));
-        } else {
-            window.electronAPI.stopMonitor()
-                .catch(err => console.error('Failed to stop monitor', err));
         }
+
+        // Cleanup function: Stops monitor when component unmounts or config changes
+        return () => {
+            if (instrumentConfig.monitor?.enabled) {
+                window.electronAPI.stopMonitor()
+                    .catch(err => console.error('Failed to stop monitor during cleanup', err));
+            }
+        };
     }, [isElectron, instrumentConfig.monitor?.enabled, instrumentConfig.multimeter.ip, instrumentConfig.multimeter.port]);
 
     useEffect(() => {

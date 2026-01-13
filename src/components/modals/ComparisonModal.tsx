@@ -27,7 +27,33 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
 
     const [matchType, setMatchType] = useState(true);
 
+    // Autocomplete states
+    const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
+    const [showPointSuggestions, setShowPointSuggestions] = useState(false);
+
     const uniqueBoardTypes = Array.from(new Set(projectList.map(p => p.board_type))).filter(Boolean);
+    
+    // Extract models and all attribute values for autocomplete
+    const uniqueSuggestions = React.useMemo(() => {
+        const suggestions = new Set<string>();
+        
+        projectList.forEach(p => {
+            if (p.board_model) suggestions.add(p.board_model);
+            
+            try {
+                const attrs = typeof p.attributes === 'string' ? JSON.parse(p.attributes) : p.attributes;
+                if (attrs && typeof attrs === 'object') {
+                    Object.values(attrs).forEach((val: any) => {
+                         if (typeof val === 'string' && val.length > 1 && val.length < 20) {
+                             suggestions.add(val);
+                         }
+                    });
+                }
+            } catch (e) { /* ignore */ }
+        });
+
+        return Array.from(suggestions);
+    }, [projectList]);
 
     useEffect(() => {
         if (isOpen) {
@@ -166,15 +192,33 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                 ))}
                             </select>
 
-                            <div className="relative">
+                            <div className="relative mb-2">
                                 <Search className="absolute left-2 top-2 text-gray-500" size={12} />
                                 <input
                                     type="text"
                                     value={projectSearchTerm}
-                                    onChange={(e) => setProjectSearchTerm(e.target.value)}
+                                    onChange={(e) => {
+                                        setProjectSearchTerm(e.target.value);
+                                        setShowProjectSuggestions(true);
+                                    }}
+                                    onFocus={() => setShowProjectSuggestions(true)}
+                                    onBlur={() => setTimeout(() => setShowProjectSuggestions(false), 200)}
                                     placeholder="Modelo, tipo, CPU..."
-                                    className="w-full bg-gray-900 border border-gray-600 rounded pl-7 pr-2 py-1 text-xs text-white focus:border-purple-500 outline-none transition mb-2"
+                                    className="w-full bg-gray-900 border border-gray-600 rounded pl-7 pr-2 py-1 text-xs text-white focus:border-purple-500 outline-none transition"
                                 />
+                                {showProjectSuggestions && projectSearchTerm.length > 0 && (
+                                    <div className="absolute z-10 w-full bg-gray-800 border border-gray-600 rounded mt-1 max-h-32 overflow-y-auto shadow-lg">
+                                        {uniqueSuggestions.filter(s => s.toLowerCase().includes(projectSearchTerm.toLowerCase())).map(suggestion => (
+                                            <div 
+                                                key={suggestion} 
+                                                className="px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 cursor-pointer"
+                                                onClick={() => setProjectSearchTerm(suggestion)}
+                                            >
+                                                {suggestion}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                              <div className="relative">
