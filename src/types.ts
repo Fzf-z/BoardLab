@@ -5,6 +5,7 @@ export interface Project {
     attributes: string; // JSON string in DB, parsed object in app? Usually kept as string until needed or handled in worker.
     notes?: string;
     image_data?: Uint8Array | number[]; // Buffer comes as Uint8Array usually
+    image_data_b?: Uint8Array | number[]; // Second image (Side B)
     created_at?: string;
 }
 
@@ -45,6 +46,7 @@ export interface Point {
     category?: string; // e.g., 'power', 'ground', 'signal', 'clock'
     tolerance?: number;
     expected_value?: string;
+    side?: 'A' | 'B'; // Which side of the board the point belongs to
     // In the frontend, we store latest measurements by type for quick access
     measurements?: Record<string, MeasurementValue>;
     temp_id?: string; // Used during saving to map temp IDs to real IDs

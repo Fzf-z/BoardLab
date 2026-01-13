@@ -15,6 +15,7 @@ interface UndoableState<T> {
 
 export const useBoard = () => {
     const [imageSrc, setImageSrc] = useState<string | null>(null);
+    const [imageSrcB, setImageSrcB] = useState<string | null>(null);
     const [pointsState, setPointsState] = useState<UndoableState<Point[]>>({
         past: [],
         present: [],
@@ -81,8 +82,9 @@ export const useBoard = () => {
     }, []);
 
 
-    const setImage = (src: string | null) => {
+    const setImage = (src: string | null, srcB: string | null = null) => {
         setImageSrc(src);
+        setImageSrcB(srcB);
         // Reset history when a new image is loaded
         setPointsState({ past: [], present: [], future: [] });
     };
@@ -288,6 +290,7 @@ export const useBoard = () => {
 
     return {
         imageSrc,
+        imageSrcB,
         setImage,
         imageDimensions,
         points,

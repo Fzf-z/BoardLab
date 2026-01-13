@@ -39,7 +39,8 @@ interface BoardViewProps {
 const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
     const { board, appSettings } = useProject();
     const { 
-        imageSrc, 
+        imageSrc,
+        imageSrcB, 
         imageDimensions,
         points, 
         scale, 
@@ -173,12 +174,31 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                         }}
                         className="absolute top-0 left-0"
                     >
-                        <img 
-                            src={imageSrc} 
-                            alt="Board" 
-                            className="block max-w-none select-none shadow-2xl"
-                            draggable={false}
-                        />
+                        <div className="relative flex">
+                            {/* Side A */}
+                            <div className="relative">
+                                <img 
+                                    src={imageSrc} 
+                                    alt="Board Side A" 
+                                    className="block max-w-none select-none shadow-2xl"
+                                    draggable={false}
+                                />
+                                <div className="absolute top-2 left-2 bg-blue-600/80 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">Side A</div>
+                            </div>
+
+                            {/* Side B (if exists) */}
+                            {imageSrcB && (
+                                <div className="relative ml-12 border-l-2 border-dashed border-gray-700 pl-12">
+                                    <img 
+                                        src={imageSrcB} 
+                                        alt="Board Side B" 
+                                        className="block max-w-none select-none shadow-2xl"
+                                        draggable={false}
+                                    />
+                                    <div className="absolute top-2 left-14 bg-purple-600/80 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">Side B</div>
+                                </div>
+                            )}
+                        </div>
                         
                         {/* Points Overlay */}
                         {points.map(point => {

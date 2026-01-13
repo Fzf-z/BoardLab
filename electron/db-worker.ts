@@ -25,9 +25,14 @@ db.exec(`
 try {
   const tableInfo = db.prepare("PRAGMA table_info(projects)").all() as any[];
   const hasNotes = tableInfo.some(col => col.name === 'notes');
+  const hasImageB = tableInfo.some(col => col.name === 'image_data_b');
   if (!hasNotes) {
     db.exec("ALTER TABLE projects ADD COLUMN notes TEXT");
     console.log("Worker: Migrated projects table to include 'notes' column.");
+  }
+  if (!hasImageB) {
+    db.exec("ALTER TABLE projects ADD COLUMN image_data_b BLOB");
+    console.log("Worker: Migrated projects table to include 'image_data_b' column.");
   }
 } catch (e) {
   console.error("Worker: Error migrating projects table:", e);
@@ -55,6 +60,7 @@ try {
   const pointTableInfo = db.prepare("PRAGMA table_info(points)").all() as any[];
   const hasTolerance = pointTableInfo.some(col => col.name === 'tolerance');
   const hasCategory = pointTableInfo.some(col => col.name === 'category');
+  const hasSide = pointTableInfo.some(col => col.name === 'side');
   if (!hasTolerance) {
     db.exec("ALTER TABLE points ADD COLUMN tolerance REAL");
     db.exec("ALTER TABLE points ADD COLUMN expected_value TEXT");
@@ -63,6 +69,10 @@ try {
   if (!hasCategory) {
     db.exec("ALTER TABLE points ADD COLUMN category TEXT");
     console.log("Worker: Migrated points table to include 'category' column.");
+  }
+  if (!hasSide) {
+    db.exec("ALTER TABLE points ADD COLUMN side TEXT DEFAULT 'A'");
+    console.log("Worker: Migrated points table to include 'side' column.");
   }
 } catch (e) {
   console.error("Worker: Error migrating points table:", e);
@@ -104,12 +114,13 @@ async function handleMessage(msg: any) {
                 break;
 
             case 'db:create-project':
-                const { board_type, board_model, attributes, image_data, notes } = payload;
+                const { board_type, board_model, attributes, image_data, image_data_b, notes } = payload;
                 const imageBuffer = Buffer.from(image_data);
+                const imageBufferB = image_data_b ? Buffer.from(image_data_b) : null;
                 const insertResult = db.prepare(
-                    'INSERT INTO projects (board_type, board_model, attributes, image_data, notes) VALUES (?, ?, ?, ?, ?)'
-                ).run(board_type, board_model, JSON.stringify(attributes), imageBuffer, notes || '');
-                result = { id: insertResult.lastInsertRowid, ...payload, image_data: imageBuffer };
+                    'INSERT INTO projects (board_type, board_model, attributes, image_data, image_data_b, notes) VALUES (?, ?, ?, ?, ?, ?)'
+                ).run(board_type, board_model, JSON.stringify(attributes), imageBuffer, imageBufferB, notes || '');
+                result = { id: insertResult.lastInsertRowid, ...payload, image_data: imageBuffer, image_data_b: imageBufferB };
                 break;
 
             case 'db:get-all-attributes':
@@ -140,20 +151,20 @@ async function handleMessage(msg: any) {
 
             case 'db:save-points':
                 const { projectId, points } = payload;
-                const insertStmt = db.prepare('INSERT INTO points (project_id, x, y, label, notes, type, category, tolerance, expected_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-                const updateStmt = db.prepare('UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ?, category = ?, tolerance = ?, expected_value = ? WHERE id = ?');
+                const insertStmt = db.prepare('INSERT INTO points (project_id, x, y, label, notes, type, category, tolerance, expected_value, side) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                const updateStmt = db.prepare('UPDATE points SET x = ?, y = ?, label = ?, notes = ?, type = ?, category = ?, tolerance = ?, expected_value = ?, side = ? WHERE id = ?');
                 const savedRows: any[] = [];
                 const transaction = db.transaction((pts: any[]) => {
                     for (const point of pts) {
                         if (typeof point.id === 'string' && point.id.startsWith('temp-')) {
-                            const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || '', point.type || 'voltage', point.category || null, point.tolerance || null, point.expected_value || null);
+                            const res = insertStmt.run(projectId, point.x, point.y, point.label, point.notes || '', point.type || 'voltage', point.category || null, point.tolerance || null, point.expected_value || null, point.side || 'A');
                             const row = db.prepare('SELECT * FROM points WHERE id = ?').get(res.lastInsertRowid) as any;
                             if (row) {
                                 row.temp_id = point.id;
                                 savedRows.push(row);
                             }
                         } else if (typeof point.id === 'number') {
-                            updateStmt.run(point.x, point.y, point.label, point.notes || '', point.type || 'voltage', point.category || null, point.tolerance || null, point.expected_value || null, point.id);
+                            updateStmt.run(point.x, point.y, point.label, point.notes || '', point.type || 'voltage', point.category || null, point.tolerance || null, point.expected_value || null, point.side || 'A', point.id);
                             const row = db.prepare('SELECT * FROM points WHERE id = ?').get(point.id);
                             if (row) savedRows.push(row);
                         }

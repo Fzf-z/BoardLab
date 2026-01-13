@@ -166,12 +166,23 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         if (!projectData || !window.electronAPI) return;
         try {
             const newProject = await window.electronAPI.createProject(projectData);
+            console.log("Created Project:", newProject);
             setCurrentProject(newProject);
             
             // Assuming image_data comes as buffer/array
             const blob = new Blob([newProject.image_data as any], { type: 'image/png' });
             const imageUrl = URL.createObjectURL(blob);
-            board.setImage(imageUrl);
+
+            let imageUrlB = null;
+            if (newProject.image_data_b) {
+                console.log("Processing Image B...");
+                const blobB = new Blob([newProject.image_data_b as any], { type: 'image/png' });
+                imageUrlB = URL.createObjectURL(blobB);
+            } else {
+                console.log("No Image B found in new project.");
+            }
+
+            board.setImage(imageUrl, imageUrlB);
             board.setPoints([]);
 
             showNotification(`Project '${projectData.board_model}' created!`, 'success');
@@ -230,7 +241,14 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             if (fullProject.image_data) {
                 const blob = new Blob([fullProject.image_data as any], { type: 'image/png' });
                 const imageUrl = URL.createObjectURL(blob);
-                board.setImage(imageUrl);
+                
+                let imageUrlB = null;
+                if (fullProject.image_data_b) {
+                    const blobB = new Blob([fullProject.image_data_b as any], { type: 'image/png' });
+                    imageUrlB = URL.createObjectURL(blobB);
+                }
+
+                board.setImage(imageUrl, imageUrlB);
             } else {
                 board.resetBoard();
             }

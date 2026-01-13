@@ -26,9 +26,12 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
     const [dynamicAttributes, setDynamicAttributes] = useState<DynamicAttribute[]>([{ key: '', value: '' }]);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imageFileB, setImageFileB] = useState<File | null>(null);
+    const [imagePreviewB, setImagePreviewB] = useState<string | null>(null);
     const [customBoardType, setCustomBoardType] = useState<string>('');
     const [fetchedAttributes, setFetchedAttributes] = useState<{ keys: string[], values: string[] }>({ keys: [], values: [] });
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const fileInputRefB = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isOpen && window.electronAPI) {
@@ -78,6 +81,16 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
         }
     };
 
+    const handleImageChangeB = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImageFileB(file);
+            const reader = new FileReader();
+            reader.onloadend = () => setImagePreviewB(reader.result as string);
+            reader.readAsDataURL(file);
+        }
+    };
+
     const fileToUint8Array = (file: File): Promise<Uint8Array> => new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (event) => resolve(new Uint8Array(event.target?.result as ArrayBuffer));
@@ -94,6 +107,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
         try {
             const imageDataUint8Array = await fileToUint8Array(imageFile);
+            const imageDataBUint8Array = imageFileB ? await fileToUint8Array(imageFileB) : undefined;
             
             // Convert array of attributes to a JSON object
             const attributesObject = dynamicAttributes.reduce((acc: any, { key, value }) => {
@@ -119,7 +133,10 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                 attributes: attributesObject,
                 notes: notes.trim(),
                 image_data: imageDataUint8Array, // Ahora es un Uint8Array
+                image_data_b: imageDataBUint8Array, // Side B
             };
+            
+            console.log("Creating project with Side B:", !!imageDataBUint8Array);
             
             onCreate(projectData);
             
@@ -198,35 +215,81 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                         {/* 2. Image Upload Section */}
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-300 block">Imagen de la Placa (Alta Resolución)</label>
+                            <label className="text-sm font-semibold text-gray-300 block">Imágenes de la Placa</label>
                             
-                            <div 
-                                onClick={() => fileInputRef.current?.click()}
-                                className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all group ${imagePreview ? 'border-blue-500/50 bg-blue-500/5' : 'border-gray-600 hover:border-blue-400 hover:bg-gray-700/50'}`}
-                            >
-                                {imagePreview ? (
-                                    <div className="relative w-full h-48 flex items-center justify-center">
-                                        <img src={imagePreview} alt="Preview" className="max-h-full max-w-full rounded shadow-lg object-contain" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
-                                            <p className="text-white font-bold flex items-center"><UploadCloud className="mr-2"/> Cambiar Imagen</p>
+                            <div className="flex gap-4">
+                                {/* Image Upload A */}
+                                <div 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className={`flex-1 border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all group h-48 relative ${imagePreview ? 'border-blue-500/50 bg-blue-500/5' : 'border-gray-600 hover:border-blue-400 hover:bg-gray-700/50'}`}
+                                >
+                                    {imagePreview ? (
+                                        <div className="relative w-full h-full flex items-center justify-center">
+                                            <img src={imagePreview} alt="Preview A" className="max-h-full max-w-full rounded shadow-lg object-contain" />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
+                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16}/> Cambiar Cara A</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="bg-gray-700 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform">
-                                            <UploadCloud className="text-blue-400" size={32} />
+                                    ) : (
+                                        <>
+                                            <div className="bg-gray-700 p-3 rounded-full mb-2 group-hover:scale-110 transition-transform">
+                                                <UploadCloud className="text-blue-400" size={24} />
+                                            </div>
+                                            <p className="text-gray-300 font-medium text-sm">Cara A (Frontal)</p>
+                                            <p className="text-gray-500 text-xs mt-1">Requerido</p>
+                                        </>
+                                    )}
+                                    <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">Cara A</div>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        onChange={handleImageChange} 
+                                        className="hidden" 
+                                        accept="image/*" 
+                                    />
+                                </div>
+
+                                {/* Image Upload B */}
+                                <div 
+                                    onClick={() => fileInputRefB.current?.click()}
+                                    className={`flex-1 border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all group h-48 relative ${imagePreviewB ? 'border-purple-500/50 bg-purple-500/5' : 'border-gray-600 hover:border-purple-400 hover:bg-gray-700/50'}`}
+                                >
+                                    {imagePreviewB ? (
+                                        <div className="relative w-full h-full flex items-center justify-center">
+                                            <img src={imagePreviewB} alt="Preview B" className="max-h-full max-w-full rounded shadow-lg object-contain" />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
+                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16}/> Cambiar Cara B</p>
+                                            </div>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setImageFileB(null);
+                                                    setImagePreviewB(null);
+                                                }}
+                                                className="absolute top-1 right-1 p-1 bg-red-600 rounded-full text-white hover:bg-red-700 z-10"
+                                                title="Eliminar imagen"
+                                            >
+                                                <X size={12} />
+                                            </button>
                                         </div>
-                                        <p className="text-gray-300 font-medium">Click para subir imagen</p>
-                                        <p className="text-gray-500 text-sm mt-1">PNG, JPG soportados</p>
-                                    </>
-                                )}
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    onChange={handleImageChange} 
-                                    className="hidden" 
-                                    accept="image/*" 
-                                />
+                                    ) : (
+                                        <>
+                                            <div className="bg-gray-700 p-3 rounded-full mb-2 group-hover:scale-110 transition-transform">
+                                                <UploadCloud className="text-purple-400" size={24} />
+                                            </div>
+                                            <p className="text-gray-300 font-medium text-sm">Cara B (Trasera)</p>
+                                            <p className="text-gray-500 text-xs mt-1">Opcional</p>
+                                        </>
+                                    )}
+                                    <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">Cara B</div>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRefB} 
+                                        onChange={handleImageChangeB} 
+                                        className="hidden" 
+                                        accept="image/*" 
+                                    />
+                                </div>
                             </div>
                         </div>
 
