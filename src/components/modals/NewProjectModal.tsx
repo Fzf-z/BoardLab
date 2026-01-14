@@ -337,7 +337,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none h-20 resize-none text-sm"
-                                placeholder="Notas sobre el estado inicial, cliente, falla reportada..."
+                                placeholder="Notas sobre el estado inicial, falla reportada..."
                             />
                         </div>
 

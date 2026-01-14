@@ -12,10 +12,10 @@ export const useHardware = () => {
             ip: "192.168.0.202",
             port: 9876,
             commands: {
-                configure_voltage: ":VOLT:DC:AUTO ON",
-                configure_resistance: ":RES:AUTO ON",
+                configure_voltage: "CONF:VOLT:DC AUTO",
+                configure_resistance: "CONF:RES AUTO",
                 configure_diode: "CONF:DIOD",
-                measure: "READ?"
+                measure: "MEAS:SHOW?"
             }
         },
         oscilloscope: {

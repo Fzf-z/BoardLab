@@ -1,1 +1,39 @@
+# Dependencias
 node_modules
+
+# Builds de producción (Frontend y Electron)
+dist-electron
+dist
+
+# Salidas de empaquetado (Electron Forge/Builder)
+out
+release
+build
+
+# Bases de datos locales (IMPORTANTE: no subir tus datos de prueba)
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+
+# Logs y depuración
+*.log
+npm-debug.log
+yarn-error.log
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Variables de entorno (Seguridad)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Configuración de IDE (Opcional, pero recomendado para configuraciones personales)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea
