@@ -105,41 +105,58 @@ export const useBoard = () => {
 
     useEffect(() => {
         if (imageSrc && containerRef.current) {
-            const img = new Image();
-            img.onload = () => {
+            const imgA = new Image();
+            
+            const processDimensions = (widthA: number, heightA: number, widthB: number = 0, heightB: number = 0) => {
                 // Use a timeout to ensure the container has been rendered and has dimensions
                 setTimeout(() => {
                     const container = containerRef.current;
-                    if (!container) return; // Guard against component unmount
+                    if (!container) return;
 
-                    const { naturalWidth, naturalHeight } = img;
-                    setImageDimensions({ width: naturalWidth, height: naturalHeight });
+                    const gap = widthB > 0 ? 48 : 0; // 3rem gap matching BoardView
+                    const totalWidth = widthA + gap + widthB;
+                    const totalHeight = Math.max(heightA, heightB);
+
+                    setImageDimensions({ width: totalWidth, height: totalHeight });
                     
-                    if (naturalWidth === 0 || naturalHeight === 0 || container.clientWidth === 0 || container.clientHeight === 0) {
+                    if (totalWidth === 0 || totalHeight === 0 || container.clientWidth === 0 || container.clientHeight === 0) {
                         return;
                     }
 
+                    // Fit logic
                     const containerAspect = container.clientWidth / container.clientHeight;
-                    const imageAspect = naturalWidth / naturalHeight;
+                    const contentAspect = totalWidth / totalHeight;
 
                     let newScale;
-                    if (containerAspect > imageAspect) {
-                        newScale = container.clientHeight / naturalHeight;
+                    if (containerAspect > contentAspect) {
+                        newScale = container.clientHeight / totalHeight;
                     } else {
-                        newScale = container.clientWidth / naturalWidth;
+                        newScale = container.clientWidth / totalWidth;
                     }
                     
-                    const finalScale = newScale * 0.95; // Add a small margin
-                    const centeredX = (container.clientWidth - (naturalWidth * finalScale)) / 2;
-                    const centeredY = (container.clientHeight - (naturalHeight * finalScale)) / 2;
+                    const finalScale = newScale * 0.95; 
+                    const centeredX = (container.clientWidth - (totalWidth * finalScale)) / 2;
+                    const centeredY = (container.clientHeight - (totalHeight * finalScale)) / 2;
 
                     setScale(finalScale); 
                     setPosition({ x: centeredX, y: centeredY });
                 }, 0);
             };
-            img.src = imageSrc;
+
+            imgA.onload = () => {
+                if (imageSrcB) {
+                    const imgB = new Image();
+                    imgB.onload = () => {
+                        processDimensions(imgA.naturalWidth, imgA.naturalHeight, imgB.naturalWidth, imgB.naturalHeight);
+                    };
+                    imgB.src = imageSrcB;
+                } else {
+                    processDimensions(imgA.naturalWidth, imgA.naturalHeight);
+                }
+            };
+            imgA.src = imageSrc;
         }
-    }, [imageSrc]); 
+    }, [imageSrc, imageSrcB]); 
 
     const selectedPoint = useMemo(() => points.find(p => p.id === selectedPointId), [points, selectedPointId]);
 

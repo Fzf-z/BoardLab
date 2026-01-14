@@ -272,6 +272,7 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
             {imageSrc && (
                 <Minimap 
                     imageSrc={imageSrc}
+                    imageSrcB={imageSrcB}
                     imageDimensions={imageDimensions}
                     scale={scale}
                     position={position}

@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useMemo, MouseEvent } from 'react';
 
 interface MinimapProps {
     imageSrc: string;
+    imageSrcB?: string | null;
     imageDimensions: { width: number; height: number };
     scale: number;
     position: { x: number; y: number };
@@ -11,6 +12,7 @@ interface MinimapProps {
 
 const Minimap: React.FC<MinimapProps> = ({ 
     imageSrc, 
+    imageSrcB,
     imageDimensions, 
     scale, 
     position, 
@@ -89,12 +91,31 @@ const Minimap: React.FC<MinimapProps> = ({
             style={{ width: miniWidth, height: miniHeight }}
             onMouseDown={onMouseDown}
         >
-            <img 
-                src={imageSrc} 
-                alt="Minimap" 
-                className="w-full h-full object-contain opacity-40"
-                draggable={false}
-            />
+            {/* Content Container Scaled Down */}
+            <div style={{ 
+                width: imageDimensions.width, 
+                height: imageDimensions.height, 
+                transform: `scale(${miniScale})`, 
+                transformOrigin: '0 0',
+                display: 'flex'
+            }}>
+                <img 
+                    src={imageSrc} 
+                    alt="Minimap A" 
+                    className="block max-w-none opacity-40"
+                    draggable={false}
+                />
+                {imageSrcB && (
+                    <img 
+                        src={imageSrcB} 
+                        alt="Minimap B" 
+                        className="block max-w-none opacity-40 ml-12" // ml-12 matches 3rem (48px)
+                        style={{ marginLeft: '48px' }}
+                        draggable={false}
+                    />
+                )}
+            </div>
+
             {/* Viewport Rectangle */}
             <div 
                 className="absolute border border-blue-400 bg-blue-400/20 shadow-[0_0_10px_rgba(96,165,250,0.5)] pointer-events-none z-10"
