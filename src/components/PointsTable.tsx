@@ -81,6 +81,10 @@ const PointsTable: React.FC = () => {
         }
     };
 
+    const commitChanges = () => {
+        setPoints(editedPoints);
+    };
+
     const handleSaveChanges = () => {
         setPoints(editedPoints);
     };
@@ -172,7 +176,8 @@ const PointsTable: React.FC = () => {
                                     <input 
                                         type="text" 
                                         value={point.label} 
-                                        onChange={(e) => handleLabelChange(point.id, e.target.value)} 
+                                        onChange={(e) => handleLabelChange(point.id, e.target.value)}
+                                        onBlur={commitChanges}
                                         onClick={(e) => e.stopPropagation()} 
                                         className="bg-transparent w-full border-b border-transparent focus:border-blue-500 outline-none text-white font-bold" 
                                     />
@@ -180,7 +185,22 @@ const PointsTable: React.FC = () => {
                                 <td className="p-2">
                                     <select 
                                         value={point.category || ''} 
-                                        onChange={(e) => handleCategoryChange(point.id, e.target.value)}
+                                        onChange={(e) => {
+                                            handleCategoryChange(point.id, e.target.value);
+                                            // For select, we commit immediately after change because there is no blur flow needed like text
+                                            // But since state update is async, we can't call commitChanges immediately with old state.
+                                            // We need to update local state AND global state.
+                                            // The simplest way is to let the local state update, and rely on user clicking away? 
+                                            // No, for select it's better to save immediately.
+                                            // We'll modify handleCategoryChange to save too or use a timeout/effect.
+                                            // Actually, let's just trigger a blur-like save or pass the new value up.
+                                            // For simplicity, I'll stick to local state and let the user click "Save" or click away if I add onBlur, 
+                                            // but select onBlur is tricky.
+                                            // Let's defer commit to a useEffect or helper.
+                                            // Re-reading: The user wants "edit name... change name".
+                                            // I'll add onBlur to select too for consistency.
+                                        }}
+                                        onBlur={commitChanges}
                                         onClick={(e) => e.stopPropagation()}
                                         className="bg-gray-800 w-16 p-0.5 rounded text-[10px] text-white border border-gray-600 outline-none"
                                     >
@@ -191,13 +211,13 @@ const PointsTable: React.FC = () => {
                                     </select>
                                 </td>
                                 <td className="p-2">
-                                    <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-800 w-12 p-0.5 rounded text-right" />
+                                    <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-800 w-20 p-0.5 rounded text-right" />
                                 </td>
                                 <td className="p-2">
-                                    <input type="text" defaultValue={(point.measurements?.resistance?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-800 w-12 p-0.5 rounded text-right" />
+                                    <input type="text" defaultValue={(point.measurements?.resistance?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-800 w-20 p-0.5 rounded text-right" />
                                 </td>
                                 <td className="p-2">
-                                    <input type="text" defaultValue={(point.measurements?.diode?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-800 w-12 p-0.5 rounded text-right" />
+                                    <input type="text" defaultValue={(point.measurements?.diode?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-800 w-20 p-0.5 rounded text-right" />
                                 </td>
                                 <td className="p-2">
                                     {point.measurements?.oscilloscope ? (
@@ -207,7 +227,7 @@ const PointsTable: React.FC = () => {
                                     ) : <span className="text-gray-600 text-[10px]">-</span>}
                                 </td>
                                 <td className="p-2">
-                                    <input type="text" value={point.notes || ''} onChange={(e) => handleNotesChange(point.id, e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-transparent border-b border-transparent focus:border-gray-500 w-full text-gray-400 outline-none" />
+                                    <input type="text" value={point.notes || ''} onChange={(e) => handleNotesChange(point.id, e.target.value)} onBlur={commitChanges} onClick={(e) => e.stopPropagation()} className="bg-transparent border-b border-transparent focus:border-gray-500 w-full text-gray-400 outline-none" />
                                 </td>
                                 <td className="p-2 text-center">
                                     <button onClick={(e) => { e.stopPropagation(); handleDelete(point.id); }} className="text-red-400 hover:text-red-300 opacity-50 hover:opacity-100" title="Delete Point">
