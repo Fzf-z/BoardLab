@@ -142,7 +142,7 @@ export function generateReportHtml(project: Project, points: Point[], dims?: { w
     const renderPointsList = (pts: Point[], sideLabel: string) => {
         if (pts.length === 0) return `<p>No hay puntos registrados en el ${sideLabel}.</p>`;
 
-        return pts.map((p, index) => {
+        return pts.map((p) => {
             let measurementsHtml = '<p><em>No measurements recorded.</em></p>';
             if (p.measurements && Object.keys(p.measurements).length > 0) {
                 measurementsHtml = Object.entries(p.measurements).map(([type, data]) => `

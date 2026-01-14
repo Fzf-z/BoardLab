@@ -222,11 +222,11 @@ ipcMain.handle('load-app-settings', () => store.get('appSettings'));
 // Exportación
 ipcMain.handle('exportPdf', async (event, projectId) => {
     try {
-        const project = await dbQuery('db:get-project-with-image', projectId);
+        const project = await dbQuery('db:get-project-with-image', projectId) as any;
         if (!project) {
             throw new Error(`Project with ID ${projectId} not found.`);
         }
-        const pointsWithMeasurements = await dbQuery('db:get-points', projectId);
+        const pointsWithMeasurements = await dbQuery('db:get-points', projectId) as any[];
 
         // Name format: BoardLab_"Project Name"_Fecha.pdf
         const sanitizedProjectName = (project.board_model || 'Project').replace(/[^a-z0-9]/gi, '_');
@@ -270,34 +270,44 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
         const htmlContent = generateReportHtml(project, pointsWithMeasurements, dims);
 
         // Create a hidden window to render the HTML
-        const printWindow = new BrowserWindow({ 
-            show: false,
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true
-            }
-        });
-
+        let printWindow: BrowserWindow | null = null;
         const tempHtmlPath = path.join(app.getPath('temp'), `boardlab_report_${Date.now()}.html`);
-        fs.writeFileSync(tempHtmlPath, htmlContent);
-        
-        await printWindow.loadFile(tempHtmlPath);
-        
-        // Wait for client-side scripts to position elements (overlays)
-        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        const pdfData = await printWindow.webContents.printToPDF({
-            printBackground: true,
-            pageSize: 'A4'
-        });
+        try {
+            printWindow = new BrowserWindow({ 
+                show: false,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true
+                }
+            });
 
-        fs.writeFileSync(filePath, pdfData);
-        
-        // Cleanup
-        printWindow.close();
-        try { fs.unlinkSync(tempHtmlPath); } catch(e) { console.warn('Failed to clean temp file', e); }
+            fs.writeFileSync(tempHtmlPath, htmlContent);
+            
+            await printWindow.loadFile(tempHtmlPath);
+            
+            // Wait for client-side scripts to position elements (overlays)
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-        return { status: 'success', filePath };
+            const pdfData = await printWindow.webContents.printToPDF({
+                printBackground: true,
+                pageSize: 'A4'
+            });
+
+            fs.writeFileSync(filePath, pdfData);
+            
+            return { status: 'success', filePath };
+
+        } finally {
+            if (printWindow) {
+                printWindow.close();
+            }
+            try { 
+                if (fs.existsSync(tempHtmlPath)) fs.unlinkSync(tempHtmlPath); 
+            } catch(e) { 
+                console.warn('Failed to clean temp file', e); 
+            }
+        }
     } catch (error: any) {
         console.error('Failed to generate PDF:', error);
         return { status: 'error', message: error.message };

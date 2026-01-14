@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["electron", "vite.config.mjs"]
+  "include": ["electron", "vite.config.mjs", "src/report-generator.ts", "src/types.ts"]
 }

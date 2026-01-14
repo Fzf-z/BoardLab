@@ -289,7 +289,7 @@ function generateReportHtml(project, points, dims) {
   };
   const renderPointsList = (pts, sideLabel) => {
     if (pts.length === 0) return `<p>No hay puntos registrados en el ${sideLabel}.</p>`;
-    return pts.map((p, index) => {
+    return pts.map((p) => {
       let measurementsHtml = "<p><em>No measurements recorded.</em></p>";
       if (p.measurements && Object.keys(p.measurements).length > 0) {
         measurementsHtml = Object.entries(p.measurements).map(([type, data]) => `
@@ -634,29 +634,35 @@ electron.ipcMain.handle("exportPdf", async (event, projectId) => {
       console.error("Error calculating image dimensions:", e);
     }
     const htmlContent = generateReportHtml(project, pointsWithMeasurements, dims);
-    const printWindow = new electron.BrowserWindow({
-      show: false,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true
-      }
-    });
+    let printWindow = null;
     const tempHtmlPath = path.join(electron.app.getPath("temp"), `boardlab_report_${Date.now()}.html`);
-    fs.writeFileSync(tempHtmlPath, htmlContent);
-    await printWindow.loadFile(tempHtmlPath);
-    await new Promise((resolve) => setTimeout(resolve, 1e3));
-    const pdfData = await printWindow.webContents.printToPDF({
-      printBackground: true,
-      pageSize: "A4"
-    });
-    fs.writeFileSync(filePath, pdfData);
-    printWindow.close();
     try {
-      fs.unlinkSync(tempHtmlPath);
-    } catch (e) {
-      console.warn("Failed to clean temp file", e);
+      printWindow = new electron.BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      });
+      fs.writeFileSync(tempHtmlPath, htmlContent);
+      await printWindow.loadFile(tempHtmlPath);
+      await new Promise((resolve) => setTimeout(resolve, 1e3));
+      const pdfData = await printWindow.webContents.printToPDF({
+        printBackground: true,
+        pageSize: "A4"
+      });
+      fs.writeFileSync(filePath, pdfData);
+      return { status: "success", filePath };
+    } finally {
+      if (printWindow) {
+        printWindow.close();
+      }
+      try {
+        if (fs.existsSync(tempHtmlPath)) fs.unlinkSync(tempHtmlPath);
+      } catch (e) {
+        console.warn("Failed to clean temp file", e);
+      }
     }
-    return { status: "success", filePath };
   } catch (error) {
     console.error("Failed to generate PDF:", error);
     return { status: "error", message: error.message };
