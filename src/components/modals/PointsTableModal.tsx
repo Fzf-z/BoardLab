@@ -65,6 +65,12 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
         );
     };
 
+    const handleSideChange = (pointId: string | number, newSide: 'A' | 'B') => {
+        setEditedPoints(currentPoints =>
+            currentPoints.map(p => (p.id === pointId ? { ...p, side: newSide } : p))
+        );
+    };
+
     const handleLabelChange = (pointId: string | number, newLabel: string) => {
         setEditedPoints(currentPoints =>
             currentPoints.map(p => (p.id === pointId ? { ...p, label: newLabel } : p))
@@ -100,7 +106,7 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
 
     const sortedAndFilteredPoints = [...filteredPoints].sort((a, b) => {
         let compareA: any, compareB: any;
-        if (sortColumn === 'label' || sortColumn === 'notes' || sortColumn === 'category') {
+        if (sortColumn === 'label' || sortColumn === 'notes' || sortColumn === 'category' || sortColumn === 'side') {
             compareA = (a as any)[sortColumn] || '';
             compareB = (b as any)[sortColumn] || '';
             return sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
@@ -143,6 +149,7 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
                         <thead>
                             <tr className="bg-gray-700">
                                 <th className="p-3 w-12 text-right">#</th>
+                                <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('side')}>Side <SortIcon column="side" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('label')}>Label <SortIcon column="label" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('category')}>Categ <SortIcon column="category" /></th>
                                 <th className="p-3 cursor-pointer hover:bg-gray-600" onClick={() => handleSort('voltage')}>Voltage <SortIcon column="voltage" /></th>
@@ -162,6 +169,11 @@ const PointsTableModal: React.FC<PointsTableModalProps> = ({ onClose }) => {
                                     onClick={() => setSelectedPointId(point.id)}
                                 >
                                     <td className="px-4 py-2 text-right">{sortedAndFilteredPoints.length - index}</td>
+                                    <td className="px-4 py-2">
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${point.side === 'B' ? 'bg-purple-900 text-purple-200' : 'bg-blue-900 text-blue-200'}`}>
+                                            {point.side || 'A'}
+                                        </span>
+                                    </td>
                                     <td className="px-4 py-2">
                                         <input 
                                             type="text" 

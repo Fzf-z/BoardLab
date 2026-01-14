@@ -16,6 +16,7 @@ interface UndoableState<T> {
 export const useBoard = () => {
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const [imageSrcB, setImageSrcB] = useState<string | null>(null);
+    const [imageAWidth, setImageAWidth] = useState<number>(0);
     const [pointsState, setPointsState] = useState<UndoableState<Point[]>>({
         past: [],
         present: [],
@@ -118,6 +119,7 @@ export const useBoard = () => {
                     const totalHeight = Math.max(heightA, heightB);
 
                     setImageDimensions({ width: totalWidth, height: totalHeight });
+                    setImageAWidth(widthA);
                     
                     if (totalWidth === 0 || totalHeight === 0 || container.clientWidth === 0 || container.clientHeight === 0) {
                         return;
@@ -264,6 +266,13 @@ export const useBoard = () => {
             const x = (clickX - position.x) / scale;
             const y = (clickY - position.y) / scale;
             
+            // Determine side based on X coordinate
+            // If we have Image B, check if X is past Image A width
+            let side: 'A' | 'B' = 'A';
+            if (imageSrcB && imageAWidth > 0 && x > imageAWidth) {
+                side = 'B';
+            }
+
             const newPoint: Point = {
                 id: `temp-${Date.now()}`,
                 project_id: projectId,
@@ -271,6 +280,7 @@ export const useBoard = () => {
                 y,
                 label: `TP${points.length + 1}`,
                 type: 'voltage',
+                side: side,
                 notes: '',
                 measurements: {}
             };
