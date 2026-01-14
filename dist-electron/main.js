@@ -1,6 +1,7 @@
 "use strict";
 const electron = require("electron");
 const path = require("path");
+const fs = require("fs");
 const worker_threads = require("worker_threads");
 const Store = require("electron-store");
 const net = require("net");
@@ -487,11 +488,27 @@ electron.ipcMain.handle("exportPdf", async (event, projectId) => {
     }
     const pointsWithMeasurements = await dbQuery("db:get-points", projectId);
     const htmlContent = generateReportHtml(project, pointsWithMeasurements);
-    const browser = await puppeteer.launch({ headless: true });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
-    await page.pdf({ path: filePath, format: "A4", printBackground: true });
-    await browser.close();
+    const printWindow = new electron.BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    const tempHtmlPath = path.join(electron.app.getPath("temp"), `boardlab_report_${Date.now()}.html`);
+    fs.writeFileSync(tempHtmlPath, htmlContent);
+    await printWindow.loadFile(tempHtmlPath);
+    const pdfData = await printWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: "A4"
+    });
+    fs.writeFileSync(filePath, pdfData);
+    printWindow.close();
+    try {
+      fs.unlinkSync(tempHtmlPath);
+    } catch (e) {
+      console.warn("Failed to clean temp file", e);
+    }
     return { status: "success", filePath };
   } catch (error) {
     console.error("Failed to generate PDF:", error);

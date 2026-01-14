@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { Worker } from 'worker_threads';
 import Store from 'electron-store';
 import net from 'net';
@@ -220,16 +221,6 @@ ipcMain.handle('load-app-settings', () => store.get('appSettings'));
 
 // Exportación
 ipcMain.handle('exportPdf', async (event, projectId) => {
-  const { canceled, filePath } = await dialog.showSaveDialog({
-    title: 'Save Report as PDF',
-    defaultPath: `boardlab-report-${projectId}-${Date.now()}.pdf`,
-    filters: [{ name: 'PDF Documents', extensions: ['pdf'] }]
-  });
-
-  if (canceled || !filePath) {
-    return { status: 'cancelled' };
-  }
-
     try {
         const project = await dbQuery('db:get-project-with-image', projectId);
         if (!project) {
@@ -237,13 +228,48 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
         }
         const pointsWithMeasurements = await dbQuery('db:get-points', projectId);
 
+        // Name format: BoardLab_"Project Name"_Fecha.pdf
+        const sanitizedProjectName = (project.board_model || 'Project').replace(/[^a-z0-9]/gi, '_');
+        const date = new Date();
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const defaultFilename = `BoardLab_${sanitizedProjectName}_${dateStr}.pdf`;
+
+        const { canceled, filePath } = await dialog.showSaveDialog({
+            title: 'Save Report as PDF',
+            defaultPath: defaultFilename,
+            filters: [{ name: 'PDF Documents', extensions: ['pdf'] }]
+        });
+
+        if (canceled || !filePath) {
+            return { status: 'cancelled' };
+        }
+
         const htmlContent = generateReportHtml(project, pointsWithMeasurements);
 
-        const browser = await puppeteer.launch({ headless: true });
-        const page = await browser.newPage();
-        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-        await page.pdf({ path: filePath, format: 'A4', printBackground: true });
-        await browser.close();
+        // Create a hidden window to render the HTML
+        const printWindow = new BrowserWindow({ 
+            show: false,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            }
+        });
+
+        const tempHtmlPath = path.join(app.getPath('temp'), `boardlab_report_${Date.now()}.html`);
+        fs.writeFileSync(tempHtmlPath, htmlContent);
+        
+        await printWindow.loadFile(tempHtmlPath);
+        
+        const pdfData = await printWindow.webContents.printToPDF({
+            printBackground: true,
+            pageSize: 'A4'
+        });
+
+        fs.writeFileSync(filePath, pdfData);
+        
+        // Cleanup
+        printWindow.close();
+        try { fs.unlinkSync(tempHtmlPath); } catch(e) { console.warn('Failed to clean temp file', e); }
 
         return { status: 'success', filePath };
     } catch (error: any) {

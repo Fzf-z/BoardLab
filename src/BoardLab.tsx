@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useProject } from './contexts/ProjectContext';
+import { useNotifier } from './contexts/NotifierContext';
 import { useGemini } from './hooks/useGemini';
 import { useHardware } from './hooks/useHardware';
 import { InstrumentConfig, Project } from './types';
@@ -23,6 +24,7 @@ const BoardLab: React.FC = () => {
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState<boolean>(false);
     const [isComparisonModalOpen, setComparisonModalOpen] = useState<boolean>(false);
     const [comparisonPoint, setComparisonPoint] = useState<any>(null);
+    const { showNotification } = useNotifier();
 
     // Global Project State - Consumed from context
     const {
@@ -145,6 +147,31 @@ const BoardLab: React.FC = () => {
         setNewProjectModalOpen(false);
     };
 
+    const handleExportPdf = async () => {
+        if (!currentProject) {
+            showNotification('No project open to export', 'warning');
+            return;
+        }
+
+        if (hardware.isElectron && window.electronAPI) {
+            try {
+                showNotification('Generating PDF...', 'info');
+                const result = await window.electronAPI.exportPdf(currentProject.id);
+                if (result.status === 'success') {
+                    showNotification(`Report saved to ${result.filePath}`, 'success');
+                } else if (result.status === 'cancelled') {
+                   // User cancelled
+                } else {
+                    showNotification(`Export failed: ${result.message}`, 'error');
+                }
+            } catch (error: any) {
+                showNotification(`Export error: ${error.message}`, 'error');
+            }
+        } else {
+            showNotification('PDF Export is only available in Desktop App', 'warning');
+        }
+    };
+
 
     return (
         <div className="flex h-screen bg-gray-900 text-gray-100 font-sans">
@@ -157,7 +184,7 @@ const BoardLab: React.FC = () => {
                 onNewProject={() => setNewProjectModalOpen(true)}
                 onOpenProject={handleOpenProject}
                 onSaveProject={saveProject}
-                onExportPdf={() => { /* Logic to be added */ }}
+                onExportPdf={handleExportPdf}
                 onStartSequence={startSequence}
             />
             <input

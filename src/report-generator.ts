@@ -79,48 +79,67 @@ function renderMeasurementValue(measurement: MeasurementValue): string {
 }
 
 export function generateReportHtml(project: Project, points: Point[]): string {
-    const imageAsBase64 = project.image_data 
+    const imageA = project.image_data 
         ? `data:image/png;base64,${bufferToBase64(project.image_data)}` 
-        : '';
+        : null;
+    const imageB = project.image_data_b 
+        ? `data:image/png;base64,${bufferToBase64(project.image_data_b)}` 
+        : null;
     
+    // Attributes processing
     let attributesHtml = '<li>No attributes defined.</li>';
     if (project.attributes) {
         let attrs: Record<string, any> = {};
         if (typeof project.attributes === 'string') {
             try { attrs = JSON.parse(project.attributes); } catch (e) {}
         } else {
-            // @ts-ignore: In case it's already an object
+            // @ts-ignore
             attrs = project.attributes;
         }
-        attributesHtml = Object.entries(attrs).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('');
+        if (Object.keys(attrs).length > 0) {
+            attributesHtml = Object.entries(attrs).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('');
+        }
     }
 
-    const pointsHtml = points.map((p, index) => {
-        let measurementsHtml = '<p><em>No measurements recorded.</em></p>';
-        if (p.measurements && Object.keys(p.measurements).length > 0) {
-            measurementsHtml = Object.entries(p.measurements).map(([type, data]) => `
-                <div style="margin-bottom: 15px; border-left: 3px solid #ddd; padding-left: 10px;">
-                    <div style="font-weight: bold; text-transform: capitalize; color: #555;">${type}</div>
-                    <div style="margin-top: 5px;">${renderMeasurementValue(data)}</div>
-                    <div style="font-size: 10px; color: #888; margin-top: 2px;">Captured: ${data.capturedAt ? new Date(data.capturedAt).toLocaleString() : 'N/A'}</div>
-                </div>
-            `).join('');
-        }
+    // Notes processing
+    const notesHtml = project.notes 
+        ? `<div class="notes-section"><h3>Notas del Proyecto</h3><p>${project.notes.replace(/\n/g, '<br>')}</p></div>` 
+        : '';
 
-        const pointX = (p.x * 1).toFixed(0); 
-        const pointY = (p.y * 1).toFixed(0);
+    // Split points by Side
+    const pointsA = points.filter(p => !p.side || p.side === 'A');
+    const pointsB = points.filter(p => p.side === 'B');
 
-        return `
-            <div class="point-section">
-                <h3>Point ${index + 1}: ${p.label} <span style="font-size: 12px; font-weight: normal; color: #666;">(X:${pointX}, Y:${pointY})</span></h3>
-                ${p.notes ? `<p style="background: #fff3cd; padding: 10px; border-radius: 4px; font-style: italic;"><strong>Note:</strong> ${p.notes}</p>` : ''}
-                <div style="margin-top: 10px;">
-                    ${measurementsHtml}
+    const renderPointsList = (pts: Point[], sideLabel: string) => {
+        if (pts.length === 0) return `<p>No hay puntos registrados en el ${sideLabel}.</p>`;
+
+        return pts.map((p, index) => {
+            let measurementsHtml = '<p><em>No measurements recorded.</em></p>';
+            if (p.measurements && Object.keys(p.measurements).length > 0) {
+                measurementsHtml = Object.entries(p.measurements).map(([type, data]) => `
+                    <div style="margin-bottom: 15px; border-left: 3px solid #ddd; padding-left: 10px;">
+                        <div style="font-weight: bold; text-transform: capitalize; color: #555;">${type}</div>
+                        <div style="margin-top: 5px;">${renderMeasurementValue(data)}</div>
+                        <div style="font-size: 10px; color: #888; margin-top: 2px;">Captured: ${data.capturedAt ? new Date(data.capturedAt).toLocaleString() : 'N/A'}</div>
+                    </div>
+                `).join('');
+            }
+
+            const pointX = (p.x * 1).toFixed(0); 
+            const pointY = (p.y * 1).toFixed(0);
+
+            return `
+                <div class="point-section">
+                    <h3>Punto ${p.label} <span style="font-size: 12px; font-weight: normal; color: #666;">(X:${pointX}, Y:${pointY})</span></h3>
+                    ${p.notes ? `<p style="background: #fff3cd; padding: 10px; border-radius: 4px; font-style: italic;"><strong>Nota:</strong> ${p.notes}</p>` : ''}
+                    <div style="margin-top: 10px;">
+                        ${measurementsHtml}
+                    </div>
+                    <hr style="border: 0; border-top: 1px dashed #ddd; margin: 20px 0;">
                 </div>
-                <hr style="border: 0; border-top: 1px dashed #ddd; margin: 20px 0;">
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+    };
 
     return `
         <!DOCTYPE html>
@@ -132,32 +151,49 @@ export function generateReportHtml(project: Project, points: Point[]): string {
                 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; color: #333; }
                 h1, h2, h3 { color: #000; }
                 h1 { font-size: 28px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
-                h2 { font-size: 22px; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-top: 40px; }
-                h3 { font-size: 18px; }
+                h2 { font-size: 22px; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-top: 40px; background-color: #f0f0f0; padding: 10px; border-radius: 5px; }
+                h3 { font-size: 18px; color: #444; }
                 .project-details { background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
                 .project-details ul { list-style: none; padding: 0; }
+                .notes-section { background-color: #fff8e1; padding: 15px; border-radius: 5px; border: 1px solid #ffeeba; margin-top: 15px; }
                 .point-section { margin-bottom: 30px; page-break-inside: avoid; }
-                .board-image { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; }
+                .board-image { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; margin-bottom: 20px; display: block; }
+                .side-section { margin-bottom: 50px; page-break-after: always; }
+                .side-section:last-child { page-break-after: auto; }
                 table { width: 100%; border-collapse: collapse; margin-top: 15px; }
                 th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; }
                 th { background-color: #f2f2f2; }
-                tr:nth-child(even) { background-color: #f9f9f9; }
                 pre { margin: 0; padding: 0; font-size: 12px; white-space: pre-wrap; word-wrap: break-word; }
             </style>
         </head>
         <body>
             <h1>Reporte de Diagnóstico</h1>
             <div class="project-details">
-                <h2>${project.board_type} - ${project.board_model}</h2>
-                <ul>${attributesHtml}</ul>
+                <h2>Información del Proyecto</h2>
+                <ul>
+                    <li><strong>Modelo:</strong> ${project.board_model}</li>
+                    <li><strong>Tipo:</strong> ${project.board_type}</li>
+                    ${attributesHtml}
+                </ul>
+                ${notesHtml}
                 <p><i>Generado el: ${new Date().toLocaleString()}</i></p>
             </div>
 
-            <h2>Imagen de la Placa</h2>
-            ${imageAsBase64 ? `<img src="${imageAsBase64}" class="board-image" />` : '<p>No image available.</p>'}
+            <!-- SIDE A -->
+            <div class="side-section">
+                <h2>Lado A (Top)</h2>
+                ${imageA ? `<img src="${imageA}" class="board-image" alt="Side A" />` : '<p>No hay imagen para el Lado A.</p>'}
+                ${renderPointsList(pointsA, 'Lado A')}
+            </div>
 
-            <h2>Puntos de Medición</h2>
-            ${pointsHtml || '<p>No measurement points recorded.</p>'}
+            <!-- SIDE B -->
+            ${ (imageB || pointsB.length > 0) ? `
+            <div class="side-section">
+                <h2>Lado B (Bottom)</h2>
+                ${imageB ? `<img src="${imageB}" class="board-image" alt="Side B" />` : '<p>No hay imagen para el Lado B.</p>'}
+                ${renderPointsList(pointsB, 'Lado B')}
+            </div>
+            ` : ''}
         </body>
         </html>
     `;
