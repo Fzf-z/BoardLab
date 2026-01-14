@@ -29,7 +29,6 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
 
     // Autocomplete states
     const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
-    const [showPointSuggestions, setShowPointSuggestions] = useState(false);
 
     const uniqueBoardTypes = Array.from(new Set(projectList.map(p => p.board_type))).filter(Boolean);
     

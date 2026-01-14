@@ -3,6 +3,8 @@ import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit, 
 import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, MeasurementValue, Point } from '../types';
 import Waveform from './Waveform';
+import PointsTable from './PointsTable';
+import { LayoutList, Sidebar } from 'lucide-react';
 
 interface AIPanelProps {
     askAboutPoint: (point: Point) => void;
@@ -36,6 +38,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
     const [history, setHistory] = useState<any[]>([]); 
     const [referenceWaveform, setReferenceWaveform] = useState<any>(null);
+    const [activeTab, setActiveTab] = useState<'detail' | 'table'>('detail');
 
     useEffect(() => {
         if (comparisonPoint && comparisonPoint.type === 'oscilloscope' && comparisonPoint.measurements?.oscilloscope) {
@@ -137,13 +140,28 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
     return (
         <div className="w-82 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
-            <div className="p-4 border-b border-gray-700">
-                <h2 className="text-lg font-bold text-white flex items-center">
-                    <Activity className="mr-2 text-blue-400" />
-                    Datos del Punto
-                </h2>
+            <div className="flex border-b border-gray-700">
+                <button 
+                    onClick={() => setActiveTab('detail')}
+                    className={`flex-1 py-3 text-sm font-bold flex items-center justify-center transition-colors ${activeTab === 'detail' ? 'bg-gray-800 text-blue-400 border-b-2 border-blue-400' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}
+                >
+                    <Activity size={16} className="mr-2" />
+                    Datos
+                </button>
+                <button 
+                    onClick={() => setActiveTab('table')}
+                    className={`flex-1 py-3 text-sm font-bold flex items-center justify-center transition-colors ${activeTab === 'table' ? 'bg-gray-800 text-blue-400 border-b-2 border-blue-400' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}
+                >
+                    <LayoutList size={16} className="mr-2" />
+                    Tabla
+                </button>
             </div>
 
+            {activeTab === 'table' ? (
+                <div className="flex-1 overflow-hidden h-full">
+                    <PointsTable />
+                </div>
+            ) : (
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {!selectedPoint ? (
                     <div className="text-gray-500 text-center mt-10 text-sm">Selecciona un punto.</div>
@@ -313,8 +331,9 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     </div>
                 )}
             </div>
+            )}
 
-            {points.length > 0 && (
+            {points.length > 0 && activeTab === 'detail' && (
                 <div className="p-4 border-t border-gray-700">
                     <button onClick={() => analyzeBoard(points)} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-2 rounded shadow-lg flex items-center justify-center space-x-2">
                         <Sparkles size={16} />

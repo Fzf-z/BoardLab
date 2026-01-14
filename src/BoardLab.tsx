@@ -11,7 +11,6 @@ import BoardView from './components/BoardView';
 import AIPanel from './components/AIPanel';
 import SequencerPanel from './components/SequencerPanel';
 import Settings from './components/Settings';
-import PointsTableModal from './components/modals/PointsTableModal';
 import ProjectManagerModal from './components/modals/ProjectManagerModal';
 import AIModal from './components/modals/AIModal';
 import NewProjectModal from './components/modals/NewProjectModal';
@@ -20,7 +19,6 @@ import ComparisonModal from './components/modals/ComparisonModal';
 const BoardLab: React.FC = () => {
     // UI State - Stays in this component
     const [mode, setMode] = useState<'view' | 'measure'>('view');
-    const [pointsTableOpen, setPointsTableOpen] = useState<boolean>(false);
     const [isProjectManagerOpen, setProjectManagerOpen] = useState<boolean>(false);
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState<boolean>(false);
     const [isComparisonModalOpen, setComparisonModalOpen] = useState<boolean>(false);
@@ -97,7 +95,6 @@ const BoardLab: React.FC = () => {
             if (key === 'ESCAPE') {
                 if (isNewProjectModalOpen) setNewProjectModalOpen(false);
                 else if (isProjectManagerOpen) setProjectManagerOpen(false);
-                else if (pointsTableOpen) setPointsTableOpen(false);
                 else if (board.selectedPointId) board.setSelectedPointId(null);
             }
 
@@ -124,7 +121,7 @@ const BoardLab: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [mode, board.selectedPointId, board.selectedPoint, hardware.isCapturing, isNewProjectModalOpen, isProjectManagerOpen, pointsTableOpen, sequence.active]);
+    }, [mode, board.selectedPointId, board.selectedPoint, hardware.isCapturing, isNewProjectModalOpen, isProjectManagerOpen, sequence.active]);
 
     // Load API key and settings on mount
     useEffect(() => {
@@ -247,11 +244,7 @@ const BoardLab: React.FC = () => {
                 />
             )}
 
-            {pointsTableOpen && (
-                <PointsTableModal
-                    onClose={() => setPointsTableOpen(false)}
-                />
-            )}
+
 
             <AIModal
                 isOpen={gemini.aiModalOpen}
