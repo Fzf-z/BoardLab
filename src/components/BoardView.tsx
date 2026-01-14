@@ -170,7 +170,8 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                         style={{ 
                             transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`, 
                             transformOrigin: '0 0',
-                            willChange: 'transform' // Optimization
+                            willChange: 'transform',
+                            backfaceVisibility: 'hidden', // Optimization: GPU Layer
                         }}
                         className="absolute top-0 left-0"
                     >
@@ -182,8 +183,10 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                     alt="Board Side A" 
                                     className="block max-w-none select-none shadow-2xl"
                                     draggable={false}
+                                    decoding="async" // Optimization: Async Decode
+                                    loading="eager"
                                 />
-                                <div className="absolute top-2 left-2 bg-blue-600/80 text-white text-2xl px-2 py-1 rounded backdrop-blur-sm">Side A</div>
+                                <div className="absolute top-2 left-2 bg-blue-600/80 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">Side A</div>
                             </div>
 
                             {/* Side B (if exists) */}
@@ -194,8 +197,10 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                         alt="Board Side B" 
                                         className="block max-w-none select-none shadow-2xl"
                                         draggable={false}
+                                        decoding="async" // Optimization: Async Decode
+                                        loading="eager"
                                     />
-                                    <div className="absolute top-2 left-14 bg-purple-600/80 text-white text-2xl px-2 py-1 rounded backdrop-blur-sm">Side B</div>
+                                    <div className="absolute top-2 left-14 bg-purple-600/80 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">Side B</div>
                                 </div>
                             )}
                         </div>
