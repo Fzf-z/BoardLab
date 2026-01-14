@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { Worker } from 'worker_threads';
@@ -244,7 +244,30 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
             return { status: 'cancelled' };
         }
 
-        const htmlContent = generateReportHtml(project, pointsWithMeasurements);
+        // Calculate image dimensions for overlay positioning
+        const dims: any = {};
+        try {
+            if (project.image_data) {
+                const img = nativeImage.createFromBuffer(Buffer.from(project.image_data));
+                const size = img.getSize();
+                if (size.width > 0 && size.height > 0) {
+                    dims.widthA = size.width;
+                    dims.heightA = size.height;
+                }
+            }
+            if (project.image_data_b) {
+                const img = nativeImage.createFromBuffer(Buffer.from(project.image_data_b));
+                const size = img.getSize();
+                if (size.width > 0 && size.height > 0) {
+                    dims.widthB = size.width;
+                    dims.heightB = size.height;
+                }
+            }
+        } catch (e) {
+            console.error("Error calculating image dimensions:", e);
+        }
+
+        const htmlContent = generateReportHtml(project, pointsWithMeasurements, dims);
 
         // Create a hidden window to render the HTML
         const printWindow = new BrowserWindow({ 
@@ -260,6 +283,9 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
         
         await printWindow.loadFile(tempHtmlPath);
         
+        // Wait for client-side scripts to position elements (overlays)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         const pdfData = await printWindow.webContents.printToPDF({
             printBackground: true,
             pageSize: 'A4'

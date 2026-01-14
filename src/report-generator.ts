@@ -78,7 +78,7 @@ function renderMeasurementValue(measurement: MeasurementValue): string {
     return String(measurement.value ?? '');
 }
 
-export function generateReportHtml(project: Project, points: Point[]): string {
+export function generateReportHtml(project: Project, points: Point[], dims?: { widthA: number, heightA: number, widthB?: number, heightB?: number }): string {
     const imageA = project.image_data 
         ? `data:image/png;base64,${bufferToBase64(project.image_data)}` 
         : null;
@@ -109,6 +109,35 @@ export function generateReportHtml(project: Project, points: Point[]): string {
     // Split points by Side
     const pointsA = points.filter(p => !p.side || p.side === 'A');
     const pointsB = points.filter(p => p.side === 'B');
+
+    const renderBoardWithOverlays = (imgSrc: string | null, pts: Point[], width?: number, height?: number, side: 'A' | 'B' = 'A') => {
+        if (!imgSrc) return '<p>No hay imagen disponible.</p>';
+        
+        // Calculate offset for Side B points based on Side A width
+        // If Side B, the X coordinate in DB includes (WidthA + 48px gap)
+        const gap = 48;
+        const offset = (side === 'B' && dims?.widthA) ? (dims.widthA + gap) : 0;
+
+        const overlays = pts.map(p => {
+            // Calculate position server-side if dimensions are available
+            let style = 'left: 0; top: 0; z-index: 10;';
+            if (width && height && width > 0 && height > 0) {
+                 const adjustedX = p.x - offset;
+                 const left = (adjustedX / width) * 100;
+                 const top = (p.y / height) * 100;
+                 style = `left: ${left}%; top: ${top}%; z-index: 10;`;
+            }
+            
+            return `<div class="board-overlay-point" data-x="${p.x}" data-y="${p.y}" style="${style}">${p.label}</div>`;
+        }).join('');
+
+        return `
+            <div class="board-container" style="position: relative;" data-side="${side}">
+                <img src="${imgSrc}" class="board-image" onload="positionOverlays(this)" style="max-width: 100%;" data-side="${side}" />
+                ${overlays}
+            </div>
+        `;
+    };
 
     const renderPointsList = (pts: Point[], sideLabel: string) => {
         if (pts.length === 0) return `<p>No hay puntos registrados en el ${sideLabel}.</p>`;
@@ -157,7 +186,22 @@ export function generateReportHtml(project: Project, points: Point[]): string {
                 .project-details ul { list-style: none; padding: 0; }
                 .notes-section { background-color: #fff8e1; padding: 15px; border-radius: 5px; border: 1px solid #ffeeba; margin-top: 15px; }
                 .point-section { margin-bottom: 30px; page-break-inside: avoid; }
-                .board-image { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px; margin-bottom: 20px; display: block; }
+                
+                /* Board Overlay Styles */
+                .board-container { position: relative; display: inline-block; width: 100%; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 8px; }
+                .board-image { width: 100%; height: auto; display: block; }
+                .board-overlay-point { 
+                    position: absolute; 
+                    transform: translate(-50%, -50%); 
+                    width: 24px; height: 24px; 
+                    border: 2px solid #ef4444; 
+                    border-radius: 50%; 
+                    background: rgba(255, 255, 255, 0.8); 
+                    display: flex; align-items: center; justify-content: center; 
+                    font-size: 11px; font-weight: bold; color: #ef4444; 
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                }
+
                 .side-section { margin-bottom: 50px; page-break-after: always; }
                 .side-section:last-child { page-break-after: auto; }
                 table { width: 100%; border-collapse: collapse; margin-top: 15px; }
@@ -165,6 +209,65 @@ export function generateReportHtml(project: Project, points: Point[]): string {
                 th { background-color: #f2f2f2; }
                 pre { margin: 0; padding: 0; font-size: 12px; white-space: pre-wrap; word-wrap: break-word; }
             </style>
+            <script>
+                function positionOverlays(imgElement) {
+                    const container = imgElement.parentElement;
+                    const side = imgElement.getAttribute('data-side');
+                    
+                    const updatePositions = () => {
+                        const w = imgElement.naturalWidth;
+                        const h = imgElement.naturalHeight;
+                        
+                        // Need width of Side A to calculate offset for Side B
+                        let offset = 0;
+                        if (side === 'B') {
+                            const imgA = document.querySelector('img[data-side="A"]');
+                            if (imgA) {
+                                // Critical: If Image A exists but hasn't loaded dimensions yet, we must wait.
+                                if (imgA.naturalWidth === 0) return false;
+                                offset = imgA.naturalWidth + 48; // 48px gap
+                            }
+                        }
+
+                        if (w && h && w > 0 && h > 0) {
+                            const points = container.querySelectorAll('.board-overlay-point');
+                            points.forEach(pt => {
+                                const rawX = parseFloat(pt.getAttribute('data-x'));
+                                const y = parseFloat(pt.getAttribute('data-y'));
+                                
+                                const x = rawX - offset;
+
+                                // Ensure valid coordinates
+                                if (!isNaN(x) && !isNaN(y)) {
+                                    pt.style.left = (x / w * 100) + '%';
+                                    pt.style.top = (y / h * 100) + '%';
+                                }
+                            });
+                            return true; 
+                        }
+                        return false;
+                    };
+
+                    // Try immediately
+                    if (!updatePositions()) {
+                        // Retry loop if dimensions not ready
+                        let attempts = 0;
+                        const interval = setInterval(() => {
+                            attempts++;
+                            if (updatePositions() || attempts > 20) {
+                                clearInterval(interval);
+                            }
+                        }, 100);
+                    }
+                }
+
+                // Also run on load just in case
+                window.onload = function() {
+                    document.querySelectorAll('img.board-image').forEach(img => {
+                         positionOverlays(img);
+                    });
+                };
+            </script>
         </head>
         <body>
             <h1>Reporte de Diagnóstico</h1>
@@ -182,7 +285,7 @@ export function generateReportHtml(project: Project, points: Point[]): string {
             <!-- SIDE A -->
             <div class="side-section">
                 <h2>Lado A (Top)</h2>
-                ${imageA ? `<img src="${imageA}" class="board-image" alt="Side A" />` : '<p>No hay imagen para el Lado A.</p>'}
+                ${renderBoardWithOverlays(imageA, pointsA, dims?.widthA, dims?.heightA, 'A')}
                 ${renderPointsList(pointsA, 'Lado A')}
             </div>
 
@@ -190,7 +293,7 @@ export function generateReportHtml(project: Project, points: Point[]): string {
             ${ (imageB || pointsB.length > 0) ? `
             <div class="side-section">
                 <h2>Lado B (Bottom)</h2>
-                ${imageB ? `<img src="${imageB}" class="board-image" alt="Side B" />` : '<p>No hay imagen para el Lado B.</p>'}
+                ${renderBoardWithOverlays(imageB, pointsB, dims?.widthB, dims?.heightB, 'B')}
                 ${renderPointsList(pointsB, 'Lado B')}
             </div>
             ` : ''}
