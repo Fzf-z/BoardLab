@@ -2,8 +2,10 @@
 node_modules
 
 # Builds de producción (Frontend y Electron)
-dist-electron
 dist
+dist-electron
+/dist-electron
+/dist
 
 # Salidas de empaquetado (Electron Forge/Builder)
 out
