@@ -73,9 +73,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
             <div className="flex-1"></div>
             
-            <button onClick={onOpenPointsTable} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Points Table">
-                <Table size={20} />
-            </button>
             <button onClick={onOpenSettings} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Settings">
                 <SettingsIcon size={20} />
             </button>

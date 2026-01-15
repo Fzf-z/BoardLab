@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
 import { InstrumentConfig, AppSettings, PointCategory } from '../types';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 
 interface SettingsProps {
     instruments: InstrumentConfig;
@@ -30,6 +30,37 @@ const Settings: React.FC<SettingsProps> = ({
   
   const [newCatName, setNewCatName] = useState('');
   const [newCatColor, setNewCatColor] = useState('#ffffff');
+
+  // Editing state
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editCatName, setEditCatName] = useState('');
+  const [editCatColor, setEditCatColor] = useState('#ffffff');
+
+  const handleStartEdit = (category: PointCategory) => {
+      setEditingCategoryId(category.id);
+      setEditCatName(category.label);
+      setEditCatColor(category.color);
+  };
+
+  const handleCancelEdit = () => {
+      setEditingCategoryId(null);
+      setEditCatName('');
+      setEditCatColor('');
+  };
+
+  const handleSaveEdit = () => {
+      if (!editingCategoryId || !editCatName.trim()) return;
+
+      setLocalAppSettings(prev => ({
+          ...prev,
+          categories: (prev.categories || []).map(cat => 
+              cat.id === editingCategoryId 
+                  ? { ...cat, label: editCatName, color: editCatColor }
+                  : cat
+          )
+      }));
+      handleCancelEdit();
+  };
 
   const handleAddCategory = () => {
     if (!newCatName.trim()) return;
@@ -306,14 +337,51 @@ const Settings: React.FC<SettingsProps> = ({
                     <div className="space-y-2">
                         {localAppSettings.categories && localAppSettings.categories.map(cat => (
                             <div key={cat.id} className="flex items-center justify-between bg-gray-700/50 p-3 rounded border border-gray-700">
-                                <div className="flex items-center space-x-3">
-                                    <div className="w-6 h-6 rounded-full border border-gray-500 shadow-sm" style={{ backgroundColor: cat.color }}></div>
-                                    <span className="font-mono font-bold">{cat.label}</span>
-                                    <span className="text-xs text-gray-500">({cat.id})</span>
+                                {editingCategoryId === cat.id ? (
+                                    <div className="flex items-center space-x-3 flex-1 mr-2">
+                                         <input
+                                            type="color"
+                                            value={editCatColor}
+                                            onChange={(e) => setEditCatColor(e.target.value)}
+                                            className="h-8 w-8 bg-gray-600 border border-gray-500 rounded cursor-pointer"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={editCatName}
+                                            onChange={(e) => setEditCatName(e.target.value)}
+                                            className="flex-1 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                                            autoFocus
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-6 h-6 rounded-full border border-gray-500 shadow-sm" style={{ backgroundColor: cat.color }}></div>
+                                        <span className="font-mono font-bold">{cat.label}</span>
+                                        <span className="text-xs text-gray-500">({cat.id})</span>
+                                    </div>
+                                )}
+                                
+                                <div className="flex items-center space-x-1">
+                                    {editingCategoryId === cat.id ? (
+                                        <>
+                                            <button onClick={handleSaveEdit} className="p-2 text-green-400 hover:bg-green-900/30 rounded" title="Save">
+                                                <Check size={16} />
+                                            </button>
+                                            <button onClick={handleCancelEdit} className="p-2 text-gray-400 hover:bg-gray-600 rounded" title="Cancel">
+                                                <X size={16} />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => handleStartEdit(cat)} className="p-2 text-blue-400 hover:bg-blue-900/30 rounded" title="Edit">
+                                                <Edit2 size={16} />
+                                            </button>
+                                            <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 text-red-400 hover:bg-red-900/30 rounded" title="Delete">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
-                                <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 text-red-400 hover:bg-red-900/30 rounded">
-                                    <Trash2 size={16} />
-                                </button>
                             </div>
                         ))}
                     </div>

@@ -180,7 +180,7 @@ const BoardLab: React.FC = () => {
                 setMode={setMode}
                 onUpload={() => board.fileInputRef.current?.click()}
                 onOpenSettings={() => hardware.setConfigOpen(true)}
-                onOpenPointsTable={() => setPointsTableOpen(true)}
+                //onOpenPointsTable={() => setPointsTableOpen(true)}
                 onNewProject={() => setNewProjectModalOpen(true)}
                 onOpenProject={handleOpenProject}
                 onSaveProject={saveProject}

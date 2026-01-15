@@ -35,7 +35,22 @@ BoardLab is a desktop application designed for electronics repair technicians an
 - **Database**: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (Running in a separate Worker thread for performance)
 - **Hardware Comms**: Node.js `net` module (Raw TCP Sockets for SCPI commands)
 
-## 📦 Installation
+## � Project Structure
+
+```
+src/
+├── components/     # React UI Components (BoardView, Settings, etc.)
+├── contexts/       # Global State (ProjectContext, NotifierContext)
+├── hooks/          # Business Logic (useBoard, useHardware, useGemini)
+└── BoardLab.tsx    # Main Application Layout
+
+electron/
+├── main.ts         # Main Process (Window Mgmt, IPC, Hardware Drivers)
+├── db-worker.ts    # Database Operations (Worker Thread)
+└── drivers/        # Instrument Drivers (Owon, Rigol, Connection Logic)
+```
+
+## �📦 Installation
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (v18 or higher)
@@ -102,9 +117,38 @@ Go to **Settings** (Gear Icon) to configure your instruments:
 
 *Note: The software uses SCPI commands over TCP. It may be compatible with other instruments that support the same command set with minor tweaks to `electron/drivers/`.*
 
+## ⌨️ Keyboard Shortcuts
+
+| Key | Action |
+| :--- | :--- |
+| **V** | Switch to **View Mode** |
+| **M** | Switch to **Measure Mode** |
+| **Enter** | **Capture Measurement** (on selected point) |
+| **Del** | Delete selected point |
+| **Esc** | Deselect point / Close Modal |
+| **Ctrl + S** | Save Project |
+| **Ctrl + Z** | Undo last action |
+| **Ctrl + Y** | Redo action |
+
+## ❓ Troubleshooting
+
+*   **Connection Failed (Instruments)**:
+    *   Ensure the PC and instruments are on the same local network (LAN).
+    *   Verify the IP Address and Port in **Settings**.
+    *   Check firewall settings (Port 9876 for Owon, 5555 for Rigol).
+*   **Database Error**:
+    *   The app stores data in `%APPDATA%/BoardLab/boardlab.db`. Ensure you have write permissions.
+*   **AI Not Responding**:
+    *   Verify you have entered a valid Gemini API Key in **Settings**.
+    *   Check your internet connection.
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request for any bugs or feature requests.
+
+## 🤖 Development & Credits
+
+This project was developed with the assistance of **Google Gemini 3 Pro Preview**, leveraging advanced AI for code generation, architecture planning, and debugging.
 
 ## 📄 License
 

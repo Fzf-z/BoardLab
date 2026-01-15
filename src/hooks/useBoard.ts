@@ -272,13 +272,14 @@ export const useBoard = () => {
             if (imageSrcB && imageAWidth > 0 && x > imageAWidth) {
                 side = 'B';
             }
-
+            // Generar el nuevo nombre con padding de ceros (ej: TP01, TP05, TP10)
+            const newName = `TP${(points.length + 1).toString().padStart(2, '0')}`;
             const newPoint: Point = {
                 id: `temp-${Date.now()}`,
                 project_id: projectId,
                 x,
                 y,
-                label: `TP${points.length + 1}`,
+                label: newName,
                 type: 'voltage',
                 side: side,
                 notes: '',
