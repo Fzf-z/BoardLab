@@ -73,6 +73,7 @@ export interface PointCategory {
     id: string;
     label: string;
     color: string;
+    boardType?: string;
 }
 
 export interface AppSettings {

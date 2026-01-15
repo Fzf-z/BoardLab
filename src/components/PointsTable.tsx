@@ -5,7 +5,7 @@ import { Point } from '../types';
 import WaveformThumbnail from './WaveformThumbnail';
 
 const PointsTable: React.FC = () => {
-    const { points, deletePoint, board, appSettings } = useProject();
+    const { points, deletePoint, board, appSettings, currentProject } = useProject();
     const { setPoints, selectedPointId, setSelectedPointId, selectPoint } = board;
 
     const [editedPoints, setEditedPoints] = useState<Point[]>(JSON.parse(JSON.stringify(points)));
@@ -13,6 +13,11 @@ const PointsTable: React.FC = () => {
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [filterText, setFilterText] = useState<string>('');
     const rowRefs = useRef<Record<string | number, HTMLTableRowElement | null>>({});
+
+    // Filter categories based on current project board type
+    const availableCategories = (appSettings.categories || []).filter(cat => 
+        !cat.boardType || (currentProject?.board_type && cat.boardType === currentProject.board_type)
+    );
 
     useEffect(() => {
         setEditedPoints(JSON.parse(JSON.stringify(points)));
@@ -187,25 +192,13 @@ const PointsTable: React.FC = () => {
                                         value={point.category || ''} 
                                         onChange={(e) => {
                                             handleCategoryChange(point.id, e.target.value);
-                                            // For select, we commit immediately after change because there is no blur flow needed like text
-                                            // But since state update is async, we can't call commitChanges immediately with old state.
-                                            // We need to update local state AND global state.
-                                            // The simplest way is to let the local state update, and rely on user clicking away? 
-                                            // No, for select it's better to save immediately.
-                                            // We'll modify handleCategoryChange to save too or use a timeout/effect.
-                                            // Actually, let's just trigger a blur-like save or pass the new value up.
-                                            // For simplicity, I'll stick to local state and let the user click "Save" or click away if I add onBlur, 
-                                            // but select onBlur is tricky.
-                                            // Let's defer commit to a useEffect or helper.
-                                            // Re-reading: The user wants "edit name... change name".
-                                            // I'll add onBlur to select too for consistency.
                                         }}
                                         onBlur={commitChanges}
                                         onClick={(e) => e.stopPropagation()}
                                         className="bg-gray-800 w-16 p-0.5 rounded text-[10px] text-white border border-gray-600 outline-none"
                                     >
                                         <option value="">-</option>
-                                        {appSettings.categories.map(cat => (
+                                        {availableCategories.map(cat => (
                                             <option key={cat.id} value={cat.id}>{cat.label}</option>
                                         ))}
                                     </select>

@@ -21,6 +21,8 @@ declare global {
             stopMonitor: () => Promise<any>;
             onMonitorStatus: (callback: (status: string) => void) => () => void;
             onExternalTrigger: (callback: (data: any) => void) => () => void;
+            getBoardTypes: () => Promise<string[]>;
+            addBoardType: (type: string) => Promise<boolean>;
             [key: string]: any;
         };
     }
@@ -54,6 +56,8 @@ interface ProjectContextValue {
     stopSequence: () => void;
     nextInSequence: () => void;
     prevInSequence: () => void;
+    boardTypes: string[];
+    addBoardType: (type: string) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextValue | undefined>(undefined);
@@ -98,6 +102,22 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         currentIndex: -1,
         order: []
     });
+
+    const [boardTypes, setBoardTypes] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (window.electronAPI?.getBoardTypes) {
+            window.electronAPI.getBoardTypes().then(setBoardTypes);
+        }
+    }, []);
+
+    const addBoardType = async (type: string) => {
+        if (window.electronAPI?.addBoardType) {
+            await window.electronAPI.addBoardType(type);
+            const types = await window.electronAPI.getBoardTypes();
+            setBoardTypes(types);
+        }
+    };
 
     const startSequence = () => {
         // Use the current order of points (usually creation order or ID)
@@ -405,6 +425,8 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             saveProject: handleSaveProject,
             loadProject: handleLoadProject,
             deleteProject: handleDeleteProject,
+            boardTypes,
+            addBoardType,
             updateProject: handleUpdateProject,
             deletePoint: handleDeletePoint,
             addMeasurement: handleAddMeasurement,
