@@ -114,8 +114,8 @@ export function generateReportHtml(project: Project, points: Point[], dims?: { w
         if (!imgSrc) return '<p>No hay imagen disponible.</p>';
         
         // Calculate offset for Side B points based on Side A width
-        // If Side B, the X coordinate in DB includes (WidthA + 48px gap)
-        const gap = 48;
+        // If Side B, the X coordinate in DB includes (WidthA + 48px margin + 2px border + 48px padding) = 98px gap
+        const gap = 98;
         const offset = (side === 'B' && dims?.widthA) ? (dims.widthA + gap) : 0;
 
         const overlays = pts.map(p => {
@@ -225,7 +225,7 @@ export function generateReportHtml(project: Project, points: Point[], dims?: { w
                             if (imgA) {
                                 // Critical: If Image A exists but hasn't loaded dimensions yet, we must wait.
                                 if (imgA.naturalWidth === 0) return false;
-                                offset = imgA.naturalWidth + 48; // 48px gap
+                                offset = imgA.naturalWidth + 98; // 98px gap (matches BoardView layout)
                             }
                         }
 
