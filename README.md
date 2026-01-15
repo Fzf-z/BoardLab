@@ -3,6 +3,8 @@
 BoardLab is a desktop application designed for electronics repair technicians and engineers. It streamlines the process of reverse engineering and diagnosing circuit boards (PCBs) by combining high-resolution image mapping with real-time hardware measurements and AI assistance.
 
 ![BoardLab Screenshot](Doc/Main.png)
+![BoardLab Screenshot](Doc/Measure.png)
+![BoardLab Screenshot](Doc/Table.png)
 
 ## 🚀 Key Features
 
