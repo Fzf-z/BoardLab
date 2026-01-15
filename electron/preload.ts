@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Exportación
   exportPdf: (projectId: number) => ipcRenderer.invoke('exportPdf', projectId),
+  exportImage: (projectId: number) => ipcRenderer.invoke('exportImage', projectId),
 
   // Verificación de entorno
   isElectron: true,

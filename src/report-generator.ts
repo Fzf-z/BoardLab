@@ -78,6 +78,387 @@ function renderMeasurementValue(measurement: MeasurementValue): string {
     return String(measurement.value ?? '');
 }
 
+function renderMiniWaveform(measurement: MeasurementValue): string {
+    if (!measurement || !measurement.waveform || !Array.isArray(measurement.waveform) || measurement.waveform.length === 0) return '';
+    const width = 120;
+    const height = 40;
+    const waveform = measurement.waveform;
+    
+    let min = Infinity, max = -Infinity;
+    for (const v of waveform) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }
+    const range = max - min || 1;
+    
+    const pointsStr = waveform.map((val, i) => {
+        const x = (i / (waveform.length - 1)) * width;
+        const y = height - ((val - min) / range) * height;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="background: #111; border-radius: 2px; display:block; margin-top:2px;">
+        <polyline points="${pointsStr}" fill="none" stroke="#4ade80" stroke-width="1" />
+    </svg>`;
+}
+
+export function generateImageExportHtml(project: Project, points: Point[], dims?: { widthA: number, heightA: number, widthB?: number, heightB?: number }): string {
+    const imageA = project.image_data ? `data:image/png;base64,${bufferToBase64(project.image_data)}` : null;
+    const imageB = project.image_data_b ? `data:image/png;base64,${bufferToBase64(project.image_data_b)}` : null;
+
+    const pointsA = points.filter(p => !p.side || p.side === 'A');
+    const pointsB = points.filter(p => p.side === 'B');
+
+    const renderMiniTable = (pts: Point[], title: string, side: 'A' | 'B') => {
+        if (pts.length === 0) return `<div class="table-container empty"><h3>${title}</h3><p>No Data</p></div>`;
+        
+        const rows = pts.map((p, i) => {
+             const idx = i + 1;
+             const measurements = p.measurements ? Object.entries(p.measurements) : [];
+             const rowId = `row-${side}-${idx}`;
+             
+             if (measurements.length === 0) {
+                 return `<tr id="${rowId}" style="border-bottom: 1px solid #ccc;">
+                    <td style="font-weight:bold; color:#333; padding: 4px 8px;">${idx}</td>
+                    <td style="font-size:11px; padding: 4px 8px;">${p.label}</td>
+                    <td style="color:#aaa; font-size:10px; padding: 4px 8px;">${p.type.substring(0,4)}</td>
+                    <td style="color:#aaa; padding: 4px 8px;">-</td>
+                 </tr>`;
+             }
+
+             return measurements.map((entry, index) => {
+                 const [type, m] = entry;
+                 let displayVal = '-';
+                 
+                 if (m.type === 'oscilloscope') {
+                     const vpp = m.vpp ? `${Number(m.vpp).toFixed(2)}Vpp` : '';
+                     const freq = m.freq ? `${Number(m.freq).toFixed(2)}Hz` : '';
+                     const txt = [vpp, freq].filter(Boolean).join(' ') || 'Waveform';
+                     displayVal = `<div>${txt}${renderMiniWaveform(m)}</div>`;
+                 } else if (m.value) {
+                     if (typeof m.value === 'object') {
+                         displayVal = 'Data';
+                     } else {
+                         displayVal = String(m.value);
+                     }
+                 }
+
+                 const isLast = index === measurements.length - 1;
+                 const rowStyle = isLast ? 'border-bottom: 1px solid #999;' : 'border-bottom: 1px dotted #ddd;';
+                 
+                 let labelCell = '';
+                 if (index === 0) {
+                     labelCell = `<td rowspan="${measurements.length}" style="font-weight:bold; color:#2563eb; vertical-align:middle; background:#fff; padding: 4px 8px; border-right: 1px solid #eee;">${idx}</td>
+                                  <td rowspan="${measurements.length}" style="font-size:11px; vertical-align:middle; padding: 4px 8px;">${p.label}</td>`;
+                 }
+
+                 return `<tr id="${index === 0 ? rowId : ''}" style="${rowStyle} background: #fff;">
+                    ${labelCell}
+                    <td style="font-size:10px; color:#555; text-transform:uppercase; padding: 4px 8px;">${type.substring(0,4)}</td>
+                    <td style="font-family:monospace; font-weight:bold; font-size:11px; padding: 4px 8px;">${displayVal}</td>
+                 </tr>`;
+             }).join('');
+        }).join('');
+
+        return `
+            <div class="table-container">
+                <h3>${title}</h3>
+                <table cellspacing="0" cellpadding="0">
+                    <thead><tr><th style="width:25px;">#</th><th>Pt</th><th style="width:35px;">Type</th><th>Value</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        `;
+    };
+
+    const renderBoardOverlay = (imgSrc: string | null, pts: Point[], width?: number, height?: number, side: 'A' | 'B' = 'A') => {
+        if (!imgSrc) return '';
+        // Same offset logic as report
+        const gap = 98;
+        const offset = (side === 'B' && dims?.widthA) ? (dims.widthA + gap) : 0;
+
+        const overlays = pts.map((p, i) => {
+            let left = 0, top = 0;
+            const idx = i + 1;
+            if (width && height && width > 0 && height > 0) {
+                 const adjustedX = p.x - offset;
+                 left = (adjustedX / width) * 100;
+                 top = (p.y / height) * 100;
+            }
+            // data-x-pct and data-y-pct used by physics engine
+            return `
+                <div class="point-marker" style="left: ${left}%; top: ${top}%;"></div>
+                <div class="point-label" style="left: ${left}%; top: ${top}%;" data-x-pct="${left}" data-y-pct="${top}">${idx}</div>
+            `;
+        }).join('');
+
+        return `
+            <div class="board-wrapper">
+                <div class="board-title">${side === 'A' ? 'TOP SIDE' : 'BOTTOM SIDE'}</div>
+                <div class="board-img-container">
+                    <img src="${imgSrc}" />
+                    ${overlays}
+                </div>
+            </div>
+        `;
+    };
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { margin: 0; padding: 20px; font-family: sans-serif; background: #fff; width: fit-content; position: relative; }
+                .layout-container { display: flex; gap: 20px; align-items: flex-start; }
+                
+                .side-tables { display: flex; flex-direction: column; gap: 20px; width: 300px; flex-shrink: 0; }
+                /* Images side-by-side */
+                .center-images { display: flex; flex-direction: row; gap: 20px; align-items: flex-start; }
+                
+                .table-container { border: 2px solid #333; border-radius: 8px; overflow: hidden; background: #f9fafb; }
+                .table-container h3 { background: #333; color: #fff; margin: 0; padding: 10px; text-align: center; text-transform: uppercase; font-size: 14px; }
+                .table-container table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                .table-container th { background: #e5e7eb; text-align: left; padding: 5px 8px; font-size: 10px; text-transform: uppercase; color: #555; }
+                .table-container td { padding: 4px 8px; border-bottom: 1px solid #e5e7eb; }
+                .table-container tr:last-child td { border-bottom: none; }
+                .table-container.empty { border: 2px dashed #ccc; color: #888; text-align: center; padding: 20px; }
+
+                .board-wrapper { position: relative; border: 4px solid #333; border-radius: 12px; padding: 10px; background: #eee; }
+                .board-title { position: absolute; top: -12px; left: 20px; background: #333; color: white; padding: 2px 10px; font-weight: bold; font-size: 12px; border-radius: 4px; }
+                .board-img-container { position: relative; display: inline-block; }
+                .board-img-container img { display: block; max-height: 800px; width: auto; } /* Limit height */
+                
+                .overlay-point {
+                    position: absolute; transform: translate(-50%, -50%);
+                    min-width: 14px; height: 14px; padding: 1px 4px;
+                    border: 2px solid #ef4444; border-radius: 10px;
+                    background: rgba(255,255,255,0.95); color: #ef4444;
+                    font-size: 9px; font-weight: bold;
+                    display: flex; align-items: center; justify-content: center;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+                    white-space: nowrap;
+                    z-index: 10;
+                }
+
+                .header { margin-bottom: 20px; border-bottom: 4px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-end; }
+                .header h1 { margin: 0; font-size: 32px; text-transform: uppercase; letter-spacing: 2px; }
+                .header .meta { text-align: right; font-size: 14px; color: #666; }
+                
+                /* Marker: Fixed Dot */
+                .point-marker {
+                    position: absolute; transform: translate(-50%, -50%);
+                    width: 5px; height: 5px;
+                    background: #ef4444; border: 1px solid white;
+                    border-radius: 50%;
+                    z-index: 20;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                }
+                
+                /* Label: Floating Number */
+                .point-label {
+                    position: absolute; transform: translate(-50%, -50%);
+                    padding: 0 2px;
+                    height: 12px;
+                    min-width: 12px;
+                    border: 1px solid #ef4444; border-radius: 6px;
+                    background: rgba(255,255,255,0.95); color: #ef4444;
+                    font-size: 8px; font-weight: bold; font-family: monospace;
+                    display: flex; align-items: center; justify-content: center;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+                    white-space: nowrap;
+                    z-index: 30;
+                    cursor: default;
+                }
+
+                #leader-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; }
+                .leader-line { stroke: #ef4444; stroke-width: 1px; opacity: 0.7; fill: none; }
+            </style>
+            <script>
+            function resolveOverlaps() {
+                const labels = Array.from(document.querySelectorAll('.point-label'));
+                const markers = Array.from(document.querySelectorAll('.point-marker'));
+                
+                if (labels.length === 0) return;
+
+                // Physics simulation settings
+                const iterations = 400;
+                const padding = 2; 
+
+                // Create nodes for Labels (Dynamic)
+                const dynamicNodes = labels.map(lbl => {
+                    const rect = lbl.getBoundingClientRect();
+                    const parentRect = lbl.parentElement.getBoundingClientRect();
+                    const w = rect.width || 14; 
+                    const h = rect.height || 14;
+                    
+                    const originX = parseFloat(lbl.getAttribute('data-x-pct')) / 100 * parentRect.width;
+                    const originY = parseFloat(lbl.getAttribute('data-y-pct')) / 100 * parentRect.height;
+                    
+                    return {
+                        element: lbl,
+                        x: originX,
+                        y: originY,
+                        ox: originX, // Original Anchor X
+                        oy: originY, // Original Anchor Y
+                        width: w,
+                        height: h,
+                        isStatic: false
+                    };
+                });
+
+                // Create nodes for Markers (Static obstacles)
+                const staticNodes = markers.map(mk => {
+                    const parentRect = mk.parentElement.getBoundingClientRect();
+                    // Markers use inline style left/top %
+                    const leftPct = parseFloat(mk.style.left);
+                    const topPct = parseFloat(mk.style.top);
+                    
+                    return {
+                        x: leftPct / 100 * parentRect.width,
+                        y: topPct / 100 * parentRect.height,
+                        width: 8, // Marker size + safety margin
+                        height: 8,
+                        isStatic: true
+                    };
+                });
+
+                // Combine for collision checks
+                const allNodes = [...dynamicNodes, ...staticNodes];
+
+                for (let i = 0; i < iterations; i++) {
+                    // 1. Pull dynamic nodes towards anchor (Gravity)
+                    for (let node of dynamicNodes) {
+                        node.x += (node.ox - node.x) * 0.03;
+                        node.y += (node.oy - node.y) * 0.03;
+                    }
+
+                    // 2. Resolve Collisions
+                    for (let a = 0; a < allNodes.length; a++) {
+                        for (let b = a + 1; b < allNodes.length; b++) {
+                            const nodeA = allNodes[a];
+                            const nodeB = allNodes[b];
+
+                            // Skip if both static (markers don't move each other)
+                            if (nodeA.isStatic && nodeB.isStatic) continue;
+
+                            const dx = nodeA.x - nodeB.x;
+                            const dy = nodeA.y - nodeB.y;
+                            
+                            const spacingX = (nodeA.width + nodeB.width) / 2 + padding;
+                            const spacingY = (nodeA.height + nodeB.height) / 2 + padding;
+
+                            if (Math.abs(dx) < spacingX && Math.abs(dy) < spacingY) {
+                                const overlapX = spacingX - Math.abs(dx);
+                                const overlapY = spacingY - Math.abs(dy);
+
+                                let moveX = 0, moveY = 0;
+
+                                // Determine push vector
+                                if (overlapX < overlapY) {
+                                    const dir = (Math.abs(dx) < 0.1) ? (Math.random() > 0.5 ? 1 : -1) : (dx > 0 ? 1 : -1);
+                                    moveX = overlapX * dir;
+                                } else {
+                                    const dir = (Math.abs(dy) < 0.1) ? (Math.random() > 0.5 ? 1 : -1) : (dy > 0 ? 1 : -1);
+                                    moveY = overlapY * dir;
+                                }
+
+                                // Apply push
+                                if (nodeA.isStatic) {
+                                    // A is static, B moves full amount away
+                                    nodeB.x -= moveX;
+                                    nodeB.y -= moveY;
+                                } else if (nodeB.isStatic) {
+                                    // B is static, A moves full amount away
+                                    nodeA.x += moveX;
+                                    nodeA.y += moveY;
+                                } else {
+                                    // Both dynamic, share the move
+                                    nodeA.x += moveX / 2;
+                                    nodeA.y += moveY / 2;
+                                    nodeB.x -= moveX / 2;
+                                    nodeB.y -= moveY / 2;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Apply positions and draw lines
+                const svg = document.getElementById('leader-lines');
+                if(!svg) return;
+                
+                const bodyW = Math.max(document.body.scrollWidth, document.body.offsetWidth, document.documentElement.offsetWidth);
+                const bodyH = Math.max(document.body.scrollHeight, document.body.offsetHeight, document.documentElement.offsetHeight);
+                svg.style.width = bodyW + 'px';
+                svg.style.height = bodyH + 'px';
+                svg.setAttribute('width', bodyW);
+                svg.setAttribute('height', bodyH);
+                svg.innerHTML = '';
+
+                dynamicNodes.forEach(node => {
+                    node.element.style.left = node.x + 'px';
+                    node.element.style.top = node.y + 'px';
+                    
+                    const dist = Math.hypot(node.x - node.ox, node.y - node.oy);
+                    if (dist > 4) { // Draw line if moved noticeable amount
+                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        const containerRect = node.element.parentElement.getBoundingClientRect();
+                        
+                        const absX1 = containerRect.left + node.ox + window.scrollX;
+                        const absY1 = containerRect.top + node.oy + window.scrollY;
+                        const absX2 = containerRect.left + node.x + window.scrollX;
+                        const absY2 = containerRect.top + node.y + window.scrollY;
+
+                        path.setAttribute('x1', absX1);
+                        path.setAttribute('y1', absY1);
+                        path.setAttribute('x2', absX2);
+                        path.setAttribute('y2', absY2);
+                        path.classList.add('leader-line');
+                        svg.appendChild(path);
+                    }
+                });
+            }
+
+            window.onload = () => { 
+                resolveOverlaps();
+                setTimeout(resolveOverlaps, 100);
+                setTimeout(resolveOverlaps, 500);
+            };
+            </script>
+        </head>
+        <body>
+            <svg id="leader-lines"></svg>
+            <div class="header">
+                <h1>${project.board_model}</h1>
+                <div class="meta">
+                    <div>${project.board_type}</div>
+                    <div>${new Date().toLocaleDateString()}</div>
+                </div>
+            </div>
+
+            <div class="layout-container">
+                <!-- Left: Side A Table -->
+                <div class="side-tables">
+                    ${renderMiniTable(pointsA, 'Top Side Points', 'A')}
+                </div>
+
+                <!-- Center: Images -->
+                <div class="center-images">
+                    ${renderBoardOverlay(imageA, pointsA, dims?.widthA, dims?.heightA, 'A')}
+                    ${renderBoardOverlay(imageB, pointsB, dims?.widthB, dims?.heightB, 'B')}
+                </div>
+
+                <!-- Right: Side B Table -->
+                <div class="side-tables">
+                     ${renderMiniTable(pointsB, 'Bottom Side Points', 'B')}
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
 export function generateReportHtml(project: Project, points: Point[], dims?: { widthA: number, heightA: number, widthB?: number, heightB?: number }): string {
     const imageA = project.image_data 
         ? `data:image/png;base64,${bufferToBase64(project.image_data)}` 
@@ -118,7 +499,7 @@ export function generateReportHtml(project: Project, points: Point[], dims?: { w
         const gap = 98;
         const offset = (side === 'B' && dims?.widthA) ? (dims.widthA + gap) : 0;
 
-        const overlays = pts.map(p => {
+        const overlays = pts.map((p, i) => {
             // Calculate position server-side if dimensions are available
             let style = 'left: 0; top: 0; z-index: 10;';
             if (width && height && width > 0 && height > 0) {
@@ -128,7 +509,7 @@ export function generateReportHtml(project: Project, points: Point[], dims?: { w
                  style = `left: ${left}%; top: ${top}%; z-index: 10;`;
             }
             
-            return `<div class="board-overlay-point" data-x="${p.x}" data-y="${p.y}" style="${style}">${p.label}</div>`;
+            return `<div class="board-overlay-point" data-x="${p.x}" data-y="${p.y}" style="${style}">${i + 1}</div>`;
         }).join('');
 
         return `
@@ -142,7 +523,8 @@ export function generateReportHtml(project: Project, points: Point[], dims?: { w
     const renderPointsList = (pts: Point[], sideLabel: string) => {
         if (pts.length === 0) return `<p>No hay puntos registrados en el ${sideLabel}.</p>`;
 
-        return pts.map((p) => {
+        return pts.map((p, i) => {
+            const idx = i + 1;
             let measurementsHtml = '<p><em>No measurements recorded.</em></p>';
             if (p.measurements && Object.keys(p.measurements).length > 0) {
                 measurementsHtml = Object.entries(p.measurements).map(([type, data]) => `
@@ -159,7 +541,7 @@ export function generateReportHtml(project: Project, points: Point[], dims?: { w
 
             return `
                 <div class="point-section">
-                    <h3>Punto ${p.label} <span style="font-size: 12px; font-weight: normal; color: #666;">(X:${pointX}, Y:${pointY})</span></h3>
+                    <h3>#${idx} - ${p.label} <span style="font-size: 12px; font-weight: normal; color: #666;">(X:${pointX}, Y:${pointY})</span></h3>
                     ${p.notes ? `<p style="background: #fff3cd; padding: 10px; border-radius: 4px; font-style: italic;"><strong>Nota:</strong> ${p.notes}</p>` : ''}
                     <div style="margin-top: 10px;">
                         ${measurementsHtml}
@@ -193,13 +575,15 @@ export function generateReportHtml(project: Project, points: Point[], dims?: { w
                 .board-overlay-point { 
                     position: absolute; 
                     transform: translate(-50%, -50%); 
-                    width: 24px; height: 24px; 
+                    min-width: 16px; height: 16px; 
+                    padding: 1px 4px;
                     border: 2px solid #ef4444; 
-                    border-radius: 50%; 
-                    background: rgba(255, 255, 255, 0.8); 
+                    border-radius: 10px; 
+                    background: rgba(255, 255, 255, 0.95); 
                     display: flex; align-items: center; justify-content: center; 
-                    font-size: 11px; font-weight: bold; color: #ef4444; 
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    font-size: 10px; font-weight: bold; color: #ef4444; 
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                    white-space: nowrap;
                 }
 
                 .side-section { margin-bottom: 50px; page-break-after: always; }
@@ -241,6 +625,8 @@ export function generateReportHtml(project: Project, points: Point[], dims?: { w
                                 if (!isNaN(x) && !isNaN(y)) {
                                     pt.style.left = (x / w * 100) + '%';
                                     pt.style.top = (y / h * 100) + '%';
+                                    // Sort z-index by Y to improve stacking (lower points on top)
+                                    pt.style.zIndex = Math.floor(y);
                                 }
                             });
                             return true; 

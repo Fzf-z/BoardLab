@@ -24,6 +24,8 @@ declare global {
             getBoardTypes: () => Promise<string[]>;
             addBoardType: (type: string) => Promise<boolean>;
             [key: string]: any;
+            exportPdf: (projectId: number) => Promise<{ status: string; filePath?: string; message?: string }>;
+            exportImage: (projectId: number) => Promise<{ status: string; filePath?: string; message?: string }>;
         };
     }
 }

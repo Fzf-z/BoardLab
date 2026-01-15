@@ -172,6 +172,31 @@ const BoardLab: React.FC = () => {
         }
     };
 
+    const handleExportImage = async () => {
+        if (!currentProject) {
+            showNotification('No project open to export', 'warning');
+            return;
+        }
+
+        if (hardware.isElectron && window.electronAPI) {
+            try {
+                showNotification('Generating High-Res Image...', 'info');
+                const result = await window.electronAPI.exportImage(currentProject.id);
+                if (result.status === 'success') {
+                    showNotification(`Image saved to ${result.filePath}`, 'success');
+                } else if (result.status === 'cancelled') {
+                   // User cancelled
+                } else {
+                    showNotification(`Export failed: ${result.message}`, 'error');
+                }
+            } catch (error: any) {
+                showNotification(`Export error: ${error.message}`, 'error');
+            }
+        } else {
+            showNotification('Image Export is only available in Desktop App', 'warning');
+        }
+    };
+
 
     return (
         <div className="flex h-screen bg-gray-900 text-gray-100 font-sans">
@@ -185,6 +210,7 @@ const BoardLab: React.FC = () => {
                 onOpenProject={handleOpenProject}
                 onSaveProject={saveProject}
                 onExportPdf={handleExportPdf}
+                onExportImage={handleExportImage}
                 onStartSequence={startSequence}
             />
             <input

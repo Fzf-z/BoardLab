@@ -7,7 +7,7 @@ import net from 'net';
 import { setOwonConfig, getOwonMeasurement } from './drivers/owon';
 import { getRigolData } from './drivers/rigol';
 import { testConnection } from './drivers/connection';
-import { generateReportHtml } from '../src/report-generator';
+import { generateReportHtml, generateImageExportHtml } from '../src/report-generator';
 
 const store = new Store();
 
@@ -372,6 +372,97 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
         }
     } catch (error: any) {
         console.error('Failed to generate PDF:', error);
+        return { status: 'error', message: error.message };
+    }
+});
+
+ipcMain.handle('exportImage', async (event, projectId) => {
+    try {
+        const project = await dbQuery('db:get-project-with-image', projectId) as any;
+        if (!project) throw new Error(`Project with ID ${projectId} not found.`);
+        const pointsWithMeasurements = await dbQuery('db:get-points', projectId) as any[];
+
+        const sanitizedProjectName = (project.board_model || 'Project').replace(/[^a-z0-9]/gi, '_');
+        const date = new Date();
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const defaultFilename = `BoardLab_HiRes_${sanitizedProjectName}_${dateStr}.png`;
+
+        const { canceled, filePath } = await dialog.showSaveDialog({
+            title: 'Save High-Res Image',
+            defaultPath: defaultFilename,
+            filters: [{ name: 'PNG Image', extensions: ['png'] }]
+        });
+
+        if (canceled || !filePath) return { status: 'cancelled' };
+
+        // Calculate dimensions
+        const dims: any = {};
+        try {
+            if (project.image_data) {
+                const img = nativeImage.createFromBuffer(Buffer.from(project.image_data));
+                const size = img.getSize();
+                dims.widthA = size.width;
+                dims.heightA = size.height;
+            }
+            if (project.image_data_b) {
+                const img = nativeImage.createFromBuffer(Buffer.from(project.image_data_b));
+                const size = img.getSize();
+                dims.widthB = size.width;
+                dims.heightB = size.height;
+            }
+        } catch (e) { console.error(e); }
+
+        const htmlContent = generateImageExportHtml(project, pointsWithMeasurements, dims);
+
+        // Render in large hidden window
+        let captureWindow: BrowserWindow | null = null;
+        const tempHtmlPath = path.join(app.getPath('temp'), `boardlab_img_${Date.now()}.html`);
+
+        try {
+            captureWindow = new BrowserWindow({ 
+                show: false,
+                width: 3000, 
+                height: 2000,
+                webPreferences: { nodeIntegration: false, contextIsolation: true }
+            });
+
+            fs.writeFileSync(tempHtmlPath, htmlContent);
+            await captureWindow.loadFile(tempHtmlPath);
+            
+            // Resize window to fit content
+            const contentSize = await captureWindow.webContents.executeJavaScript(`
+                new Promise(resolve => {
+                    // Wait for images
+                    const imgs = Array.from(document.images);
+                    Promise.all(imgs.map(img => {
+                        if (img.complete) return Promise.resolve();
+                        return new Promise(r => img.onload = r);
+                    })).then(() => {
+                        // Return size
+                        resolve({ 
+                            width: document.body.scrollWidth, 
+                            height: document.body.scrollHeight 
+                        });
+                    });
+                })
+            `);
+            
+            captureWindow.setContentSize(Math.ceil(contentSize.width), Math.ceil(contentSize.height));
+            
+            // Wait a bit for layout
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const image = await captureWindow.webContents.capturePage();
+            fs.writeFileSync(filePath, image.toPNG());
+            
+            return { status: 'success', filePath };
+
+        } finally {
+            if (captureWindow) captureWindow.close();
+            try { if (fs.existsSync(tempHtmlPath)) fs.unlinkSync(tempHtmlPath); } catch(e) {}
+        }
+    } catch (error: any) {
+        console.error('Failed to export image:', error);
         return { status: 'error', message: error.message };
     }
 });
