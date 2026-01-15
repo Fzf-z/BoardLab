@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useProject } from '../contexts/ProjectContext';
 import { useHardware } from '../hooks/useHardware';
 import { Play, SkipForward, SkipBack, Square, Timer, Zap, Radio } from 'lucide-react';
@@ -9,6 +9,7 @@ const SequencerPanel: React.FC = () => {
     
     const [autoMode, setAutoMode] = useState(false);
     const [countdown, setCountdown] = useState<number | null>(null);
+    const processingRef = useRef(false);
     
     // Use timeout from config as delay (converted to seconds, min 1s)
     const autoDelaySec = Math.max(1, Math.round((hardware.instrumentConfig.timeout || 3000) / 1000));
@@ -25,16 +26,24 @@ const SequencerPanel: React.FC = () => {
     // Calculate progress
     const progress = Math.round(((sequence.currentIndex + 1) / sequence.order.length) * 100);
 
-    const captureAndAdvance = async () => {
-        if (!currentPoint || hardware.isCapturing) return;
+    const captureAndAdvance = async (overrideData?: string) => {
+        if (!currentPoint || hardware.isCapturing || processingRef.current) return;
         
-        // Use locked type if available, otherwise point type
-        const pointToMeasure = lockedType ? { ...currentPoint, type: lockedType } : currentPoint;
-        
-        const measurement = await hardware.captureValue(pointToMeasure as any);
-        if (measurement) {
-            await addMeasurement(currentPoint, measurement);
-            nextInSequence();
+        processingRef.current = true;
+        try {
+            // Use locked type if available, otherwise point type
+            const pointToMeasure = lockedType ? { ...currentPoint, type: lockedType } : currentPoint;
+            
+            const measurement = await hardware.captureValue(pointToMeasure as any, overrideData);
+            if (measurement) {
+                await addMeasurement(currentPoint, measurement);
+                nextInSequence();
+            }
+        } finally {
+            // Debounce unlock slightly to prevent multiple triggers from same event burst
+            setTimeout(() => {
+                processingRef.current = false;
+            }, 500);
         }
     };
 
@@ -68,7 +77,7 @@ const SequencerPanel: React.FC = () => {
 
         const cleanup = window.electronAPI.onExternalTrigger((data: any) => {
             console.log('External trigger received:', data);
-            captureAndAdvance();
+            captureAndAdvance(data);
         });
 
         return cleanup;

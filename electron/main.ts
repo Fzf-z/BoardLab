@@ -66,19 +66,24 @@ function dbQuery(type: string, payload?: any) {
 // =================================================================
 let multimeterSocket: net.Socket | null = null;
 let monitorReconnectTimeout: NodeJS.Timeout | null = null;
+let isExpectingResponse = false; // Flag to suppress monitor events when manual measure is active
 
 function startMultimeterMonitor(ip: string, port: number) {
   stopMultimeterMonitor(); // Close existing if any
 
   console.log(`Starting Multimeter Monitor on ${ip}:${port}`);
-  multimeterSocket = new net.Socket();
+  const socket = new net.Socket();
+  multimeterSocket = socket;
   
-  multimeterSocket.connect(port, ip, () => {
+  socket.connect(port, ip, () => {
     console.log('Multimeter Monitor Connected');
     if (mainWindow) mainWindow.webContents.send('monitor-status', 'connected');
   });
 
-  multimeterSocket.on('data', (data) => {
+  socket.on('data', (data) => {
+    // If we are waiting for a manual response, don't emit external-trigger
+    if (isExpectingResponse) return;
+
     const rawData = data.toString().trim();
     if (rawData) {
       console.log('Monitor Data Received:', rawData);
@@ -92,15 +97,18 @@ function startMultimeterMonitor(ip: string, port: number) {
     }
   });
 
-  multimeterSocket.on('error', (err) => {
+  socket.on('error', (err) => {
     console.error('Multimeter Monitor Error:', err);
     if (mainWindow) mainWindow.webContents.send('monitor-status', 'error');
   });
 
-  multimeterSocket.on('close', () => {
+  socket.on('close', () => {
     console.log('Multimeter Monitor Closed');
     if (mainWindow) mainWindow.webContents.send('monitor-status', 'disconnected');
-    multimeterSocket = null;
+    // Only clear the global variable if it refers to THIS socket
+    if (multimeterSocket === socket) {
+      multimeterSocket = null;
+    }
   });
 }
 
@@ -207,7 +215,61 @@ ipcMain.handle('hardware:measure-resistance', async () => {
 
 // Medición
 ipcMain.handle('multimeter-set-config', async (event, config) => setOwonConfig(config.ip, config.port, config.configCommand));
-ipcMain.handle('multimeter-get-measurement', async (event, config) => getOwonMeasurement(config.ip, config.port, config.measureCommand, config.timeout));
+ipcMain.handle('multimeter-get-measurement', async (event, config) => {
+  console.log(`[Measure] Request for ${config.ip}. Monitor active? ${!!multimeterSocket}, Destroyed? ${multimeterSocket?.destroyed}`);
+
+  // If Monitor is active, reuse the socket to avoid ECONNRESET due to concurrent connections
+  // Also verify connection state is 'open'
+  if (multimeterSocket && !multimeterSocket.destroyed && multimeterSocket.readyState === 'open') {
+    console.log("Reusing Monitor Socket for Measurement...");
+    return new Promise((resolve) => {
+      const cmd = config.measureCommand || 'MEAS:SHOW?';
+      let isResolved = false;
+      isExpectingResponse = true; // Suppress global monitor listener
+
+      const onData = (data: Buffer) => {
+        if (isResolved) return;
+        isResolved = true;
+        isExpectingResponse = false; // Re-enable global monitor listener
+        
+        // Clean response
+        const str = data.toString().replace(/[^\x20-\x7E]/g, '').trim();
+        resolve({ status: 'success', value: str });
+      };
+
+      // Listen for the NEXT data packet
+      // Note: The global 'data' listener will NOT emit due to isExpectingResponse flag
+      multimeterSocket!.once('data', onData);
+
+      // Send command
+      multimeterSocket!.write(cmd.trim() + '\n', (err) => {
+        if (err) {
+          if (!isResolved) {
+             isResolved = true;
+             isExpectingResponse = false;
+             multimeterSocket!.off('data', onData);
+             resolve({ status: 'error', message: 'Socket Write Error: ' + err.message });
+          }
+        }
+      });
+
+      // Timeout
+      setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true;
+          isExpectingResponse = false;
+          // Clean up listener
+          if (multimeterSocket) multimeterSocket.off('data', onData);
+          resolve({ status: 'error', message: 'Timeout waiting for response on monitor socket' });
+        }
+      }, config.timeout || 2000);
+    });
+  }
+  
+  console.log('[Measure] Monitor not available/ready. Establishing new connection...');
+  // Otherwise, establish a new temporary connection
+  return getOwonMeasurement(config.ip, config.port, config.measureCommand, config.timeout);
+});
 ipcMain.handle('measure-scope', async (event, config) => getRigolData(config.ip, config.port, config.timeout));
 
 // Configuración

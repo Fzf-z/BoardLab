@@ -93,13 +93,15 @@ export const useHardware = () => {
         }
     };
 
-    const captureValue = async (selectedPoint: Point | null): Promise<MeasurementValue | null> => {
+    const captureValue = async (selectedPoint: Point | null, overrideValue?: string): Promise<MeasurementValue | null> => {
         if (!selectedPoint) return null;
         setIsCapturing(true);
         let result: any = { status: 'error', message: 'Not in Electron' };
 
         try {
-            if (isElectron && window.electronAPI) {
+            if (overrideValue) {
+                 result = { status: 'success', value: overrideValue };
+            } else if (isElectron && window.electronAPI) {
                 if (selectedPoint.type === 'oscilloscope') {
                     result = await window.electronAPI.measureScope({
                         ...instrumentConfig.oscilloscope,
