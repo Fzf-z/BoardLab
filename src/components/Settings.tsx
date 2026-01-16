@@ -4,6 +4,11 @@ import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, AppSettings, PointCategory } from '../types';
 import { Plus, Trash2, Edit2, Check, X, ChevronDown } from 'lucide-react';
 
+const PRESET_COLORS = [
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', 
+    '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#ffffff'
+];
+
 interface SettingsProps {
     instruments: InstrumentConfig;
     apiKey: string;
@@ -394,7 +399,7 @@ const Settings: React.FC<SettingsProps> = ({
                         )}
                     </div>
                     
-                    <div className="flex space-x-2 mb-6 p-4 bg-gray-900/50 rounded-lg border border-gray-700">
+                    <div className="flex space-x-2 mb-6 p-4 bg-gray-900/50 rounded-lg border border-gray-700 items-start">
                         <div className="flex-1">
                             <label className="block text-xs text-gray-400 mb-1">New Category Name ({selectedBoardType})</label>
                             <input
@@ -405,17 +410,30 @@ const Settings: React.FC<SettingsProps> = ({
                                 placeholder={`e.g. 3.3V Rail`}
                             />
                         </div>
-                        <div>
+                        <div className="flex flex-col">
                             <label className="block text-xs text-gray-400 mb-1">Color</label>
-                             <input
-                                type="color"
-                                value={newCatColor}
-                                onChange={(e) => setNewCatColor(e.target.value)}
-                                className="h-9 w-16 bg-gray-700 border border-gray-600 rounded cursor-pointer"
-                            />
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="color"
+                                    value={newCatColor}
+                                    onChange={(e) => setNewCatColor(e.target.value)}
+                                    className="h-9 w-9 bg-gray-700 border border-gray-600 rounded cursor-pointer p-0.5"
+                                />
+                                <div className="grid grid-cols-6 gap-1 w-28">
+                                    {PRESET_COLORS.map(c => (
+                                        <button
+                                            key={c}
+                                            onClick={() => setNewCatColor(c)}
+                                            className={`w-4 h-4 rounded-full border ${newCatColor === c ? 'border-white scale-125' : 'border-gray-600 hover:scale-125 hover:border-gray-400'} transition-all`}
+                                            style={{ backgroundColor: c }}
+                                            title={c}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-end">
-                            <button onClick={handleAddCategory} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 flex items-center">
+                        <div className="flex items-end h-[60px]">
+                            <button onClick={handleAddCategory} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 flex items-center h-9">
                                 <Plus size={16} className="mr-1" /> Add
                             </button>
                         </div>
@@ -428,20 +446,33 @@ const Settings: React.FC<SettingsProps> = ({
                         {filteredCategories.map(cat => (
                             <div key={cat.id} className="flex items-center justify-between bg-gray-700/50 p-3 rounded border border-gray-700">
                                 {editingCategoryId === cat.id ? (
-                                    <div className="flex items-center space-x-3 flex-1 mr-2">
-                                         <input
-                                            type="color"
-                                            value={editCatColor}
-                                            onChange={(e) => setEditCatColor(e.target.value)}
-                                            className="h-8 w-8 bg-gray-600 border border-gray-500 rounded cursor-pointer"
-                                        />
+                                    <div className="flex flex-col space-y-2 flex-1 mr-2">
                                         <input 
                                             type="text" 
                                             value={editCatName}
                                             onChange={(e) => setEditCatName(e.target.value)}
-                                            className="flex-1 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                                            className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"
                                             autoFocus
+                                            placeholder="Category Name"
                                         />
+                                        <div className="flex items-center space-x-2">
+                                             <input
+                                                type="color"
+                                                value={editCatColor}
+                                                onChange={(e) => setEditCatColor(e.target.value)}
+                                                className="h-6 w-6 bg-gray-600 border border-gray-500 rounded cursor-pointer p-0"
+                                            />
+                                            <div className="flex flex-wrap gap-1">
+                                                {PRESET_COLORS.map(c => (
+                                                    <button
+                                                        key={c}
+                                                        onClick={() => setEditCatColor(c)}
+                                                        className={`w-4 h-4 rounded-full border ${editCatColor === c ? 'border-white scale-110' : 'border-gray-600 hover:border-gray-400'}`}
+                                                        style={{ backgroundColor: c }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="flex items-center space-x-3">
