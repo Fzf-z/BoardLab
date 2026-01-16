@@ -188,7 +188,7 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
             // data-x-pct and data-y-pct used by physics engine
             return `
                 <div class="point-marker" style="left: ${left}%; top: ${top}%;"></div>
-                <div class="point-label" style="left: ${left}%; top: ${top}%;" data-x-pct="${left}" data-y-pct="${top}">${idx}</div>
+                <div class="point-label" style="left: ${left}%; top: ${top}%;" data-x-pct="${left}" data-y-pct="${top}">${p.label}</div>
             `;
         }).join('');
 
@@ -258,12 +258,12 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
                 /* Label: Floating Number */
                 .point-label {
                     position: absolute; transform: translate(-50%, -50%);
-                    padding: 0 2px;
-                    height: 12px;
-                    min-width: 12px;
-                    border: 1px solid #ef4444; border-radius: 6px;
+                    padding: 1px 4px;
+                    height: auto;
+                    min-width: 14px;
+                    border: 1px solid #ef4444; border-radius: 4px;
                     background: rgba(255,255,255,0.95); color: #ef4444;
-                    font-size: 8px; font-weight: bold; font-family: monospace;
+                    font-size: 9px; font-weight: bold; font-family: monospace;
                     display: flex; align-items: center; justify-content: center;
                     box-shadow: 0 1px 2px rgba(0,0,0,0.2);
                     white-space: nowrap;
@@ -282,15 +282,23 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
                 if (labels.length === 0) return;
 
                 // Physics simulation settings
-                const iterations = 400;
-                const padding = 2; 
+                const iterations = 600; // Increased iterations
+                const padding = 2; // Increased padding between labels
 
                 // Create nodes for Labels (Dynamic)
                 const dynamicNodes = labels.map(lbl => {
                     const rect = lbl.getBoundingClientRect();
                     const parentRect = lbl.parentElement.getBoundingClientRect();
-                    const w = rect.width || 14; 
-                    const h = rect.height || 14;
+                    
+                    // Improved width estimation for hidden rendering contexts
+                    let w = rect.width;
+                    let h = rect.height;
+                    if (!w || w === 0) {
+                        const textLen = lbl.textContent.length;
+                        // Estimate: base 10px + 6px per char approx for 9px bold monospace
+                        w = Math.max(12, textLen * 6 + 8); 
+                        h = 14;
+                    }
                     
                     const originX = parseFloat(lbl.getAttribute('data-x-pct')) / 100 * parentRect.width;
                     const originY = parseFloat(lbl.getAttribute('data-y-pct')) / 100 * parentRect.height;
@@ -317,8 +325,8 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
                     return {
                         x: leftPct / 100 * parentRect.width,
                         y: topPct / 100 * parentRect.height,
-                        width: 8, // Marker size + safety margin
-                        height: 8,
+                        width: 10, // Increased protection radius around marker (visual is 5px)
+                        height: 10,
                         isStatic: true
                     };
                 });
@@ -328,9 +336,15 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
 
                 for (let i = 0; i < iterations; i++) {
                     // 1. Pull dynamic nodes towards anchor (Gravity)
+                    // Variable Elasticity: 
+                    // Start weak to allow expansion/stretching away from center to find space.
+                    // Increase slightly over time but keep it elastic so they don't snap back too hard.
+                    const elasticity = 0.005 + (i / iterations) * 0.01; 
+                    
                     for (let node of dynamicNodes) {
-                        node.x += (node.ox - node.x) * 0.03;
-                        node.y += (node.oy - node.y) * 0.03;
+                        // Hooke's Law-ish: Force proportional to distance, but kept weak
+                        node.x += (node.ox - node.x) * elasticity;
+                        node.y += (node.oy - node.y) * elasticity;
                     }
 
                     // 2. Resolve Collisions
@@ -349,35 +363,44 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
                             const spacingY = (nodeA.height + nodeB.height) / 2 + padding;
 
                             if (Math.abs(dx) < spacingX && Math.abs(dy) < spacingY) {
-                                const overlapX = spacingX - Math.abs(dx);
-                                const overlapY = spacingY - Math.abs(dy);
-
-                                let moveX = 0, moveY = 0;
-
-                                // Determine push vector
-                                if (overlapX < overlapY) {
-                                    const dir = (Math.abs(dx) < 0.1) ? (Math.random() > 0.5 ? 1 : -1) : (dx > 0 ? 1 : -1);
-                                    moveX = overlapX * dir;
-                                } else {
-                                    const dir = (Math.abs(dy) < 0.1) ? (Math.random() > 0.5 ? 1 : -1) : (dy > 0 ? 1 : -1);
-                                    moveY = overlapY * dir;
+                                // Overlap detected
+                                // Use vector-based repulsion to allow movement in ANY direction (360 degrees)
+                                // rather than just snapping to X or Y axes.
+                                
+                                let fx = dx;
+                                let fy = dy;
+                                
+                                // Avoid division by zero / perfect overlap
+                                if (Math.abs(fx) < 0.1 && Math.abs(fy) < 0.1) {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    fx = Math.cos(angle);
+                                    fy = Math.sin(angle);
                                 }
+                                
+                                // Normalize vector
+                                const len = Math.hypot(fx, fy);
+                                const nx = fx / len;
+                                const ny = fy / len;
+                                
+                                // Repulsion strength: stronger if deep overlap
+                                // We use a "soft" resolution over many iterations for smoother results
+                                const pushFactor = 0.5; 
+                                
+                                const moveX = nx * pushFactor;
+                                const moveY = ny * pushFactor;
 
                                 // Apply push
                                 if (nodeA.isStatic) {
-                                    // A is static, B moves full amount away
-                                    nodeB.x -= moveX;
-                                    nodeB.y -= moveY;
+                                    nodeB.x -= moveX * 2;
+                                    nodeB.y -= moveY * 2;
                                 } else if (nodeB.isStatic) {
-                                    // B is static, A moves full amount away
+                                    nodeA.x += moveX * 2;
+                                    nodeA.y += moveY * 2;
+                                } else {
                                     nodeA.x += moveX;
                                     nodeA.y += moveY;
-                                } else {
-                                    // Both dynamic, share the move
-                                    nodeA.x += moveX / 2;
-                                    nodeA.y += moveY / 2;
-                                    nodeB.x -= moveX / 2;
-                                    nodeB.y -= moveY / 2;
+                                    nodeB.x -= moveX;
+                                    nodeB.y -= moveY;
                                 }
                             }
                         }
