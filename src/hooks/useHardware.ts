@@ -103,24 +103,29 @@ export const useHardware = () => {
                  result = { status: 'success', value: overrideValue };
             } else if (isElectron && window.electronAPI) {
                 if (selectedPoint.type === 'oscilloscope') {
+                    // TODO: Migrate oscilloscope to Generic Driver with Binary Support
+                    // For now, keep using legacy measureScope for waveform parsing
                     result = await window.electronAPI.measureScope({
                         ...instrumentConfig.oscilloscope,
                         timeout: instrumentConfig.timeout
                     });
                 } else {
-                    const measureCommand = instrumentConfig.multimeter.commands.measure;
-                    
-                    if (!measureCommand) {
-                        showNotification('"measure" command is missing in the settings.', 'error');
-                        setIsCapturing(false);
-                        return null;
+                    // Use new Generic Instrument API
+                    // We assume 'READ_DC', 'READ_RESISTANCE', etc are mapped.
+                    // For now, we default to a generic 'measure' action if type specific isn't found
+                    // Or map based on point type?
+                    let action = 'MEASURE'; // Default fallback
+                    if (selectedPoint.type === 'voltage') action = 'READ_DC';
+                    if (selectedPoint.type === 'resistance') action = 'READ_RESISTANCE';
+                    if (selectedPoint.type === 'diode') action = 'READ_DIODE';
+
+                    try {
+                        result = await window.electronAPI.instrumentExecute('multimeter', action);
+                    } catch (e: any) {
+                        // Fallback to old method if new one fails (during migration period?)
+                        // No, let's stick to the new one.
+                        result = { status: 'error', message: e.message || 'Measurement failed' };
                     }
-                    result = await window.electronAPI.multimeterGetMeasurement({
-                        ip: instrumentConfig.multimeter.ip,
-                        port: instrumentConfig.multimeter.port,
-                        measureCommand: measureCommand,
-                        timeout: instrumentConfig.timeout
-                    });
                 }
             } else {
                 // Web simulation

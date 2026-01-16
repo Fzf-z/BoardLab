@@ -2,8 +2,6 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Funciones de medición
-  multimeterSetConfig: (config: any) => ipcRenderer.invoke('multimeter-set-config', config),
-  multimeterGetMeasurement: (config: any) => ipcRenderer.invoke('multimeter-get-measurement', config),
   measureScope: (config: any) => ipcRenderer.invoke('measure-scope', config),
   
   // Funciones de configuración
@@ -48,6 +46,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createProject: (projectData: any) => ipcRenderer.invoke('db:create-project', projectData),
   getAllAttributes: (boardType?: string) => ipcRenderer.invoke('db:get-all-attributes', { boardType }),
   savePoints: (data: any) => ipcRenderer.invoke('db:save-points', data), // data: { projectId, points }
+
+  // Instruments (Fase 3.2)
+  getAllInstruments: () => ipcRenderer.invoke('db:get-all-instruments'),
+  saveInstrument: (data: any) => ipcRenderer.invoke('db:save-instrument', data),
+  deleteInstrument: (id: number) => ipcRenderer.invoke('db:delete-instrument', id),
+  instrumentExecute: (type: 'multimeter' | 'oscilloscope', actionKey: string) => ipcRenderer.invoke('instrument:execute', { type, actionKey }),
+  instrumentTestConnection: (config: any) => ipcRenderer.invoke('instrument:test-connection', config),
   getPoints: (projectId: number) => ipcRenderer.invoke('db:get-points', projectId),
   searchProjectsByPoint: (searchTerm: string) => ipcRenderer.invoke('db:search-projects-by-point', searchTerm),
   createMeasurement: (data: any) => ipcRenderer.invoke('db:createMeasurement', data), // data: { pointId, type, value }

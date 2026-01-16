@@ -87,6 +87,87 @@ db.exec(`
     FOREIGN KEY (point_id) REFERENCES points (id)
   );
 `);
+
+// Create instruments table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS instruments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL, -- 'multimeter' | 'oscilloscope'
+    connection_type TEXT NOT NULL, -- 'tcp_raw' | 'serial'
+    ip_address TEXT,
+    port INTEGER,
+    serial_settings TEXT, -- JSON
+    command_map TEXT, -- JSON
+    is_active INTEGER DEFAULT 0
+  );
+`);
+
+// Seed default instruments if table is empty
+const instrumentCount = db.prepare('SELECT COUNT(*) as count FROM instruments').get() as { count: number };
+if (instrumentCount.count === 0) {
+    const insertInstrument = db.prepare(`
+        INSERT INTO instruments (name, type, connection_type, ip_address, port, command_map, is_active)
+        VALUES (@name, @type, @connection_type, @ip_address, @port, @command_map, @is_active)
+    `);
+
+    // 1. Owon XDM1241 (Default)
+    insertInstrument.run({
+        name: 'Owon XDM1241 (Default)',
+        type: 'multimeter',
+        connection_type: 'tcp_raw',
+        ip_address: '192.168.1.100', // Default placeholder
+        port: 9876,
+        command_map: JSON.stringify({
+            "READ_DC": "MEAS:VOLT:DC?",
+            "READ_RESISTANCE": "MEAS:RES?",
+            "READ_DIODE": "MEAS:DIOD?", 
+            "CONFIGURE_VOLTAGE": "CONF:VOLT:DC AUTO",
+            "CONFIGURE_RESISTANCE": "CONF:RES AUTO",
+            "CONFIGURE_DIODE": "CONF:DIOD",
+            "IDN": "*IDN?"
+        }),
+        is_active: 1
+    });
+
+    // 2. Rigol DHO814 (Default)
+    insertInstrument.run({
+        name: 'Rigol DHO814 (Default)',
+        type: 'oscilloscope',
+        connection_type: 'tcp_raw',
+        ip_address: '192.168.1.102', // Default placeholder
+        port: 5555,
+        command_map: JSON.stringify({
+            "IDN": "*IDN?",
+            "SETUP_WAVE": ":WAV:SOUR CHAN1", // Example
+            "READ_WAVE": ":WAV:DATA?"
+        }),
+        is_active: 1
+    });
+    console.log('Worker: Seeded default instruments.');
+} else {
+    // MIGRATION: Fix existing Owon instrument to include new CONFIGURE commands
+    try {
+        const owon = db.prepare("SELECT * FROM instruments WHERE name LIKE 'Owon%' AND type='multimeter'").get() as any;
+        if (owon) {
+            const cmdMap = JSON.parse(owon.command_map);
+            if (!cmdMap["CONFIGURE_VOLTAGE"]) {
+                console.log("Worker: Migrating Owon instrument commands...");
+                cmdMap["CONFIGURE_VOLTAGE"] = "CONF:VOLT:DC AUTO";
+                cmdMap["CONFIGURE_RESISTANCE"] = "CONF:RES AUTO";
+                cmdMap["CONFIGURE_DIODE"] = "CONF:DIOD";
+                cmdMap["READ_DIODE"] = "MEAS:DIOD?";
+                
+                db.prepare("UPDATE instruments SET command_map = ? WHERE id = ?")
+                  .run(JSON.stringify(cmdMap), owon.id);
+                console.log("Worker: Owon commands updated successfully.");
+            }
+        }
+    } catch (e) {
+        console.error("Worker: Error migrating instrument commands:", e);
+    }
+}
+
 console.log('Worker: Database schema ensured.');
 
 
@@ -261,6 +342,43 @@ async function handleMessage(msg: any) {
                     const res = db.prepare('DELETE FROM points WHERE id = ?').run(pointId);
                     return res;
                 });
+                result = deletePointTransaction(payload);
+                break;
+
+            case 'db:get-active-instruments':
+                result = db.prepare('SELECT * FROM instruments WHERE is_active = 1').all();
+                break;
+
+            case 'db:get-all-instruments':
+                result = db.prepare('SELECT * FROM instruments').all();
+                break;
+
+            case 'db:save-instrument':
+                if (payload.id) {
+                    // Update
+                    db.prepare(`
+                        UPDATE instruments SET 
+                        name=@name, type=@type, connection_type=@connection_type, 
+                        ip_address=@ip_address, port=@port, command_map=@command_map, is_active=@is_active
+                        WHERE id=@id
+                    `).run(payload);
+                    result = { id: payload.id };
+                } else {
+                    // Insert
+                    const info = db.prepare(`
+                        INSERT INTO instruments (name, type, connection_type, ip_address, port, command_map, is_active)
+                        VALUES (@name, @type, @connection_type, @ip_address, @port, @command_map, @is_active)
+                    `).run(payload);
+                    result = { id: info.lastInsertRowid };
+                }
+                break;
+
+            case 'db:delete-instrument':
+                db.prepare('DELETE FROM instruments WHERE id = ?').run(payload);
+                result = { status: 'success' };
+                break;
+
+
                 
                 const deletePointResult = deletePointTransaction(payload);
                 

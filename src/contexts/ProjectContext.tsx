@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useBoard } from '../hooks/useBoard';
 import { useNotifier } from './NotifierContext';
-import { Project, Point, MeasurementValue, AppSettings } from '../types';
+import { Project, Point, MeasurementValue, AppSettings, Instrument } from '../types';
 
 // Extend global window interface for Electron API
 declare global {
@@ -23,9 +23,17 @@ declare global {
             onExternalTrigger: (callback: (data: any) => void) => () => void;
             getBoardTypes: () => Promise<string[]>;
             addBoardType: (type: string) => Promise<boolean>;
-            [key: string]: any;
             exportPdf: (projectId: number) => Promise<{ status: string; filePath?: string; message?: string }>;
             exportImage: (projectId: number) => Promise<{ status: string; filePath?: string; message?: string }>;
+            
+            // Instruments (Fase 3.2)
+            getAllInstruments: () => Promise<Instrument[]>;
+            saveInstrument: (data: Instrument) => Promise<{ id: number }>;
+            deleteInstrument: (id: number) => Promise<{ status: string }>;
+            instrumentExecute: (type: 'multimeter' | 'oscilloscope', actionKey: string) => Promise<any>;
+            instrumentTestConnection: (config: Instrument) => Promise<any>;
+
+            [key: string]: any;
         };
     }
 }

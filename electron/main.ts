@@ -4,10 +4,10 @@ import fs from 'fs';
 import { Worker } from 'worker_threads';
 import Store from 'electron-store';
 import net from 'net';
-import { setOwonConfig, getOwonMeasurement } from './drivers/owon';
 import { getRigolData } from './drivers/rigol';
 import { testConnection } from './drivers/connection';
 import { generateReportHtml, generateImageExportHtml } from '../src/report-generator';
+import { GenericSCPIDriver, InstrumentConfig } from './drivers/GenericSCPIDriver';
 
 const store = new Store();
 
@@ -17,6 +17,8 @@ if (require('electron-squirrel-startup')) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let activeMultimeter: GenericSCPIDriver | null = null;
+let activeOscilloscope: GenericSCPIDriver | null = null;
 
 // =================================================================
 // Database Worker
@@ -62,75 +64,33 @@ function dbQuery(type: string, payload?: any) {
 }
 
 // =================================================================
-// Multimeter Monitor (Persistent Connection)
+// Multimeter Monitor (Delegated to Driver)
 // =================================================================
-let multimeterSocket: net.Socket | null = null;
-let monitorReconnectTimeout: NodeJS.Timeout | null = null;
-let isExpectingResponse = false; // Flag to suppress monitor events when manual measure is active
-
-function startMultimeterMonitor(ip: string, port: number) {
-  stopMultimeterMonitor(); // Close existing if any
-
-  console.log(`Starting Multimeter Monitor on ${ip}:${port}`);
-  const socket = new net.Socket();
-  multimeterSocket = socket;
-  
-  socket.connect(port, ip, () => {
-    console.log('Multimeter Monitor Connected');
-    if (mainWindow) mainWindow.webContents.send('monitor-status', 'connected');
-  });
-
-  socket.on('data', (data) => {
-    // If we are waiting for a manual response, don't emit external-trigger
-    if (isExpectingResponse) return;
-
-    const rawData = data.toString().trim();
-    if (rawData) {
-      console.log('Monitor Data Received:', rawData);
-      // Clean the value (remove non-printable)
-      const cleanValue = rawData.replace(/[^\x20-\x7E]/g, '');
-      
-      // Emit as external trigger with the value
-      if (mainWindow) {
-        mainWindow.webContents.send('external-trigger', cleanValue);
-      }
-    }
-  });
-
-  socket.on('error', (err) => {
-    console.error('Multimeter Monitor Error:', err);
-    if (mainWindow) mainWindow.webContents.send('monitor-status', 'error');
-  });
-
-  socket.on('close', () => {
-    console.log('Multimeter Monitor Closed');
-    if (mainWindow) mainWindow.webContents.send('monitor-status', 'disconnected');
-    // Only clear the global variable if it refers to THIS socket
-    if (multimeterSocket === socket) {
-      multimeterSocket = null;
-    }
-  });
-}
-
-function stopMultimeterMonitor() {
-  if (monitorReconnectTimeout) clearTimeout(monitorReconnectTimeout);
-  if (multimeterSocket) {
-    multimeterSocket.destroy();
-    multimeterSocket = null;
-  }
-}
 
 ipcMain.handle('start-monitor', async (event, { ip, port }) => {
   try {
-    startMultimeterMonitor(ip, port);
-    return { status: 'success' };
+    if (activeMultimeter) {
+        await activeMultimeter.startMonitor((data) => {
+            if (mainWindow) {
+                console.log('Monitor Data Received:', data);
+                mainWindow.webContents.send('external-trigger', data);
+            }
+        });
+        if (mainWindow) mainWindow.webContents.send('monitor-status', 'connected');
+        return { status: 'success' };
+    }
+    return { status: 'error', message: 'No active multimeter driver' };
   } catch (error: any) {
+    if (mainWindow) mainWindow.webContents.send('monitor-status', 'error');
     return { status: 'error', message: error.message };
   }
 });
 
 ipcMain.handle('stop-monitor', async () => {
-   stopMultimeterMonitor();
+   if (activeMultimeter) {
+       activeMultimeter.stopMonitor();
+   }
+   if (mainWindow) mainWindow.webContents.send('monitor-status', 'disconnected');
    return { status: 'success' };
 });
 
@@ -171,7 +131,28 @@ function createWindow() {
   });
 }
 
-app.on('ready', createWindow);
+app.on('ready', async () => {
+  createWindow();
+
+  // Load Active Instruments
+  try {
+      const instruments = await dbQuery('db:get-active-instruments') as InstrumentConfig[];
+      if (Array.isArray(instruments)) {
+          instruments.forEach(inst => {
+              const driver = new GenericSCPIDriver(inst);
+              if (inst.type === 'multimeter') {
+                  activeMultimeter = driver;
+                  console.log(`[Main] Loaded Multimeter: ${inst.name} (${inst.ip_address})`);
+              } else if (inst.type === 'oscilloscope') {
+                  activeOscilloscope = driver;
+                  console.log(`[Main] Loaded Oscilloscope: ${inst.name} (${inst.ip_address})`);
+              }
+          });
+      }
+  } catch (err) {
+      console.error("[Main] Failed to load instruments:", err);
+  }
+});
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
@@ -204,72 +185,44 @@ ipcMain.handle('db:delete-project', (event, projectId) => dbQuery('db:delete-pro
 ipcMain.handle('db:delete-point', (event, pointId) => dbQuery('db:delete-point', pointId));
 ipcMain.handle('db:update-project', (event, projectData) => dbQuery('db:update-project', projectData));
 ipcMain.handle('db:search-projects-by-point', (event, searchTerm) => dbQuery('db:search-projects-by-point', searchTerm));
+ipcMain.handle('db:get-all-instruments', () => dbQuery('db:get-all-instruments'));
+ipcMain.handle('db:save-instrument', (event, data) => dbQuery('db:save-instrument', data));
+ipcMain.handle('db:delete-instrument', (event, id) => dbQuery('db:delete-instrument', id));
+ipcMain.handle('db:get-active-instruments', () => dbQuery('db:get-active-instruments'));
 
 // =================================================================
 // IPC Handlers for Hardware
 // =================================================================
 
+ipcMain.handle('instrument:execute', async (event, { type, actionKey }) => {
+    const driver = type === 'multimeter' ? activeMultimeter : activeOscilloscope;
+    if (!driver) {
+        return { status: 'error', message: `No active ${type} configured.` };
+    }
+    return driver.execute(actionKey);
+});
+
+ipcMain.handle('instrument:test-connection', async (event, config) => {
+    try {
+        // Ensure command_map is a string as expected by GenericSCPIDriver
+        const driverConfig = { ...config };
+        if (typeof driverConfig.command_map === 'object') {
+            driverConfig.command_map = JSON.stringify(driverConfig.command_map);
+        }
+        
+        const tempDriver = new GenericSCPIDriver(driverConfig);
+        // 'IDN' is the standard key for identification in our map
+        return await tempDriver.execute('IDN');
+    } catch (e: any) {
+        return { status: 'error', message: e.message || 'Connection failed' };
+    }
+});
+
 ipcMain.handle('hardware:measure-resistance', async () => {
   // ... (existing hardware code)
 });
 
-// Medición
-ipcMain.handle('multimeter-set-config', async (event, config) => setOwonConfig(config.ip, config.port, config.configCommand));
-ipcMain.handle('multimeter-get-measurement', async (event, config) => {
-  console.log(`[Measure] Request for ${config.ip}. Monitor active? ${!!multimeterSocket}, Destroyed? ${multimeterSocket?.destroyed}`);
-
-  // If Monitor is active, reuse the socket to avoid ECONNRESET due to concurrent connections
-  // Also verify connection state is 'open'
-  if (multimeterSocket && !multimeterSocket.destroyed && multimeterSocket.readyState === 'open') {
-    console.log("Reusing Monitor Socket for Measurement...");
-    return new Promise((resolve) => {
-      const cmd = config.measureCommand || 'MEAS:SHOW?';
-      let isResolved = false;
-      isExpectingResponse = true; // Suppress global monitor listener
-
-      const onData = (data: Buffer) => {
-        if (isResolved) return;
-        isResolved = true;
-        isExpectingResponse = false; // Re-enable global monitor listener
-        
-        // Clean response
-        const str = data.toString().replace(/[^\x20-\x7E]/g, '').trim();
-        resolve({ status: 'success', value: str });
-      };
-
-      // Listen for the NEXT data packet
-      // Note: The global 'data' listener will NOT emit due to isExpectingResponse flag
-      multimeterSocket!.once('data', onData);
-
-      // Send command
-      multimeterSocket!.write(cmd.trim() + '\n', (err) => {
-        if (err) {
-          if (!isResolved) {
-             isResolved = true;
-             isExpectingResponse = false;
-             multimeterSocket!.off('data', onData);
-             resolve({ status: 'error', message: 'Socket Write Error: ' + err.message });
-          }
-        }
-      });
-
-      // Timeout
-      setTimeout(() => {
-        if (!isResolved) {
-          isResolved = true;
-          isExpectingResponse = false;
-          // Clean up listener
-          if (multimeterSocket) multimeterSocket.off('data', onData);
-          resolve({ status: 'error', message: 'Timeout waiting for response on monitor socket' });
-        }
-      }, config.timeout || 2000);
-    });
-  }
-  
-  console.log('[Measure] Monitor not available/ready. Establishing new connection...');
-  // Otherwise, establish a new temporary connection
-  return getOwonMeasurement(config.ip, config.port, config.measureCommand, config.timeout);
-});
+// Osciloscopio (Legacy - To be migrated to Binary Generic Driver)
 ipcMain.handle('measure-scope', async (event, config) => getRigolData(config.ip, config.port, config.timeout));
 
 // Configuración

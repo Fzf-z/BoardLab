@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
 import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, AppSettings, PointCategory } from '../types';
-import { Plus, Trash2, Edit2, Check, X, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, ChevronDown, List } from 'lucide-react';
+import InstrumentManager from './InstrumentManager';
 
 const PRESET_COLORS = [
     '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', 
@@ -33,7 +34,7 @@ const Settings: React.FC<SettingsProps> = ({
       if (!settings.categories) settings.categories = [];
       return settings;
   });
-  const [activeTab, setActiveTab] = useState<'app' | 'categories' | 'multimeter' | 'oscilloscope'>('app');
+  const [activeTab, setActiveTab] = useState<'app' | 'categories' | 'instruments'>('app');
   const { showNotification } = useNotifier();
   
   // Category State
@@ -271,22 +272,18 @@ const Settings: React.FC<SettingsProps> = ({
                     className={`px-3 py-1 rounded text-sm ${activeTab === 'app' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
                 >
                     Application
-                </button>                <button 
+                </button>
+                <button 
                     onClick={() => setActiveTab('categories')} 
                     className={`px-3 py-1 rounded text-sm ${activeTab === 'categories' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
                 >
                     Categories
-                </button>                <button 
-                    onClick={() => setActiveTab('multimeter')} 
-                    className={`px-3 py-1 rounded text-sm ${activeTab === 'multimeter' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
-                >
-                    Multimeter
                 </button>
                 <button 
-                    onClick={() => setActiveTab('oscilloscope')} 
-                    className={`px-3 py-1 rounded text-sm ${activeTab === 'oscilloscope' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                    onClick={() => setActiveTab('instruments')} 
+                    className={`px-3 py-1 rounded text-sm ${activeTab === 'instruments' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
                 >
-                    Oscilloscope
+                    Instruments
                 </button>
             </div>
         </div>
@@ -509,8 +506,11 @@ const Settings: React.FC<SettingsProps> = ({
                 </div>
             )}
 
-            {activeTab === 'multimeter' && renderInstrumentConfig('multimeter')}
-            {activeTab === 'oscilloscope' && renderInstrumentConfig('oscilloscope')}
+            {activeTab === 'instruments' && (
+                <div className="animate-in fade-in">
+                    <InstrumentManager />
+                </div>
+            )}
         </div>
 
         {/* Footer */}

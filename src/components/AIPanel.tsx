@@ -66,18 +66,21 @@ const AIPanel: React.FC<AIPanelProps> = ({
         }
 
         if (field === 'type' && value !== 'oscilloscope') {
-            const cmdKey = `configure_${value}`;
-            const configCommand = instrumentConfig.multimeter.commands[cmdKey];
-            if (configCommand && window.electronAPI) {
+            // Map point type to instrument action
+            let actionKey = '';
+            switch (value) {
+                case 'voltage': actionKey = 'CONFIGURE_VOLTAGE'; break;
+                case 'resistance': actionKey = 'CONFIGURE_RESISTANCE'; break;
+                case 'diode': actionKey = 'CONFIGURE_DIODE'; break;
+            }
+
+            if (actionKey && window.electronAPI?.instrumentExecute) {
                 try {
-                    await window.electronAPI.multimeterSetConfig({
-                        ip: instrumentConfig.multimeter.ip,
-                        port: instrumentConfig.multimeter.port,
-                        configCommand: configCommand,
-                    });
-                    // Optional notification or feedback could go here
+                    console.log(`Auto-configuring multimeter: ${actionKey}`);
+                    await window.electronAPI.instrumentExecute('multimeter', actionKey);
                 } catch (err) {
-                    console.error("Failed to configure multimeter:", err);
+                    // It's possible the instrument doesn't have this command mapped, just warn
+                    console.warn("Failed to auto-configure multimeter:", err);
                 }
             }
         }

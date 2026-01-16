@@ -82,3 +82,15 @@ export interface AppSettings {
     pointColor: string; // hex
     categories: PointCategory[];
 }
+
+export interface Instrument {
+    id?: number;
+    name: string;
+    type: 'multimeter' | 'oscilloscope';
+    connection_type: 'tcp_raw' | 'serial';
+    ip_address: string; // Made required as per schema usage
+    port: number;
+    serial_settings?: string; // JSON string
+    command_map: string; // JSON string
+    is_active: number; // 0 or 1
+}
