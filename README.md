@@ -62,7 +62,7 @@ electron/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/boardlab.git
+   git clone https://github.com/Fzf-z/boardlab.git
    cd boardlab
    ```
 
