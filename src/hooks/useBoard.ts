@@ -290,6 +290,12 @@ export const useBoard = () => {
         }
     };
 
+    const updatePoint = useCallback((pointId: number | string, updates: Partial<Point>) => {
+        setPoints(currentPoints => 
+            currentPoints.map(p => p.id === pointId ? { ...p, ...updates } : p)
+        );
+    }, [setPoints]);
+
     const resetBoard = () => {
         setImage(null);
         setScale(1);
@@ -342,6 +348,7 @@ export const useBoard = () => {
         handleMouseUp,
         handlePointMouseDown,
         handleImageClick,
+        updatePoint,
         resetBoard,
         undo,
         redo,

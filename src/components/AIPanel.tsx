@@ -72,6 +72,14 @@ const AIPanel: React.FC<AIPanelProps> = ({
                 case 'voltage': actionKey = 'CONFIGURE_VOLTAGE'; break;
                 case 'resistance': actionKey = 'CONFIGURE_RESISTANCE'; break;
                 case 'diode': actionKey = 'CONFIGURE_DIODE'; break;
+                case 'ground': 
+                    // Ground is a reference, no active configuration needed on the multimeter
+                    // unless we wanted to switch to Continuity, but user suggested Ground = Reference.
+                    actionKey = ''; 
+                    break;
+                case 'continuity': // Future proofing
+                    actionKey = 'CONFIGURE_CONTINUITY'; 
+                    break;
             }
 
             if (actionKey && window.electronAPI?.instrumentExecute) {

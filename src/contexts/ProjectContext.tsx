@@ -130,12 +130,19 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
     };
 
     const startSequence = () => {
+        // Filter out Ground points as they are references and don't need active measurement
+        // Filter by Type 'ground' OR Category name containing 'ground' (case insensitive)
+        const actionablePoints = board.points.filter(p => {
+            const isGroundType = p.type === 'ground';
+            const isGroundCategory = p.category && p.category.toLowerCase().includes('ground');
+            return !isGroundType && !isGroundCategory;
+        });
+        
         // Use the current order of points (usually creation order or ID)
-        // This respects the order shown in the points table
-        const order = board.points.map(p => p.id);
+        const order = actionablePoints.map(p => p.id);
         
         if (order.length === 0) {
-            showNotification('No points to sequence.', 'warning');
+            showNotification('No actionable points (non-ground) to sequence.', 'warning');
             return;
         }
 
