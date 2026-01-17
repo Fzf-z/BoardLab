@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron';
-import path from 'path';
+import path from 'node:path'
 import fs from 'fs';
 import { Worker } from 'worker_threads';
 import Store from 'electron-store';
@@ -109,23 +109,17 @@ function createWindow() {
     }
   });
 
+  // ---------------------------------------------------------
+  // CORRECCIÓN AQUÍ
+  // ---------------------------------------------------------
   if (process.env.VITE_DEV_SERVER_URL) {
-    console.log("Cargando aplicación desde Vite Server...");
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    // Open the DevTools.
-    //mainWindow.webContents.openDevTools();
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
-    console.log("Cargando aplicación desde el build de producción...");
-    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-      const responseHeaders = details.responseHeaders || {};
-      responseHeaders['Content-Security-Policy'] = [
-        "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws:"
-      ];
-      callback({ responseHeaders });
-    });
-    mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
+    // CAMBIO: Usar '../dist/index.html' porque main.js está dentro de 'dist-electron'
+    // y necesita salir para encontrar la carpeta 'dist'.
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
   }
-
+  
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

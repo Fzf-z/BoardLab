@@ -78,7 +78,16 @@ const BoardLab: React.FC = () => {
 
             // Mode Switching
             if (key === 'M') setMode('measure');
-            if (key === 'V') setMode('view');
+            if (key === ' ') { e.preventDefault(); setMode('view'); } // Space for Pan/View
+
+            // Measurement Type Shortcuts (Only works when a point is selected or creating one)
+            if (board.selectedPoint) {
+                if (key === 'V') board.updatePoint(board.selectedPoint.id, { type: 'voltage' });
+                if (key === 'R') board.updatePoint(board.selectedPoint.id, { type: 'resistance' });
+                if (key === 'D') board.updatePoint(board.selectedPoint.id, { type: 'diode' });
+                if (key === 'G') board.updatePoint(board.selectedPoint.id, { type: 'ground' });
+                if (key === 'O') board.updatePoint(board.selectedPoint.id, { type: 'oscilloscope' });
+            }
 
             // Save Project (Ctrl+S)
             if ((e.ctrlKey || e.metaKey) && key === 'S') {
