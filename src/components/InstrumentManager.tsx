@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Instrument } from '../types';
-import { Plus, Trash2, Edit2, Save, X, Activity, Wifi, Check, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, Activity, Wifi } from 'lucide-react';
 import { useNotifier } from '../contexts/NotifierContext';
 
 const InstrumentManager: React.FC = () => {
@@ -196,7 +196,7 @@ const InstrumentManager: React.FC = () => {
                 </div>
 
                  <div>
-                    <label className="block text-xs text-gray-400 mb-1 flex justify-between">
+                    <label className="text-xs text-gray-400 mb-1 flex justify-between">
                         <span>Command Map (JSON)</span>
                         <span className="text-gray-500">Mapea acciones a comandos SCPI</span>
                     </label>

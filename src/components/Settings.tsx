@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
 import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, AppSettings, PointCategory } from '../types';
-import { Plus, Trash2, Edit2, Check, X, ChevronDown, List, Info, Github, Keyboard } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Github, Keyboard } from 'lucide-react';
 import InstrumentManager from './InstrumentManager';
 
 const PRESET_COLORS = [
@@ -24,7 +24,7 @@ const Settings: React.FC<SettingsProps> = ({
 }) => {
   const { boardTypes, addBoardType } = useProject();
   
-  const [localInstruments, setLocalInstruments] = useState<InstrumentConfig>(() => {
+  const [localInstruments] = useState<InstrumentConfig>(() => {
       const inst = JSON.parse(JSON.stringify(instruments));
       if (!inst.monitor) inst.monitor = { enabled: false };
       return inst;
@@ -125,132 +125,10 @@ const Settings: React.FC<SettingsProps> = ({
       showNotification(`Board Type '${newBoardTypeName}' added.`, 'success');
   };
 
-  const handleInstrumentChange = (instrument: 'multimeter' | 'oscilloscope', field: string, value: string | number) => {
-    setLocalInstruments(prev => ({
-      ...prev,
-      [instrument]: {
-        ...prev[instrument],
-        [field]: value,
-      },
-    }));
-  };
 
-  const handleCommandChange = (instrument: 'multimeter' | 'oscilloscope', commandName: string, value: string) => {
-    setLocalInstruments(prev => ({
-        ...prev,
-        [instrument]: {
-            ...prev[instrument],
-            commands: {
-                ...prev[instrument].commands,
-                [commandName]: value,
-            }
-        },
-      }));
-  };
-  
-  const handleTestConnection = async (instrument: 'multimeter' | 'oscilloscope') => {
-    const instData = localInstruments[instrument];
-    if (window.electronAPI) {
-        const result = await window.electronAPI.testConnection(instData.ip, instData.port);
-        if (result.status === 'success') {
-            showNotification(`${instrument} connection test successful!`, 'success');
-        } else {
-            showNotification(`${instrument} connection test failed: ${result.message}`, 'error');
-        }
-    } else {
-        showNotification('Connection testing only available in Electron environment.', 'info');
-    }
-  };
 
-  const renderInstrumentConfig = (instrumentKey: 'multimeter' | 'oscilloscope') => {
-    const instrument = localInstruments[instrumentKey];
-    if (!instrument) return null;
 
-    return (
-        <div key={instrumentKey} className="animate-in fade-in">
-            <h3 className="text-xl font-semibold mb-4 capitalize text-blue-400 border-b border-gray-700 pb-2">{instrumentKey}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400">IP Address</label>
-                <input
-                  type="text"
-                  value={instrument.ip}
-                  onChange={(e) => handleInstrumentChange(instrumentKey, 'ip', e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-400">Port</label>
-                <input
-                  type="number"
-                  value={instrument.port}
-                  onChange={(e) => handleInstrumentChange(instrumentKey, 'port', parseInt(e.target.value))}
-                  className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-white"
-                />
-              </div>
-            </div>
 
-            {instrumentKey === 'multimeter' && (
-                <div className="mt-4 p-3 bg-gray-700/50 rounded border border-gray-600">
-                     <div className="flex items-center">
-                         <input 
-                            type="checkbox" 
-                            id="monitorEnabled"
-                            checked={localInstruments.monitor?.enabled || false} 
-                            onChange={(e) => setLocalInstruments(prev => ({
-                                ...prev,
-                                monitor: { enabled: e.target.checked }
-                            }))}
-                            className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-                        />
-                        <label htmlFor="monitorEnabled" className="ml-2 text-sm text-white font-medium">Enable Continuous Monitoring</label>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1 ml-6">
-                        Automatically captures measurements when the multimeter sends data (e.g. from probe button).
-                    </p>
-                </div>
-            )}
-
-            {instrumentKey === 'multimeter' && (
-                 <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-400">Measurement Timeout (ms)</label>
-                    <input
-                        type="number"
-                        value={localInstruments.timeout || 2000}
-                        onChange={(e) => setLocalInstruments(prev => ({ ...prev, timeout: parseInt(e.target.value) || 2000 }))}
-                        className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-white"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Time to wait for instrument response before failing.</p>
-                 </div>
-            )}
-
-            <div className="mt-6">
-                <h4 className="text-lg font-medium text-gray-300 mb-2">SCPI Commands</h4>
-                <div className="bg-gray-800 p-3 rounded border border-gray-700 space-y-3">
-                    {instrument.commands && Object.keys(instrument.commands).map(cmdKey => (
-                        <div key={cmdKey}>
-                            <label className="block text-xs font-medium text-gray-500 capitalize mb-1">{cmdKey.replace(/_/g, ' ')}</label>
-                            <input
-                            type="text"
-                            value={instrument.commands[cmdKey]}
-                            onChange={(e) => handleCommandChange(instrumentKey, cmdKey, e.target.value)}
-                            className="block w-full px-3 py-1.5 bg-gray-900 border border-gray-600 rounded text-xs font-mono text-green-400 focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                    ))}
-                </div>
-            </div>
-            <div className="mt-4">
-              <button
-                onClick={() => handleTestConnection(instrumentKey)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 w-full md:w-auto transition-colors"
-              >
-                Test Connection
-              </button>
-            </div>
-        </div>
-    );
-  }
 
   // Filter categories for the active board type
   const filteredCategories = (localAppSettings.categories || []).filter(c => 

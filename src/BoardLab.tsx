@@ -3,7 +3,8 @@ import { useProject } from './contexts/ProjectContext';
 import { useNotifier } from './contexts/NotifierContext';
 import { useGemini } from './hooks/useGemini';
 import { useHardware } from './hooks/useHardware';
-import { InstrumentConfig, Project } from './types';
+import { InstrumentConfig, Project, AppSettings } from './types';
+import { X } from 'lucide-react';
 
 // Importing Components
 import Toolbar from './components/Toolbar';
@@ -16,6 +17,7 @@ import ProjectManagerModal from './components/modals/ProjectManagerModal';
 import AIModal from './components/modals/AIModal';
 import NewProjectModal from './components/modals/NewProjectModal';
 import ComparisonModal from './components/modals/ComparisonModal';
+import PointsTable from './components/PointsTable';
 
 const BoardLab: React.FC = () => {
     // UI State - Stays in this component
@@ -23,6 +25,7 @@ const BoardLab: React.FC = () => {
     const [isProjectManagerOpen, setProjectManagerOpen] = useState<boolean>(false);
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState<boolean>(false);
     const [isComparisonModalOpen, setComparisonModalOpen] = useState<boolean>(false);
+    const [isPointsTableOpen, setPointsTableOpen] = useState<boolean>(false);
     const [comparisonPoint, setComparisonPoint] = useState<any>(null);
     const { showNotification } = useNotifier();
 
@@ -214,7 +217,7 @@ const BoardLab: React.FC = () => {
                 setMode={setMode}
                 onUpload={() => board.fileInputRef.current?.click()}
                 onOpenSettings={() => hardware.setConfigOpen(true)}
-                //onOpenPointsTable={() => setPointsTableOpen(true)}
+                onOpenPointsTable={() => setPointsTableOpen(true)}
                 onNewProject={() => setNewProjectModalOpen(true)}
                 onOpenProject={handleOpenProject}
                 onSaveProject={saveProject}
@@ -245,7 +248,7 @@ const BoardLab: React.FC = () => {
             <ComparisonModal 
                 isOpen={isComparisonModalOpen}
                 onClose={() => setComparisonModalOpen(false)}
-                currentPoint={board.selectedPoint}
+                currentPoint={board.selectedPoint || null}
                 onImportReference={(pt: any) => {
                     setComparisonPoint(pt);
                     setComparisonModalOpen(false);
@@ -308,6 +311,20 @@ const BoardLab: React.FC = () => {
             )}
 
 
+
+            {isPointsTableOpen && (
+                 <div className="absolute top-0 right-0 h-full w-96 bg-gray-900 border-l border-gray-700 z-30 shadow-xl overflow-hidden flex flex-col pt-16 animate-in slide-in-from-right">
+                    <div className="p-2 border-b border-gray-700 flex justify-between items-center bg-gray-800">
+                        <span className="font-semibold text-gray-300">Points Table</span>
+                        <button onClick={() => setPointsTableOpen(false)} className="text-gray-400 hover:text-white">
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-auto">
+                         <PointsTable mode={mode} />
+                    </div>
+                 </div>
+            )}
 
             <AIModal
                 isOpen={gemini.aiModalOpen}

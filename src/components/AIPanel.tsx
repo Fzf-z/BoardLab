@@ -4,7 +4,7 @@ import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, MeasurementValue, Point } from '../types';
 import Waveform from './Waveform';
 import PointsTable from './PointsTable';
-import { LayoutList, Sidebar } from 'lucide-react';
+import { LayoutList } from 'lucide-react';
 
 interface AIPanelProps {
     askAboutPoint: (point: Point) => void;
@@ -22,7 +22,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
     captureValue,
     isCapturing,
     analyzeBoard,
-    instrumentConfig,
+    // instrumentConfig,
     onOpenComparison,
     comparisonPoint,
     mode
