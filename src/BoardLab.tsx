@@ -284,6 +284,7 @@ const BoardLab: React.FC = () => {
                 instrumentConfig={hardware.instrumentConfig}
                 onOpenComparison={() => setComparisonModalOpen(true)}
                 comparisonPoint={comparisonPoint}
+                mode={mode}
             />
 
             {/* Modals that don't need project data can stay as they are */}

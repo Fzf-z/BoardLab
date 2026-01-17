@@ -14,6 +14,7 @@ interface AIPanelProps {
     instrumentConfig: InstrumentConfig;
     onOpenComparison?: () => void;
     comparisonPoint?: any;
+    mode: 'view' | 'measure';
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
@@ -23,7 +24,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
     analyzeBoard,
     instrumentConfig,
     onOpenComparison,
-    comparisonPoint
+    comparisonPoint,
+    mode
 }) => {
     const { 
         points, 
@@ -45,6 +47,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
             setReferenceWaveform(comparisonPoint.measurements.oscilloscope);
         }
     }, [comparisonPoint]);
+
+    useEffect(() => {
+        if (mode === 'view') {
+            setActiveTab('table');
+        }
+    }, [mode]);
 
     useEffect(() => {
         setHistory([]);
@@ -151,26 +159,35 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
     return (
         <div className="w-82 bg-gray-800 border-l border-gray-700 flex flex-col z-20 shadow-xl">
-            <div className="flex border-b border-gray-700">
-                <button 
-                    onClick={() => setActiveTab('detail')}
-                    className={`flex-1 py-3 text-sm font-bold flex items-center justify-center transition-colors ${activeTab === 'detail' ? 'bg-gray-800 text-blue-400 border-b-2 border-blue-400' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}
-                >
-                    <Activity size={16} className="mr-2" />
-                    Datos
-                </button>
-                <button 
-                    onClick={() => setActiveTab('table')}
-                    className={`flex-1 py-3 text-sm font-bold flex items-center justify-center transition-colors ${activeTab === 'table' ? 'bg-gray-800 text-blue-400 border-b-2 border-blue-400' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}
-                >
-                    <LayoutList size={16} className="mr-2" />
-                    Tabla
-                </button>
-            </div>
+            {mode === 'measure' ? (
+                <div className="flex border-b border-gray-700">
+                    <button 
+                        onClick={() => setActiveTab('detail')}
+                        className={`flex-1 py-3 text-sm font-bold flex items-center justify-center transition-colors ${activeTab === 'detail' ? 'bg-gray-800 text-blue-400 border-b-2 border-blue-400' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}
+                    >
+                        <Activity size={16} className="mr-2" />
+                        Datos
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('table')}
+                        className={`flex-1 py-3 text-sm font-bold flex items-center justify-center transition-colors ${activeTab === 'table' ? 'bg-gray-800 text-blue-400 border-b-2 border-blue-400' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}
+                    >
+                        <LayoutList size={16} className="mr-2" />
+                        Tabla
+                    </button>
+                </div>
+            ) : (
+                <div className="flex border-b border-gray-700">
+                    <div className="flex-1 py-3 text-sm font-bold flex items-center justify-center bg-gray-800 text-blue-400 border-b-2 border-blue-400">
+                        <LayoutList size={16} className="mr-2" />
+                        Tabla de Puntos
+                    </div>
+                </div>
+            )}
 
-            {activeTab === 'table' ? (
+            {(activeTab === 'table' || mode === 'view') ? (
                 <div className="flex-1 overflow-hidden h-full">
-                    <PointsTable />
+                    <PointsTable mode={mode} />
                 </div>
             ) : (
             <div className="flex-1 overflow-y-auto p-4 space-y-4">

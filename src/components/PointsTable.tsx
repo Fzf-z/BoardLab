@@ -4,7 +4,11 @@ import { useProject } from '../contexts/ProjectContext';
 import { Point } from '../types';
 import WaveformThumbnail from './WaveformThumbnail';
 
-const PointsTable: React.FC = () => {
+interface PointsTableProps {
+    mode?: 'view' | 'measure';
+}
+
+const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
     const { points, deletePoint, board, appSettings, currentProject } = useProject();
     const { setPoints, selectedPointId, setSelectedPointId, selectPoint } = board;
 
@@ -184,7 +188,8 @@ const PointsTable: React.FC = () => {
                                         onChange={(e) => handleLabelChange(point.id, e.target.value)}
                                         onBlur={commitChanges}
                                         onClick={(e) => e.stopPropagation()} 
-                                        className="bg-transparent w-full border-b border-transparent focus:border-blue-500 outline-none text-white font-bold" 
+                                        readOnly={mode === 'view'}
+                                        className={`bg-transparent w-full border-b border-transparent ${mode === 'view' ? 'cursor-default' : 'focus:border-blue-500'} outline-none text-white font-bold`} 
                                     />
                                 </td>
                                 <td className="p-2">
@@ -195,7 +200,8 @@ const PointsTable: React.FC = () => {
                                         }}
                                         onBlur={commitChanges}
                                         onClick={(e) => e.stopPropagation()}
-                                        className="bg-gray-800 w-16 p-0.5 rounded text-[10px] text-white border border-gray-600 outline-none"
+                                        disabled={mode === 'view'}
+                                        className="bg-gray-800 w-16 p-0.5 rounded text-[10px] text-white border border-gray-600 outline-none disabled:opacity-70"
                                     >
                                         <option value="">-</option>
                                         {availableCategories.map(cat => (
@@ -204,13 +210,13 @@ const PointsTable: React.FC = () => {
                                     </select>
                                 </td>
                                 <td className="p-2">
-                                    <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-800 w-20 p-0.5 rounded text-right" />
+                                    <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-gray-800 w-20 p-0.5 rounded text-right ${mode === 'view' ? 'text-gray-300' : ''}`} />
                                 </td>
                                 <td className="p-2">
-                                    <input type="text" defaultValue={(point.measurements?.resistance?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-800 w-20 p-0.5 rounded text-right" />
+                                    <input type="text" defaultValue={(point.measurements?.resistance?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-gray-800 w-20 p-0.5 rounded text-right ${mode === 'view' ? 'text-gray-300' : ''}`} />
                                 </td>
                                 <td className="p-2">
-                                    <input type="text" defaultValue={(point.measurements?.diode?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} onClick={(e) => e.stopPropagation()} className="bg-gray-800 w-20 p-0.5 rounded text-right" />
+                                    <input type="text" defaultValue={(point.measurements?.diode?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-gray-800 w-20 p-0.5 rounded text-right ${mode === 'view' ? 'text-gray-300' : ''}`} />
                                 </td>
                                 <td className="p-2">
                                     {point.measurements?.oscilloscope ? (
@@ -220,12 +226,14 @@ const PointsTable: React.FC = () => {
                                     ) : <span className="text-gray-600 text-[10px]">-</span>}
                                 </td>
                                 <td className="p-2">
-                                    <input type="text" value={point.notes || ''} onChange={(e) => handleNotesChange(point.id, e.target.value)} onBlur={commitChanges} onClick={(e) => e.stopPropagation()} className="bg-transparent border-b border-transparent focus:border-gray-500 w-full text-gray-400 outline-none" />
+                                    <input type="text" value={point.notes || ''} onChange={(e) => handleNotesChange(point.id, e.target.value)} onBlur={commitChanges} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-transparent border-b border-transparent w-full text-gray-400 outline-none ${mode === 'view' ? 'cursor-default' : 'focus:border-gray-500'}`} />
                                 </td>
                                 <td className="p-2 text-center">
+                                    {mode !== 'view' && (
                                     <button onClick={(e) => { e.stopPropagation(); handleDelete(point.id); }} className="text-red-400 hover:text-red-300 opacity-50 hover:opacity-100" title="Delete Point">
                                         <Trash2 size={14} />
                                     </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}
