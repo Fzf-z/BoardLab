@@ -1,9 +1,8 @@
-import { Cpu, Move, Crosshair, Upload, Settings as SettingsIcon, Table, FilePlus, FolderOpen, Save, FileDown, Play, Image as ImageIcon } from 'lucide-react';
+import { Cpu, Move, Crosshair, Settings as SettingsIcon, Table, FilePlus, FolderOpen, Save, FileDown, Play, Image as ImageIcon } from 'lucide-react';
 
 interface ToolbarProps {
     mode: 'view' | 'measure';
     setMode: (mode: 'view' | 'measure') => void;
-    onUpload: () => void;
     onOpenSettings: () => void;
     onOpenPointsTable: () => void;
     onNewProject: () => void;
@@ -17,7 +16,6 @@ interface ToolbarProps {
 const Toolbar: React.FC<ToolbarProps> = ({ 
     mode, 
     setMode, 
-    onUpload, 
     onOpenSettings, 
     onOpenPointsTable, 
     onNewProject, 
@@ -71,12 +69,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
             <div className="h-px w-8 bg-gray-700 my-2"></div>
             
-            <button onClick={onUpload} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Upload Image">
-                <Upload size={20} />
-            </button>
-
             <div className="flex-1"></div>
             
+            <button onClick={onOpenPointsTable} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Points Table">
+                <Table size={20} />
+            </button>
+
             <button onClick={onOpenSettings} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title="Settings">
                 <SettingsIcon size={20} />
             </button>

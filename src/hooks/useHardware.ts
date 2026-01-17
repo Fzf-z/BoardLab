@@ -45,7 +45,7 @@ export const useHardware = () => {
 
         // Cleanup function: Stops monitor when component unmounts or config changes
         return () => {
-            if (instrumentConfig.monitor?.enabled) {
+            if (instrumentConfig.monitor?.enabled && window.electronAPI) {
                 window.electronAPI.stopMonitor()
                     .catch(err => console.error('Failed to stop monitor during cleanup', err));
             }

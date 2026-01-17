@@ -15,68 +15,7 @@ const bufferToBase64 = (buffer: Uint8Array | number[] | any): string => {
     }
 };
 
-function generateWaveformSvg(measurement: MeasurementValue): string {
-    if (!measurement || !measurement.waveform || !Array.isArray(measurement.waveform)) return 'No waveform data';
-    
-    const waveform = measurement.waveform || [];
-    const voltageScale = measurement.voltageScale || 1;
-    const voltageOffset = measurement.voltageOffset || 0;
-    const timeScale = measurement.timeScale || 1;
-    const vpp = measurement.vpp;
-    const freq = measurement.freq;
 
-    const svgWidth = 500, svgHeight = 300;
-    const numDivX = 10, numDivY = 8;
-    const stepX = svgWidth / numDivX, stepY = svgHeight / numDivY;
-
-    // --- Grid Construction ---
-    let gridLines = '';
-    // Vertical grid lines
-    for (let i = 1; i < numDivX; i++) gridLines += `<line x1="${i * stepX}" y1="0" x2="${i * stepX}" y2="${svgHeight}" stroke="#e5e7eb" stroke-width="1" />`;
-    // Horizontal grid lines
-    for (let i = 1; i < numDivY; i++) gridLines += `<line x1="0" y1="${i * stepY}" x2="${svgWidth}" y2="${i * stepY}" stroke="#e5e7eb" stroke-width="1" />`;
-    
-    // Central Axes
-    gridLines += `<line x1="${svgWidth/2}" y1="0" x2="${svgWidth/2}" y2="${svgHeight}" stroke="#9ca3af" stroke-width="1" />`;
-    gridLines += `<line x1="0" y1="${svgHeight/2}" x2="${svgWidth}" y2="${svgHeight/2}" stroke="#9ca3af" stroke-width="1" />`;
-
-    // --- Waveform Path ---
-    const vRange = numDivY * voltageScale;
-    const vBottom = voltageOffset - (vRange / 2);
-
-    const pointsStr = waveform
-        .map((val, i) => {
-            const x = (i / (waveform.length - 1)) * svgWidth;
-            const yPercent = vRange === 0 ? 0.5 : (val - vBottom) / vRange;
-            const y = Math.max(0, Math.min(svgHeight, svgHeight - (yPercent * svgHeight)));
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-        })
-        .join(' ');
-
-    return `
-        <div style="font-family: monospace; background: #fff; border: 1px solid #ccc; border-radius: 6px; overflow: hidden; display: inline-block;">
-            <div style="background: #f3f4f6; padding: 5px 10px; border-bottom: 1px solid #e5e7eb; font-size: 11px; color: #374151; display: flex; justify-content: space-between;">
-                <span><strong>Scale:</strong> ${voltageScale} V/div | ${timeScale} s/div</span>
-                <span><strong>Vpp:</strong> ${vpp ? vpp.toFixed(2) + ' V' : '--'} | <strong>Freq:</strong> ${freq ? freq.toFixed(2) + ' Hz' : '--'}</span>
-            </div>
-            <svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" style="display: block;">
-                <rect width="100%" height="100%" fill="#ffffff" />
-                ${gridLines}
-                <polyline points="${pointsStr}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" />
-            </svg>
-        </div>
-    `;
-}
-
-function renderMeasurementValue(measurement: MeasurementValue): string {
-    if (measurement.type === 'oscilloscope') {
-        return generateWaveformSvg(measurement); 
-    }
-    if (typeof measurement.value === 'object' && measurement.value !== null) {
-        return `<pre>${JSON.stringify(measurement.value, null, 2)}</pre>`;
-    }
-    return String(measurement.value ?? '');
-}
 
 function renderMiniWaveform(measurement: MeasurementValue): string {
     if (!measurement || !measurement.waveform || !Array.isArray(measurement.waveform) || measurement.waveform.length === 0) return '';
@@ -179,7 +118,7 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
 
         const overlays = pts.map((p, i) => {
             let left = 0, top = 0;
-            const idx = i + 1;
+            // const idx = i + 1;
             if (width && height && width > 0 && height > 0) {
                  const adjustedX = p.x - offset;
                  left = (adjustedX / width) * 100;

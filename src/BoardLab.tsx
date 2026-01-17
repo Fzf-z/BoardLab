@@ -215,7 +215,6 @@ const BoardLab: React.FC = () => {
             <Toolbar
                 mode={mode}
                 setMode={setMode}
-                onUpload={() => board.fileInputRef.current?.click()}
                 onOpenSettings={() => hardware.setConfigOpen(true)}
                 onOpenPointsTable={() => setPointsTableOpen(true)}
                 onNewProject={() => setNewProjectModalOpen(true)}
@@ -225,14 +224,7 @@ const BoardLab: React.FC = () => {
                 onExportImage={handleExportImage}
                 onStartSequence={startSequence}
             />
-            <input
-                type="file"
-                ref={board.fileInputRef}
-                onChange={board.handleImageUpload}
-                className="hidden"
-                accept="image/*"
-            />
-
+            
             <ProjectManagerModal
                 isOpen={isProjectManagerOpen}
                 onClose={() => setProjectManagerOpen(false)}
