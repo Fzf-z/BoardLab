@@ -137,8 +137,9 @@ const InstrumentManager: React.FC = () => {
             } else {
                 showNotification(`Connection Failed: ${result?.message || 'Unknown error'}`, "error");
             }
-        } catch (e: any) {
-             showNotification(`Connection Error: ${e.message}`, "error");
+        } catch (e) {
+            const message = e instanceof Error ? e.message : 'Unknown error';
+            showNotification(`Connection Error: ${message}`, "error");
         } finally {
             setTesting(false);
         }
@@ -162,7 +163,7 @@ const InstrumentManager: React.FC = () => {
                         <select 
                             className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
                             value={formData.type || 'multimeter'}
-                            onChange={e => setFormData({...formData, type: e.target.value as any})}
+                            onChange={e => setFormData({...formData, type: e.target.value as 'multimeter' | 'oscilloscope'})}
                         >
                             <option value="multimeter">Multimeter</option>
                             <option value="oscilloscope">Oscilloscope</option>
@@ -176,7 +177,7 @@ const InstrumentManager: React.FC = () => {
                         <select 
                             className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
                             value={formData.connection_type || 'tcp_raw'}
-                            onChange={e => setFormData({...formData, connection_type: e.target.value as any})}
+                            onChange={e => setFormData({...formData, connection_type: e.target.value as 'tcp_raw' | 'serial'})}
                         >
                             <option value="tcp_raw">TCP / LAN</option>
                             <option value="serial">USB / Serial</option>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useProject } from '../contexts/ProjectContext';
+import { useProject, ExternalTriggerData } from '../contexts/ProjectContext';
 import { useHardware } from '../hooks/useHardware';
 import { Play, SkipForward, SkipBack, Square, Timer, Zap, Radio } from 'lucide-react';
+import { Point, MeasurementType } from '../types';
 
 const SequencerPanel: React.FC = () => {
     const { sequence, stopSequence, nextInSequence, prevInSequence, points, addMeasurement } = useProject();
@@ -32,9 +33,11 @@ const SequencerPanel: React.FC = () => {
         processingRef.current = true;
         try {
             // Use locked type if available, otherwise point type
-            const pointToMeasure = lockedType ? { ...currentPoint, type: lockedType } : currentPoint;
-            
-            const measurement = await hardware.captureValue(pointToMeasure as any, overrideData);
+            const pointToMeasure: Point = lockedType
+                ? { ...currentPoint, type: lockedType as MeasurementType }
+                : currentPoint;
+
+            const measurement = await hardware.captureValue(pointToMeasure, overrideData);
             if (measurement) {
                 await addMeasurement(currentPoint, measurement);
                 nextInSequence();
@@ -75,9 +78,9 @@ const SequencerPanel: React.FC = () => {
     useEffect(() => {
         if (!sequence.active || !currentPoint || !window.electronAPI) return;
 
-        const cleanup = window.electronAPI.onExternalTrigger((data: any) => {
+        const cleanup = window.electronAPI.onExternalTrigger((data: ExternalTriggerData) => {
             console.log('External trigger received:', data);
-            captureAndAdvance(data);
+            captureAndAdvance(data.value?.toString());
         });
 
         return cleanup;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Project, Point } from '../../types';
+import { Project, Point, ComparisonPoint } from '../../types';
 import { Search, Folder, Zap, Activity, Filter, CheckCircle2 } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
 
@@ -7,7 +7,7 @@ interface ComparisonModalProps {
     isOpen: boolean;
     onClose: () => void;
     currentPoint: Point | null;
-    onImportReference: (sourcePoint: Point) => void;
+    onImportReference: (sourcePoint: ComparisonPoint) => void;
 }
 
 const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, currentPoint, onImportReference }) => {
@@ -42,7 +42,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
             try {
                 const attrs = typeof p.attributes === 'string' ? JSON.parse(p.attributes) : p.attributes;
                 if (attrs && typeof attrs === 'object') {
-                    Object.values(attrs).forEach((val: any) => {
+                    Object.values(attrs).forEach((val: unknown) => {
                          if (typeof val === 'string' && val.length > 1 && val.length < 20) {
                              suggestions.add(val);
                          }
@@ -110,7 +110,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
             // Let's assume it might be an object or string.
             const attrs = typeof proj.attributes === 'string' ? JSON.parse(proj.attributes) : proj.attributes;
             if (attrs && typeof attrs === 'object') {
-                attrMatch = Object.values(attrs).some((val: any) => 
+                attrMatch = Object.values(attrs).some((val: unknown) =>
                     String(val).toLowerCase().includes(query)
                 );
             }
@@ -315,7 +315,11 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                                         )}
                                                     </div>
                                                     <button
-                                                        onClick={() => onImportReference(p)}
+                                                        onClick={() => onImportReference({
+                                                            ...p,
+                                                            project_id: selectedProject!.id,
+                                                            board_model: selectedProject?.board_model
+                                                        })}
                                                         className="bg-gray-700 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs transition opacity-0 group-hover:opacity-100 flex items-center"
                                                     >
                                                         <CheckCircle2 size={12} className="mr-1" />

@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, ChangeEvent, FormEvent } from 'react';
 import { X, FilePlus, UploadCloud, Trash2, PlusCircle } from 'lucide-react';
+import { CreateProjectData } from '../../types';
 
 interface NewProjectModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onCreate: (projectData: any) => Promise<void>;
+    onCreate: (projectData: CreateProjectData) => Promise<void>;
     knownAttributes?: { keys: string[], values: string[] };
 }
 
@@ -110,7 +111,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
             const imageDataBUint8Array = imageFileB ? await fileToUint8Array(imageFileB) : undefined;
             
             // Convert array of attributes to a JSON object
-            const attributesObject = dynamicAttributes.reduce((acc: any, { key, value }) => {
+            const attributesObject = dynamicAttributes.reduce<Record<string, string>>((acc, { key, value }) => {
                 if (key.trim()) { // Only include attributes with a name
                     acc[key.trim()] = value.trim();
                 }

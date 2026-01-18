@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ArrowUp, ArrowDown, Search, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
-import { Point } from '../types';
+import { Point, MeasurementType } from '../types';
 import Waveform from './Waveform';
 import { safeDeepClone } from '../utils/safeJson';
 
@@ -51,13 +51,13 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
         }
     }, [selectedPointId]);
 
-    const handleValueChange = useCallback((pointId: string | number, measurementType: string, newValue: string) => {
+    const handleValueChange = useCallback((pointId: string | number, measurementType: MeasurementType, newValue: string) => {
         setEditedPoints(currentPoints =>
             currentPoints.map(p => {
                 if (p.id === pointId) {
                     const newMeasurements = { ...p.measurements };
                     if (!newMeasurements[measurementType]) {
-                        newMeasurements[measurementType] = { type: measurementType as any, value: newValue, capturedAt: new Date().toISOString() };
+                        newMeasurements[measurementType] = { type: measurementType, value: newValue, capturedAt: new Date().toISOString() };
                     } else {
                         newMeasurements[measurementType] = {
                             ...newMeasurements[measurementType],
@@ -133,16 +133,22 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
     }, [editedPoints, filterText]);
 
     const sortedAndFilteredPoints = useMemo(() => {
+        type SortableStringField = 'label' | 'notes' | 'category' | 'side';
+        const stringFields: SortableStringField[] = ['label', 'notes', 'category', 'side'];
+
         return [...filteredPoints].sort((a, b) => {
             let compareA: string | number;
             let compareB: string | number;
-            if (sortColumn === 'label' || sortColumn === 'notes' || sortColumn === 'category' || sortColumn === 'side') {
-                compareA = (a as any)[sortColumn] || '';
-                compareB = (b as any)[sortColumn] || '';
+            if (stringFields.includes(sortColumn as SortableStringField)) {
+                const field = sortColumn as SortableStringField;
+                compareA = a[field] || '';
+                compareB = b[field] || '';
                 return sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
             } else if (['voltage', 'resistance', 'diode'].includes(sortColumn)) {
-                compareA = parseFloat((a.measurements?.[sortColumn]?.value as string)) || 0;
-                compareB = parseFloat((b.measurements?.[sortColumn]?.value as string)) || 0;
+                const valA = a.measurements?.[sortColumn]?.value;
+                const valB = b.measurements?.[sortColumn]?.value;
+                compareA = typeof valA === 'number' ? valA : parseFloat(String(valA)) || 0;
+                compareB = typeof valB === 'number' ? valB : parseFloat(String(valB)) || 0;
                 return sortDirection === 'asc' ? compareA - compareB : compareB - compareA;
             }
             return 0;

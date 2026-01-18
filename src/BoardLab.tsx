@@ -3,7 +3,7 @@ import { useProject } from './contexts/ProjectContext';
 import { useNotifier } from './contexts/NotifierContext';
 import { useGemini } from './hooks/useGemini';
 import { useHardware } from './hooks/useHardware';
-import { InstrumentConfig, Project, AppSettings } from './types';
+import { InstrumentConfig, Project, AppSettings, CreateProjectData, ComparisonPoint, PersistedConfig } from './types';
 
 // Importing Components
 import Toolbar from './components/Toolbar';
@@ -26,7 +26,7 @@ const BoardLab: React.FC = () => {
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState<boolean>(false);
     const [isComparisonModalOpen, setComparisonModalOpen] = useState<boolean>(false);
     // const [isPointsTableOpen, setPointsTableOpen] = useState<boolean>(false);
-    const [comparisonPoint, setComparisonPoint] = useState<any>(null);
+    const [comparisonPoint, setComparisonPoint] = useState<ComparisonPoint | null>(null);
     const { showNotification } = useNotifier();
 
     // Global Project State - Consumed from context
@@ -141,7 +141,7 @@ const BoardLab: React.FC = () => {
     useEffect(() => {
         if (hardware.isElectron && window.electronAPI) {
             window.electronAPI.loadApiKey().then((key: string) => setApiKey(key || ''));
-            window.electronAPI.loadConfig().then((config: any) => {
+            window.electronAPI.loadConfig().then((config: PersistedConfig) => {
                 if (config?.appSettings) {
                     setAppSettings(config.appSettings);
                 }
@@ -154,7 +154,7 @@ const BoardLab: React.FC = () => {
         setProjectManagerOpen(true);
     };
 
-    const handleCreateProjectAndClose = async (projectData: any) => {
+    const handleCreateProjectAndClose = async (projectData: CreateProjectData) => {
         await createProject(projectData);
         setNewProjectModalOpen(false);
     };
@@ -176,8 +176,9 @@ const BoardLab: React.FC = () => {
                 } else {
                     showNotification(`Export failed: ${result.message}`, 'error');
                 }
-            } catch (error: any) {
-                showNotification(`Export error: ${error.message}`, 'error');
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                showNotification(`Export error: ${message}`, 'error');
             }
         } else {
             showNotification('PDF Export is only available in Desktop App', 'warning');
@@ -201,8 +202,9 @@ const BoardLab: React.FC = () => {
                 } else {
                     showNotification(`Export failed: ${result.message}`, 'error');
                 }
-            } catch (error: any) {
-                showNotification(`Export error: ${error.message}`, 'error');
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                showNotification(`Export error: ${message}`, 'error');
             }
         } else {
             showNotification('Image Export is only available in Desktop App', 'warning');
@@ -241,7 +243,7 @@ const BoardLab: React.FC = () => {
                 isOpen={isComparisonModalOpen}
                 onClose={() => setComparisonModalOpen(false)}
                 currentPoint={board.selectedPoint || null}
-                onImportReference={(pt: any) => {
+                onImportReference={(pt: ComparisonPoint) => {
                     setComparisonPoint(pt);
                     setComparisonModalOpen(false);
                     if (board.selectedPoint && !board.selectedPoint.expected_value && (pt.expected_value || pt.measurements?.[pt.type]?.value)) {

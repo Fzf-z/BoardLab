@@ -95,3 +95,57 @@ export interface Instrument {
     command_map: string; // JSON string
     is_active: number; // 0 or 1
 }
+
+// --- Project Creation Types ---
+export interface CreateProjectData {
+    board_type: string;
+    board_model: string;
+    attributes: Record<string, string>;
+    notes?: string;
+    image_data: Uint8Array;
+    image_data_b?: Uint8Array;
+}
+
+// --- API Response Types ---
+export interface ApiResponse<T = void> {
+    status: 'success' | 'error' | 'cancelled';
+    message?: string;
+    data?: T;
+}
+
+export interface ExportResponse {
+    status: 'success' | 'error' | 'cancelled';
+    filePath?: string;
+    message?: string;
+}
+
+export interface MeasurementHistoryItem {
+    id?: number;
+    type: MeasurementType;
+    value: string | number | MeasurementValue;
+    created_at?: string;
+}
+
+// --- Hardware Capture Result ---
+export interface CaptureResult {
+    status: 'success' | 'error';
+    message?: string;
+    value?: string | number;
+    waveform?: number[];
+    timeScale?: number;
+    voltageScale?: number;
+    voltageOffset?: number;
+    vpp?: number;
+    freq?: number;
+}
+
+// --- Persisted Config ---
+export interface PersistedConfig extends Partial<InstrumentConfig> {
+    appSettings?: AppSettings;
+}
+
+// --- Comparison Point (for cross-project comparison) ---
+export interface ComparisonPoint extends Point {
+    project_id: number;
+    board_model?: string;
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
-import { InstrumentConfig, MeasurementValue, Point } from '../types';
+import { InstrumentConfig, MeasurementValue, Point, CaptureResult } from '../types';
 
 // Default configuration - moved outside component to avoid recreation
 const DEFAULT_INSTRUMENT_CONFIG: InstrumentConfig = {
@@ -106,7 +106,7 @@ export const useHardware = () => {
     const captureValue = async (selectedPoint: Point | null, overrideValue?: string): Promise<MeasurementValue | null> => {
         if (!selectedPoint) return null;
         setIsCapturing(true);
-        let result: any = { status: 'error', message: 'Not in Electron' };
+        let result: CaptureResult = { status: 'error', message: 'Not in Electron' };
 
         try {
             if (overrideValue) {
@@ -131,10 +131,11 @@ export const useHardware = () => {
 
                     try {
                         result = await window.electronAPI.instrumentExecute('multimeter', action);
-                    } catch (e: any) {
+                    } catch (e) {
                         // Fallback to old method if new one fails (during migration period?)
                         // No, let's stick to the new one.
-                        result = { status: 'error', message: e.message || 'Measurement failed' };
+                        const message = e instanceof Error ? e.message : 'Measurement failed';
+                        result = { status: 'error', message };
                     }
                 }
             } else {
@@ -188,8 +189,9 @@ export const useHardware = () => {
                 showNotification(`Error capturing value: ${result.message}`, 'error');
                 return null;
             }
-        } catch (e: any) {
-            showNotification(`Communication error: ${e.message}`, 'error');
+        } catch (e) {
+            const message = e instanceof Error ? e.message : 'Unknown error';
+            showNotification(`Communication error: ${message}`, 'error');
             return null;
         } finally {
             setIsCapturing(false);

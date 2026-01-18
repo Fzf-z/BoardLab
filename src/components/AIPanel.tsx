@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit, CheckCircle2, LayoutList } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
-import { InstrumentConfig, MeasurementValue, Point } from '../types';
+import { InstrumentConfig, MeasurementValue, Point, ComparisonPoint, MeasurementHistoryItem, OscilloscopeData, MeasurementType } from '../types';
 import Waveform from './Waveform';
 import PointsTable from './PointsTable';
 import { safeJsonParse } from '../utils/safeJson';
@@ -13,7 +13,7 @@ interface AIPanelProps {
     analyzeBoard: (points: Point[]) => void;
     instrumentConfig: InstrumentConfig;
     onOpenComparison?: () => void;
-    comparisonPoint?: any;
+    comparisonPoint?: ComparisonPoint | null;
     mode: 'view' | 'measure';
 }
 
@@ -38,8 +38,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
     
     const { setPoints, selectedPoint } = board;
 
-    const [history, setHistory] = useState<any[]>([]); 
-    const [referenceWaveform, setReferenceWaveform] = useState<any>(null);
+    const [history, setHistory] = useState<MeasurementHistoryItem[]>([]);
+    const [referenceWaveform, setReferenceWaveform] = useState<OscilloscopeData | null>(null);
     const [activeTab, setActiveTab] = useState<'detail' | 'table'>('detail');
 
     useEffect(() => {
@@ -58,13 +58,13 @@ const AIPanel: React.FC<AIPanelProps> = ({
         setHistory([]);
         setReferenceWaveform(null);
         if (selectedPoint && selectedPoint.id && typeof selectedPoint.id === 'number' && window.electronAPI) {
-            window.electronAPI.getMeasurementsForPoint(selectedPoint.id)
-                .then((measurements: any) => setHistory(measurements || []))
-                .catch((err: any) => console.error("Error fetching measurement history:", err));
+            window.electronAPI.getMeasurementHistory(selectedPoint.id)
+                .then((measurements: MeasurementHistoryItem[]) => setHistory(measurements || []))
+                .catch((err: unknown) => console.error("Error fetching measurement history:", err));
         }
     }, [selectedPoint?.id]); 
     
-    const handlePointUpdate = async (field: keyof Point, value: any) => {
+    const handlePointUpdate = async (field: keyof Point, value: Point[keyof Point]) => {
         if (!selectedPoint) return;
         const newPoints = points.map(p => (p.id === selectedPoint.id ? { ...p, [field]: value } : p));
         setPoints(newPoints);
@@ -316,19 +316,19 @@ const AIPanel: React.FC<AIPanelProps> = ({
                             </h3>
                             <div className="bg-gray-900/70 rounded-lg p-2 space-y-2 max-h-48 overflow-y-auto">
                                 {history.length > 0 ? (
-                                    history.map((m: any) => {
+                                    history.map((m: MeasurementHistoryItem) => {
                                         // Handle various formats using safe JSON parsing
                                         const val = typeof m.value === 'string'
-                                            ? safeJsonParse(m.value, m.value)
+                                            ? safeJsonParse<string | MeasurementValue>(m.value, m.value)
                                             : m.value;
                                         const displayValue = typeof val === 'object' && val !== null
-                                            ? (val.value || 'Scope Data')
+                                            ? ((val as MeasurementValue).value || 'Scope Data')
                                             : val;
 
                                         return (
                                             <div key={m.id || Math.random()} className="text-xs text-gray-300 bg-gray-800/50 p-2 rounded flex justify-between items-center">
                                                 <div>
-                                                    <span className="font-mono">{displayValue}</span>
+                                                    <span className="font-mono">{String(displayValue)}</span>
                                                     <span className="text-gray-500 ml-2">
                                                         {m.created_at ? new Date(m.created_at).toLocaleString() : 'Just now'}
                                                     </span>
@@ -337,9 +337,9 @@ const AIPanel: React.FC<AIPanelProps> = ({
                                                     <button
                                                         onClick={() => {
                                                             const parsedVal = typeof m.value === 'string'
-                                                                ? safeJsonParse(m.value, null)
-                                                                : m.value;
-                                                            if (parsedVal) setReferenceWaveform(parsedVal);
+                                                                ? safeJsonParse<OscilloscopeData | null>(m.value, null)
+                                                                : m.value as OscilloscopeData;
+                                                            if (parsedVal && 'waveform' in parsedVal) setReferenceWaveform(parsedVal);
                                                         }}
                                                         className="p-1 text-blue-400 hover:bg-blue-900/30 rounded"
                                                         title="Set as reference waveform"

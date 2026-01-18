@@ -1,13 +1,20 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useBoard } from '../hooks/useBoard';
 import { useNotifier } from './NotifierContext';
-import { Project, Point, MeasurementValue, AppSettings, Instrument } from '../types';
+import { Project, Point, MeasurementValue, AppSettings, Instrument, CreateProjectData, CaptureResult, PersistedConfig, MeasurementHistoryItem, ComparisonPoint } from '../types';
 
 // Extend global window interface for Electron API
+// External trigger data from hardware
+export interface ExternalTriggerData {
+    type: string;
+    value?: string | number;
+    timestamp?: string;
+}
+
 declare global {
     interface Window {
         electronAPI?: {
-            createProject: (data: any) => Promise<Project>;
+            createProject: (data: CreateProjectData) => Promise<Project>;
             savePoints: (data: { projectId: number, points: Point[] }) => Promise<Point[]>;
             getProjects: () => Promise<Project[]>;
             getProjectWithImage: (id: number) => Promise<Project>;
@@ -16,24 +23,31 @@ declare global {
             deleteProject: (id: number) => Promise<{ status: string; message?: string }>;
             updateProject: (data: Partial<Project>) => Promise<{ status: string; message?: string }>;
             deletePoint: (id: number | string) => Promise<{ status: string; message?: string }>;
-            createMeasurement: (data: { pointId: number | string, type: string, value: any }) => Promise<{ id?: number; status: string; message?: string }>;
-            startMonitor: (ip: string, port: number) => Promise<any>;
-            stopMonitor: () => Promise<any>;
+            createMeasurement: (data: { pointId: number | string, type: string, value: string | number | MeasurementValue }) => Promise<{ id?: number; status: string; message?: string }>;
+            startMonitor: (ip: string, port: number) => Promise<{ status: string; message?: string }>;
+            stopMonitor: () => Promise<{ status: string; message?: string }>;
             onMonitorStatus: (callback: (status: string) => void) => () => void;
-            onExternalTrigger: (callback: (data: any) => void) => () => void;
+            onExternalTrigger: (callback: (data: ExternalTriggerData) => void) => () => void;
             getBoardTypes: () => Promise<string[]>;
             addBoardType: (type: string) => Promise<boolean>;
             exportPdf: (projectId: number) => Promise<{ status: string; filePath?: string; message?: string }>;
             exportImage: (projectId: number) => Promise<{ status: string; filePath?: string; message?: string }>;
-            
+
             // Instruments (Fase 3.2)
             getAllInstruments: () => Promise<Instrument[]>;
             saveInstrument: (data: Instrument) => Promise<{ id: number }>;
             deleteInstrument: (id: number) => Promise<{ status: string }>;
-            instrumentExecute: (type: 'multimeter' | 'oscilloscope', actionKey: string) => Promise<any>;
-            instrumentTestConnection: (config: Instrument) => Promise<any>;
+            instrumentExecute: (type: 'multimeter' | 'oscilloscope', actionKey: string) => Promise<CaptureResult>;
+            instrumentTestConnection: (config: Instrument) => Promise<{ status: string; message?: string }>;
 
-            [key: string]: any;
+            // Config & Settings
+            loadConfig: () => Promise<PersistedConfig>;
+            saveConfig: (config: PersistedConfig) => Promise<void>;
+            loadApiKey: () => Promise<string>;
+            saveApiKey: (key: string) => Promise<void>;
+            getAllAttributes: (boardType?: string) => Promise<{ keys: string[], values: string[] }>;
+            getMeasurementHistory: (pointId: number | string) => Promise<MeasurementHistoryItem[]>;
+            isElectron?: boolean;
         };
     }
 }
@@ -44,7 +58,7 @@ interface ProjectContextValue {
     projectList: Project[];
     appSettings: AppSettings;
     setAppSettings: (settings: AppSettings) => void;
-    createProject: (data: any) => Promise<void>;
+    createProject: (data: CreateProjectData) => Promise<void>;
     saveProject: (pointsToSave?: Point[]) => Promise<Point[] | undefined>;
     loadProject: (project: Project) => Promise<void>;
     deleteProject: (id: number) => Promise<void>;
@@ -199,21 +213,27 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
     // --- Project Data Logic ---
     
-    const handleCreateProject = async (projectData: any) => {
+    const handleCreateProject = async (projectData: CreateProjectData) => {
         if (!projectData || !window.electronAPI) return;
         try {
             const newProject = await window.electronAPI.createProject(projectData);
             console.log("Created Project:", newProject);
             setCurrentProject(newProject);
-            
-            // Assuming image_data comes as buffer/array
-            const blob = new Blob([newProject.image_data as any], { type: 'image/png' });
+
+            // Convert image buffer to Blob - image_data is Uint8Array | number[]
+            const imageBuffer = newProject.image_data instanceof Uint8Array
+                ? newProject.image_data
+                : new Uint8Array(newProject.image_data || []);
+            const blob = new Blob([imageBuffer], { type: 'image/png' });
             const imageUrl = URL.createObjectURL(blob);
 
             let imageUrlB = null;
             if (newProject.image_data_b) {
                 console.log("Processing Image B...");
-                const blobB = new Blob([newProject.image_data_b as any], { type: 'image/png' });
+                const imageBufferB = newProject.image_data_b instanceof Uint8Array
+                    ? newProject.image_data_b
+                    : new Uint8Array(newProject.image_data_b);
+                const blobB = new Blob([imageBufferB], { type: 'image/png' });
                 imageUrlB = URL.createObjectURL(blobB);
             } else {
                 console.log("No Image B found in new project.");
@@ -229,8 +249,8 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         }
     };
 
-    const handleSaveProject = async (pointsToSave?: Point[] | any) => {
-        // Handle case where function is called as event handler
+    const handleSaveProject = async (pointsToSave?: Point[] | React.MouseEvent) => {
+        // Handle case where function is called as event handler (pointsToSave could be MouseEvent)
         const validPointsToSave = Array.isArray(pointsToSave) ? pointsToSave : undefined;
 
         if (!currentProject) {
@@ -276,12 +296,18 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             setCurrentProject(fullProject);
 
             if (fullProject.image_data) {
-                const blob = new Blob([fullProject.image_data as any], { type: 'image/png' });
+                const imageBuffer = fullProject.image_data instanceof Uint8Array
+                    ? fullProject.image_data
+                    : new Uint8Array(fullProject.image_data);
+                const blob = new Blob([imageBuffer], { type: 'image/png' });
                 const imageUrl = URL.createObjectURL(blob);
-                
+
                 let imageUrlB = null;
                 if (fullProject.image_data_b) {
-                    const blobB = new Blob([fullProject.image_data_b as any], { type: 'image/png' });
+                    const imageBufferB = fullProject.image_data_b instanceof Uint8Array
+                        ? fullProject.image_data_b
+                        : new Uint8Array(fullProject.image_data_b);
+                    const blobB = new Blob([imageBufferB], { type: 'image/png' });
                     imageUrlB = URL.createObjectURL(blobB);
                 }
 
