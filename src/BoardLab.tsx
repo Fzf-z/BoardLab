@@ -262,7 +262,7 @@ const BoardLab: React.FC = () => {
                 <StatusBar
                     scale={board.scale}
                     setScale={board.setScale}
-                    isElectron={hardware.isElectron}
+                    projectName={currentProject?.board_model}
                 />
                 <BoardView
                     mode={mode}

@@ -134,6 +134,39 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
         return 0;
     });
 
+    const navigateSelection = (direction: number) => {
+        const currentIndex = sortedAndFilteredPoints.findIndex(p => p.id === selectedPointId);
+        if (currentIndex === -1) {
+            if (sortedAndFilteredPoints.length > 0) {
+                selectPoint(sortedAndFilteredPoints[0].id);
+            }
+            return;
+        }
+
+        const newIndex = currentIndex + direction;
+        if (newIndex >= 0 && newIndex < sortedAndFilteredPoints.length) {
+            selectPoint(sortedAndFilteredPoints[newIndex].id);
+        }
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                navigateSelection(-1);
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                navigateSelection(1);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [sortedAndFilteredPoints, selectedPointId]);
+
     const SortIcon = ({ column }: { column: string }) => {
         if (sortColumn === column) {
             return sortDirection === 'asc' ? <ArrowUp size={14} className="ml-1 inline" /> : <ArrowDown size={14} className="ml-1 inline" />;

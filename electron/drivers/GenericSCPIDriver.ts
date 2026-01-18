@@ -141,7 +141,7 @@ export class GenericSCPIDriver {
     async execute(actionKey: string): Promise<{ status: 'success' | 'error'; value?: string; message?: string }> {
         const scpiCommand = this.commands[actionKey];
         if (!scpiCommand) {
-            return Promise.reject({ status: 'error', message: `El instrumento ${this.name} no tiene configurado el comando para ${actionKey}` });
+            return Promise.reject({ status: 'error', message: `Instrument ${this.name} does not have a command configured for ${actionKey}` });
         }
 
         if (this.connectionType === 'tcp_raw') {
@@ -149,7 +149,7 @@ export class GenericSCPIDriver {
         } else if (this.connectionType === 'serial') {
             return this.sendSerial(scpiCommand);
         } else {
-            return Promise.reject({ status: 'error', message: `Tipo de conexión desconocido: ${this.connectionType}` });
+            return Promise.reject({ status: 'error', message: `Unknown connection type: ${this.connectionType}` });
         }
     }
 

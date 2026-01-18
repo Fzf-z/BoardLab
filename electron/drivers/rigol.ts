@@ -6,7 +6,7 @@ export function getRigolData(ip: string, port: number | string, timeoutMs: numbe
         const client = new net.Socket();
         const timeout = setTimeout(() => {
             client.destroy();
-            resolve({ status: 'error', message: 'Timeout de conexión (4s)' });
+            resolve({ status: 'error', message: 'Connection Timeout (4s)' });
         }, timeoutMs);
 
         const commandString = [
@@ -28,26 +28,26 @@ export function getRigolData(ip: string, port: number | string, timeoutMs: numbe
             client.destroy();
 
             try {
-                if (receivedData.length === 0) throw new Error("No se recibió respuesta alguna del instrumento.");
+                if (receivedData.length === 0) throw new Error("No response received from instrument.");
                 
                 // Find start of binary block (#)
                 const binaryStartIndex = receivedData.indexOf(0x23); // 0x23 is '#'
 
-                if (binaryStartIndex === -1) throw new Error("No se encontró el bloque de datos binarios (#).");
+                if (binaryStartIndex === -1) throw new Error("Binary data block (#) not found.");
 
                 const textPart = receivedData.subarray(0, binaryStartIndex).toString('utf-8');
                 // Filter out empty lines caused by extra newlines
                 const lines = textPart.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
                 if (lines.length === 0) {
-                    throw new Error(`No se recibieron líneas de configuración antes de los datos binarios.`);
+                    throw new Error(`No configuration lines received before binary data.`);
                 }
 
                 // We expect 4 lines, but we try to be robust. 
                 // The preamble is the most critical part, usually the last line before binary.
                 const preambleStr = lines[lines.length - 1];
                 const preamble = preambleStr.split(',');
-                if (preamble.length < 10) throw new Error(`Preamble incompleto: ${preambleStr}`);
+                if (preamble.length < 10) throw new Error(`Incomplete Preamble: ${preambleStr}`);
 
                 // Try to map other values from previous lines if they exist
                 const freqStr = lines.length >= 2 ? lines[lines.length - 2] : "0";
