@@ -54,9 +54,9 @@ const InstrumentManager: React.FC = () => {
         // Template with standard SCPI commands pre-filled
         const defaultCommands = {
             "IDN": "*IDN?",
-            "READ_DC": "MEAS:VOLT:DC?",
-            "READ_RESISTANCE": "MEAS:RES?",
-            "READ_DIODE": "MEAS:DIOD?",
+            "READ_DC": "MEAS:SHOW?",
+            "READ_RESISTANCE": "MEAS:SHOW?",
+            "READ_DIODE": "MEAS:SHOW?",
             "CONFIGURE_VOLTAGE": "CONF:VOLT:DC AUTO",
             "CONFIGURE_RESISTANCE": "CONF:RES AUTO",
             "CONFIGURE_DIODE": "CONF:DIOD"

@@ -119,9 +119,9 @@ if (instrumentCount.count === 0) {
         ip_address: '192.168.1.100', // Default placeholder
         port: 9876,
         command_map: JSON.stringify({
-            "READ_DC": "MEAS:VOLT:DC?",
-            "READ_RESISTANCE": "MEAS:RES?",
-            "READ_DIODE": "MEAS:DIOD?", 
+            "READ_DC": "MEAS:SHOW?",
+            "READ_RESISTANCE": "MEAS:SHOW?",
+            "READ_DIODE": "MEAS:SHOW?", 
             "CONFIGURE_VOLTAGE": "CONF:VOLT:DC AUTO",
             "CONFIGURE_RESISTANCE": "CONF:RES AUTO",
             "CONFIGURE_DIODE": "CONF:DIOD",
