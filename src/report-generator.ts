@@ -147,15 +147,16 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
         <html>
         <head>
             <meta charset="UTF-8">
-            <style>
-                @page { size: landscape; margin: 0; }
-                html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
+            <style id="page-style">
+                @page { size: auto; margin: 0mm; }
+                html, body { margin: 0; padding: 0; }
                 body { 
                     padding: 20px; 
                     font-family: sans-serif; 
                     background: #fff; 
                     position: relative;
-                    width: fit-content;
+                    /* Allow content to define width/height */
+                    min-width: 100%;
                     box-sizing: border-box;
                 }
                 .layout-container { display: flex; gap: 20px; align-items: flex-start; }
@@ -223,6 +224,30 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
                 .leader-line { stroke: #ef4444; stroke-width: 1px; opacity: 0.7; fill: none; }
             </style>
             <script>
+            function setPageSize() {
+                const body = document.body;
+                const html = document.documentElement;
+                
+                // Calculate full scroll size
+                const width = Math.max(body.scrollWidth, body.offsetWidth, html.clientWidth, html.scrollWidth, html.offsetWidth);
+                const height = Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight);
+                
+                // Add buffer
+                const w = Math.ceil(width) + 50;
+                const h = Math.ceil(height) + 50;
+                
+                // Inject @page rule
+                // CSS size units: px is usually 1/96th of an inch.
+                // 1px approx 0.26mm.
+                // Let's use px directly if supported, or mm.
+                // 1000px = 264.58mm
+                // It's safer to stick to pixels for @page size in Chrome/Electron
+                
+                const style = document.createElement('style');
+                style.innerHTML = '@page { size: ' + w + 'px ' + h + 'px; margin: 0; }';
+                document.head.appendChild(style);
+            }
+
             function resolveOverlaps() {
                 const labels = Array.from(document.querySelectorAll('.point-label'));
                 const markers = Array.from(document.querySelectorAll('.point-marker'));
@@ -393,8 +418,10 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
 
             window.onload = () => { 
                 resolveOverlaps();
-                setTimeout(resolveOverlaps, 100);
-                setTimeout(resolveOverlaps, 500);
+                setTimeout(() => {
+                    resolveOverlaps();
+                    setPageSize(); // Set size after layout settles
+                }, 500);
             };
             </script>
         </head>

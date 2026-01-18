@@ -310,12 +310,12 @@ ipcMain.handle('exportPdf', async (event, projectId) => {
             
             await printWindow.loadFile(tempHtmlPath);
             
-            // Wait for client-side scripts to position elements (overlays)
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Wait for client-side scripts to position elements (overlays) and set page size
+            await new Promise(resolve => setTimeout(resolve, 1500));
 
             const pdfData = await printWindow.webContents.printToPDF({
                 printBackground: true,
-                pageSize: 'A4'
+                preferCSSPageSize: true 
             });
 
             fs.writeFileSync(filePath, pdfData);
