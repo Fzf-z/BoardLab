@@ -41,7 +41,7 @@ function renderMiniWaveform(measurement: MeasurementValue): string {
     </svg>`;
 }
 
-export function generateImageExportHtml(project: Project, points: Point[], dims?: { widthA: number, heightA: number, widthB?: number, heightB?: number }): string {
+export function generateImageExportHtml(project: Project, points: Point[], dims?: { widthA: number, heightA: number, widthB?: number, heightB?: number }, theme: 'light' | 'dark' = 'light'): string {
     const imageA = project.image_data ? `data:image/png;base64,${bufferToBase64(project.image_data)}` : null;
     const imageB = project.image_data_b ? `data:image/png;base64,${bufferToBase64(project.image_data_b)}` : null;
 
@@ -57,11 +57,11 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
              const rowId = `row-${side}-${idx}`;
              
              if (measurements.length === 0) {
-                 return `<tr id="${rowId}" style="border-bottom: 1px solid #ccc;">
-                    <td style="font-weight:bold; color:#333; padding: 4px 8px;">${idx}</td>
+                 return `<tr id="${rowId}" style="border-bottom: 1px solid var(--border-color);">
+                    <td style="font-weight:bold; padding: 4px 8px;">${idx}</td>
                     <td style="font-size:11px; padding: 4px 8px;">${p.label}</td>
-                    <td style="color:#aaa; font-size:10px; padding: 4px 8px;">${p.type.substring(0,4)}</td>
-                    <td style="color:#aaa; padding: 4px 8px;">-</td>
+                    <td style="opacity:0.7; font-size:10px; padding: 4px 8px;">${p.type.substring(0,4)}</td>
+                    <td style="opacity:0.7; padding: 4px 8px;">-</td>
                  </tr>`;
              }
 
@@ -83,17 +83,17 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
                  }
 
                  const isLast = index === measurements.length - 1;
-                 const rowStyle = isLast ? 'border-bottom: 1px solid #999;' : 'border-bottom: 1px dotted #ddd;';
+                 const rowStyle = isLast ? 'border-bottom: 1px solid var(--border-color);' : 'border-bottom: 1px dotted var(--border-color);';
                  
                  let labelCell = '';
                  if (index === 0) {
-                     labelCell = `<td rowspan="${measurements.length}" style="font-weight:bold; color:#2563eb; vertical-align:middle; background:#fff; padding: 4px 8px; border-right: 1px solid #eee;">${idx}</td>
+                     labelCell = `<td rowspan="${measurements.length}" style="font-weight:bold; color:var(--accent-color); vertical-align:middle; padding: 4px 8px; border-right: 1px solid var(--border-color);">${idx}</td>
                                   <td rowspan="${measurements.length}" style="font-size:11px; vertical-align:middle; padding: 4px 8px;">${p.label}</td>`;
                  }
 
-                 return `<tr id="${index === 0 ? rowId : ''}" style="${rowStyle} background: #fff;">
+                 return `<tr id="${index === 0 ? rowId : ''}" style="${rowStyle}">
                     ${labelCell}
-                    <td style="font-size:10px; color:#555; text-transform:uppercase; padding: 4px 8px;">${type.substring(0,4)}</td>
+                    <td style="font-size:10px; opacity:0.8; text-transform:uppercase; padding: 4px 8px;">${type.substring(0,4)}</td>
                     <td style="font-family:monospace; font-weight:bold; font-size:11px; padding: 4px 8px;">${displayVal}</td>
                  </tr>`;
              }).join('');
@@ -150,13 +150,29 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
             <style id="page-style">
                 @page { size: auto; margin: 0mm; }
                 html, body { margin: 0; padding: 0; }
+                
+                :root {
+                    --bg-color: ${theme === 'dark' ? '#111827' : '#ffffff'};
+                    --text-color: ${theme === 'dark' ? '#f3f4f6' : '#000000'};
+                    --border-color: ${theme === 'dark' ? '#374151' : '#333333'};
+                    --header-bg: ${theme === 'dark' ? '#1f2937' : '#f3f4f6'};
+                    --section-bg: ${theme === 'dark' ? '#1f2937' : '#f9fafb'};
+                    --table-header-bg: ${theme === 'dark' ? '#374151' : '#e5e7eb'};
+                    --table-header-text: ${theme === 'dark' ? '#d1d5db' : '#555555'};
+                    --board-wrapper-bg: ${theme === 'dark' ? '#000000' : '#eeeeee'};
+                    --meta-color: ${theme === 'dark' ? '#9ca3af' : '#666666'};
+                    --accent-color: ${theme === 'dark' ? '#60a5fa' : '#333333'};
+                }
+
                 body { 
                     padding: 20px; 
                     font-family: sans-serif; 
-                    background: #fff; 
+                    background: var(--bg-color); 
+                    color: var(--text-color);
                     position: relative;
-                    /* Allow content to define width/height */
-                    min-width: 100%;
+                    /* Shrink-wrap content exactly */
+                    display: inline-block;
+                    min-width: min-content;
                     box-sizing: border-box;
                 }
                 .layout-container { display: flex; gap: 20px; align-items: flex-start; }
@@ -165,16 +181,16 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
                 /* Images side-by-side */
                 .center-images { display: flex; flex-direction: row; gap: 20px; align-items: flex-start; }
                 
-                .table-container { border: 2px solid #333; border-radius: 8px; overflow: hidden; background: #f9fafb; }
-                .table-container h3 { background: #333; color: #fff; margin: 0; padding: 10px; text-align: center; text-transform: uppercase; font-size: 14px; }
-                .table-container table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                .table-container th { background: #e5e7eb; text-align: left; padding: 5px 8px; font-size: 10px; text-transform: uppercase; color: #555; }
-                .table-container td { padding: 4px 8px; border-bottom: 1px solid #e5e7eb; }
+                .table-container { border: 2px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--section-bg); }
+                .table-container h3 { background: var(--accent-color); color: #fff; margin: 0; padding: 10px; text-align: center; text-transform: uppercase; font-size: 14px; }
+                .table-container table { width: 100%; border-collapse: collapse; font-size: 12px; color: var(--text-color); }
+                .table-container th { background: var(--table-header-bg); text-align: left; padding: 5px 8px; font-size: 10px; text-transform: uppercase; color: var(--table-header-text); }
+                .table-container td { padding: 4px 8px; border-bottom: 1px solid var(--border-color); }
                 .table-container tr:last-child td { border-bottom: none; }
                 .table-container.empty { border: 2px dashed #ccc; color: #888; text-align: center; padding: 20px; }
 
-                .board-wrapper { position: relative; border: 4px solid #333; border-radius: 12px; padding: 10px; background: #eee; }
-                .board-title { position: absolute; top: -12px; left: 20px; background: #333; color: white; padding: 2px 10px; font-weight: bold; font-size: 12px; border-radius: 4px; }
+                .board-wrapper { position: relative; border: 4px solid var(--border-color); border-radius: 12px; padding: 10px; background: var(--board-wrapper-bg); }
+                .board-title { position: absolute; top: -12px; left: 20px; background: var(--accent-color); color: white; padding: 2px 10px; font-weight: bold; font-size: 12px; border-radius: 4px; }
                 .board-img-container { position: relative; display: inline-block; }
                 .board-img-container img { display: block; max-height: 800px; width: auto; } /* Limit height */
                 
@@ -190,9 +206,16 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
                     z-index: 10;
                 }
 
-                .header { margin-bottom: 20px; border-bottom: 4px solid #333; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-end; }
-                .header h1 { margin: 0; font-size: 32px; text-transform: uppercase; letter-spacing: 2px; }
-                .header .meta { text-align: right; font-size: 14px; color: #666; }
+                .header { 
+                    margin-bottom: 10px; 
+                    border-bottom: 2px solid var(--border-color); 
+                    padding-bottom: 5px; 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: flex-end; 
+                }
+                .header h1 { margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-color); }
+                .header .meta { text-align: right; font-size: 14px; color: var(--meta-color); }
                 
                 /* Marker: Fixed Dot */
                 .point-marker {
@@ -457,6 +480,6 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
     `;
 }
 
-export function generateReportHtml(project: Project, points: Point[], dims?: { widthA: number, heightA: number, widthB?: number, heightB?: number }): string {
-    return generateImageExportHtml(project, points, dims);
+export function generateReportHtml(project: Project, points: Point[], dims?: { widthA: number, heightA: number, widthB?: number, heightB?: number }, theme: 'light' | 'dark' = 'light'): string {
+    return generateImageExportHtml(project, points, dims, theme);
 }

@@ -374,7 +374,7 @@ ipcMain.handle('exportImage', async (event, projectId) => {
             }
         } catch (e) { console.error(e); }
 
-        const htmlContent = generateImageExportHtml(project, pointsWithMeasurements, dims);
+        const htmlContent = generateImageExportHtml(project, pointsWithMeasurements, dims, 'dark');
 
         // Render in large hidden window
         let captureWindow: BrowserWindow | null = null;
