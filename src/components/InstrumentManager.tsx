@@ -8,11 +8,20 @@ const InstrumentManager: React.FC = () => {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [formData, setFormData] = useState<Partial<Instrument>>({});
     const [testing, setTesting] = useState(false);
+    const [availablePorts, setAvailablePorts] = useState<string[]>([]);
     const { showNotification } = useNotifier();
 
     useEffect(() => {
         loadInstruments();
     }, []);
+
+    useEffect(() => {
+        if (formData.connection_type === 'serial' && window.electronAPI?.getSerialPorts) {
+            window.electronAPI.getSerialPorts().then((ports: string[]) => {
+                setAvailablePorts(ports);
+            });
+        }
+    }, [formData.connection_type]);
 
     const loadInstruments = async () => {
         if (window.electronAPI?.getAllInstruments) {
@@ -174,24 +183,58 @@ const InstrumentManager: React.FC = () => {
                         </select>
                     </div>
                     <div className="col-span-1">
-                        <label className="block text-xs text-gray-400 mb-1">IP Address</label>
-                        <input 
-                            type="text" 
-                            className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
-                            value={formData.ip_address || ''}
-                            onChange={e => setFormData({...formData, ip_address: e.target.value})}
-                            disabled={formData.connection_type !== 'tcp_raw'}
-                        />
+                        <label className="block text-xs text-gray-400 mb-1">
+                            {formData.connection_type === 'serial' ? 'COM Port' : 'IP Address'}
+                        </label>
+                        {formData.connection_type === 'serial' ? (
+                            <div className="flex gap-2">
+                                <select 
+                                    className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
+                                    value={formData.ip_address || ''}
+                                    onChange={e => setFormData({...formData, ip_address: e.target.value})}
+                                >
+                                    <option value="">Select Port</option>
+                                    {availablePorts.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                                <button 
+                                    onClick={() => window.electronAPI?.getSerialPorts().then(setAvailablePorts)}
+                                    className="px-2 bg-gray-700 hover:bg-gray-600 rounded"
+                                    title="Refresh Ports"
+                                >
+                                    ↻
+                                </button>
+                            </div>
+                        ) : (
+                            <input 
+                                type="text" 
+                                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
+                                value={formData.ip_address || ''}
+                                onChange={e => setFormData({...formData, ip_address: e.target.value})}
+                            />
+                        )}
                     </div>
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1">Port</label>
-                        <input 
-                            type="number" 
-                            className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
-                            value={formData.port || ''}
-                            onChange={e => setFormData({...formData, port: parseInt(e.target.value)})}
-                            disabled={formData.connection_type !== 'tcp_raw'}
-                        />
+                        <label className="block text-xs text-gray-400 mb-1">
+                            {formData.connection_type === 'serial' ? 'Baud Rate' : 'Port'}
+                        </label>
+                        {formData.connection_type === 'serial' ? (
+                            <select
+                                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
+                                value={formData.port || 9600}
+                                onChange={e => setFormData({...formData, port: parseInt(e.target.value)})}
+                            >
+                                {[9600, 19200, 38400, 57600, 115200].map(rate => (
+                                    <option key={rate} value={rate}>{rate}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <input 
+                                type="number" 
+                                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
+                                value={formData.port || ''}
+                                onChange={e => setFormData({...formData, port: parseInt(e.target.value)})}
+                            />
+                        )}
                     </div>
                 </div>
 

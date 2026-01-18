@@ -1,4 +1,5 @@
 import net from 'net';
+import { SerialPort, ReadlineParser } from 'serialport';
 
 export interface InstrumentConfig {
     name: string;
@@ -18,6 +19,11 @@ export class GenericSCPIDriver {
     private connectionType: 'tcp_raw' | 'serial';
     private timeout: number;
 
+    // Serial State
+    private serialPort: SerialPort | null = null;
+    private serialParser: ReadlineParser | null = null;
+    private serialSettings: { path: string; baudRate: number } | null = null;
+
     // Monitor / Persistent Connection State
     private client: net.Socket | null = null;
     private monitorCallback: ((data: string) => void) | null = null;
@@ -31,57 +37,103 @@ export class GenericSCPIDriver {
         this.name = config.name;
         this.connectionType = config.connection_type;
         this.timeout = 2000;
+
+        // Serial Config
+        if (this.connectionType === 'serial') {
+            if (config.serial_settings) {
+                try {
+                    this.serialSettings = JSON.parse(config.serial_settings);
+                } catch (e) {
+                     console.error("Invalid Serial Settings JSON:", e);
+                }
+            }
+            // Fallback if settings are missing but type is serial
+            if (!this.serialSettings) {
+                // Heuristic: IP field = Port Path, Port field = BaudRate
+                this.serialSettings = { path: this.ip, baudRate: this.port || 9600 };
+            }
+        }
     }
 
     // Start listening for spontaneous data (Multimeter Monitor)
     async startMonitor(onData: (data: string) => void) {
-        if (this.connectionType !== 'tcp_raw') throw new Error("Monitor only supported for TCP");
-        
         this.stopMonitor(); // Close existing if any
         this.monitorCallback = onData;
 
-        console.log(`[GenericDriver] Starting Monitor on ${this.ip}:${this.port}`);
-        this.client = new net.Socket();
-        
-        this.client.connect(this.port, this.ip, () => {
-            console.log(`[GenericDriver] Connected to ${this.name}`);
-        });
-
-        this.client.on('data', (data) => {
-            const str = data.toString();
+        if (this.connectionType === 'tcp_raw') {
+            console.log(`[GenericDriver] Starting TCP Monitor on ${this.ip}:${this.port}`);
+            this.client = new net.Socket();
             
-            // If we are waiting for a command response (execute), route it there
-            if (this.isExpectingResponse && this.responseResolver) {
-                this.responseResolver(str);
-                // Important: Response is consumed, don't emit to monitor? 
-                // Usually yes, but some instruments echo.
-                // For safety, we assume if we asked for it, it's not a monitor event.
-                return;
-            }
+            this.client.connect(this.port, this.ip, () => {
+                console.log(`[GenericDriver] Connected to ${this.name}`);
+            });
 
-            // Otherwise, it's a monitor event (unsolicited data or button press)
-            if (this.monitorCallback && str.trim().length > 0) {
-                 // Basic cleanup
-                 const clean = str.replace(/[^\x20-\x7E]/g, '').trim();
-                 if(clean) this.monitorCallback(clean);
-            }
-        });
+            this.client.on('data', (data) => {
+                const str = data.toString();
+                this.handleIncomingData(str);
+            });
 
-        this.client.on('error', (err) => {
-            console.error(`[GenericDriver] Connection Error:`, err.message);
-            this.stopMonitor();
-        });
+            this.client.on('error', (err) => {
+                console.error(`[GenericDriver] Connection Error:`, err.message);
+                this.stopMonitor();
+            });
 
-        this.client.on('close', () => {
-            console.log(`[GenericDriver] Connection Closed`);
-            // Optional: Auto-reconnect logic could go here
-        });
+            this.client.on('close', () => {
+                console.log(`[GenericDriver] Connection Closed`);
+            });
+        } else if (this.connectionType === 'serial') {
+            if (!this.serialSettings) throw new Error("Serial settings not configured");
+            
+            console.log(`[GenericDriver] Starting Serial Monitor on ${this.serialSettings.path}`);
+            
+            this.serialPort = new SerialPort({ 
+                path: this.serialSettings.path, 
+                baudRate: this.serialSettings.baudRate,
+                autoOpen: false 
+            });
+
+            this.serialParser = this.serialPort.pipe(new ReadlineParser({ delimiter: '\n' }));
+
+            this.serialParser.on('data', (data: string) => {
+                this.handleIncomingData(data.toString());
+            });
+
+            this.serialPort.on('error', (err) => {
+                 console.error(`[GenericDriver] Serial Error:`, err.message);
+                 this.stopMonitor();
+            });
+
+            this.serialPort.open((err) => {
+                if (err) console.error("Error opening serial port:", err);
+                else console.log("Serial Port Opened");
+            });
+        }
+    }
+
+    private handleIncomingData(str: string) {
+        // If we are waiting for a command response (execute), route it there
+        if (this.isExpectingResponse && this.responseResolver) {
+            this.responseResolver(str);
+            return;
+        }
+
+        // Otherwise, it's a monitor event (unsolicited data or button press)
+        if (this.monitorCallback && str.trim().length > 0) {
+                // Basic cleanup
+                const clean = str.replace(/[^\x20-\x7E]/g, '').trim();
+                if(clean) this.monitorCallback(clean);
+        }
     }
 
     stopMonitor() {
         if (this.client) {
             this.client.destroy();
             this.client = null;
+        }
+        if (this.serialPort) {
+            if (this.serialPort.isOpen) this.serialPort.close();
+            this.serialPort = null;
+            this.serialParser = null;
         }
         this.monitorCallback = null;
     }
@@ -199,6 +251,100 @@ export class GenericSCPIDriver {
     }
 
     private sendSerial(cmd: string): Promise<{ status: 'success' | 'error'; value?: string; message?: string }> {
-        return Promise.reject({ status: 'error', message: "Soporte USB Serial aún no implementado" });
+        if (!this.serialSettings) return Promise.reject({ status: 'error', message: "Serial settings missing" });
+
+        const isQuery = cmd.includes('?');
+
+        // REUSE existing connection if open (Monitor Mode)
+        if (this.serialPort && this.serialPort.isOpen) {
+            return new Promise((resolve, reject) => {
+                if (isQuery) {
+                    this.isExpectingResponse = true;
+                    const timeoutId = setTimeout(() => {
+                        this.isExpectingResponse = false;
+                        this.responseResolver = null;
+                        reject({ status: 'error', message: 'Timeout waiting for instrument response (Shared Serial)' });
+                    }, this.timeout);
+
+                    this.responseResolver = (rawData: string) => {
+                        clearTimeout(timeoutId);
+                        this.isExpectingResponse = false;
+                        this.responseResolver = null;
+                        const cleanValue = rawData.replace(/[^\x20-\x7E]/g, '').trim();
+                        resolve({ status: 'success', value: cleanValue });
+                    };
+                }
+
+                this.serialPort!.write(cmd + '\n', (err) => {
+                    if (err) {
+                        if (isQuery) {
+                            this.isExpectingResponse = false;
+                            this.responseResolver = null;
+                        }
+                        reject({ status: 'error', message: err.message });
+                    } else {
+                        if (!isQuery) resolve({ status: 'success' });
+                    }
+                });
+            });
+        }
+
+        // ONE-OFF Connection
+        return new Promise((resolve, reject) => {
+            const port = new SerialPort({ 
+                path: this.serialSettings!.path, 
+                baudRate: this.serialSettings!.baudRate,
+                autoOpen: false 
+            });
+            const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+            
+            let timeoutId: NodeJS.Timeout;
+
+            const cleanup = () => {
+                if (port.isOpen) port.close();
+                clearTimeout(timeoutId);
+            };
+
+            timeoutId = setTimeout(() => {
+                cleanup();
+                reject({ status: 'error', message: 'Timeout' });
+            }, this.timeout);
+
+            port.on('open', () => {
+                port.write(cmd + '\n', (err) => {
+                    if (err) {
+                        cleanup();
+                        reject({ status: 'error', message: err.message });
+                        return;
+                    }
+                    if (!isQuery) {
+                        port.drain(() => {
+                            cleanup();
+                            resolve({ status: 'success' });
+                        });
+                    }
+                });
+            });
+
+            if (isQuery) {
+                parser.on('data', (data) => {
+                    cleanup();
+                    resolve({ status: 'success', value: data.toString().trim() });
+                });
+            }
+
+            port.on('error', (err) => {
+                cleanup();
+                // Avoid rejecting twice if timeout happened
+                reject({ status: 'error', message: err.message });
+            });
+
+            port.open((err) => {
+                if (err) {
+                    clearTimeout(timeoutId);
+                    reject({ status: 'error', message: "Failed to open port: " + err.message });
+                }
+            });
+        });
     }
 }

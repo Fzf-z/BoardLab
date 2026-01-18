@@ -4,6 +4,7 @@ import fs from 'fs';
 import { Worker } from 'worker_threads';
 import Store from 'electron-store';
 import net from 'net';
+import { SerialPort } from 'serialport';
 import { getRigolData } from './drivers/rigol';
 import { testConnection } from './drivers/connection';
 import { generateReportHtml, generateImageExportHtml } from '../src/report-generator';
@@ -19,6 +20,20 @@ if (require('electron-squirrel-startup')) {
 let mainWindow: BrowserWindow | null = null;
 let activeMultimeter: GenericSCPIDriver | null = null;
 let activeOscilloscope: GenericSCPIDriver | null = null;
+
+// =================================================================
+// Serial Ports
+// =================================================================
+
+ipcMain.handle('get-serial-ports', async () => {
+    try {
+        const ports = await SerialPort.list();
+        return ports.map(p => p.path);
+    } catch (e) {
+        console.error("Error listing serial ports:", e);
+        return [];
+    }
+});
 
 // =================================================================
 // Database Worker

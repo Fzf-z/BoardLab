@@ -64,4 +64,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Board Types
   getBoardTypes: () => ipcRenderer.invoke('get-board-types'),
   addBoardType: (newType: string) => ipcRenderer.invoke('add-board-type', newType),
+
+  // Serial
+  getSerialPorts: () => ipcRenderer.invoke('get-serial-ports'),
 });

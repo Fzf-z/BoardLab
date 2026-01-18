@@ -16,6 +16,7 @@ BoardLab is a desktop application designed for electronics repair technicians an
 ### 🔌 Hardware Integration
 - **Owon XDM Series Multimeters**: Read Voltage, Resistance, and Diode drop values directly into the software via TCP/IP.
 - **Rigol DHO Series Oscilloscopes**: Capture live waveforms, Vpp, and Frequency directly attached to a specific test point.
+- **Generic SCPI Support**: Connect any SCPI-compatible instrument via TCP/IP or USB Serial (COM Ports).
 - **Real-time Monitoring**: "Monitor Mode" continuously watches measurement values for hands-free triggering.
 
 ### 🧠 AI Assistant (Gemini)
@@ -35,7 +36,7 @@ BoardLab is a desktop application designed for electronics repair technicians an
 - **Frontend**: [React 18](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Vite](https://vitejs.dev/)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **Database**: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (Running in a separate Worker thread for performance)
-- **Hardware Comms**: Node.js `net` module (Raw TCP Sockets for SCPI commands)
+- **Hardware Comms**: Node.js `net` (TCP) and `serialport` (Serial) for SCPI communication
 
 ## � Project Structure
 
