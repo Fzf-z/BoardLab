@@ -98,61 +98,110 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                         const minSpacingY = (nodeA.height + nodeB.height) / 2 + 2;
 
                         if (distX < minSpacingX && distY < minSpacingY) {
-                            // Overlap
-                            const diffX = minSpacingX - distX;
-                            const diffY = minSpacingY - distY;
+                            // Overlap Detected
+                            
+                            // Vector repulsion (360 degrees) instead of Axis-Aligned
+                            let fx = dx;
+                            let fy = dy;
 
-                            // Push in the direction of smaller overlap to resolve faster
-                            if (diffX < diffY) {
-                                const push = dx > 0 ? diffX : -diffX;
-                                nodeA.lx += push / 2;
-                                nodeB.lx -= push / 2;
-                            } else {
-                                const push = dy > 0 ? diffY : -diffY;
-                                nodeA.ly += push / 2;
-                                nodeB.ly -= push / 2;
+                            // Add jitter if perfect overlap to break symmetry
+                            if (Math.abs(fx) < 0.1 && Math.abs(fy) < 0.1) {
+                                const angle = Math.random() * Math.PI * 2;
+                                fx = Math.cos(angle);
+                                fy = Math.sin(angle);
+                            }
+
+                            // Normalize vector
+                            const len = Math.hypot(fx, fy);
+                            if (len > 0) {
+                                const nx = fx / len;
+                                const ny = fy / len;
+
+                                // Repulsion strength based on depth of overlap
+                                // We want a soft push that resolves over iterations
+                                const pushFactor = 1.0; 
+
+                                nodeA.lx += nx * pushFactor;
+                                nodeA.ly += ny * pushFactor;
+                                nodeB.lx -= nx * pushFactor;
+                                nodeB.ly -= ny * pushFactor;
                             }
                         }
                     }
 
-                    // 2. Repel from Points (Markers) - Keep text away from dots
+                    // 2. Repel from Points (Markers) - Omni-directional & Clearance Guaranteed
                     for (let pIdx = 0; pIdx < nodes.length; pIdx++) {
                         const point = nodes[pIdx];
-                        // Don't repel from own point center too hard (we want to stay attached), 
-                        // but don't cover it.
-                        // Actually, simpler: Repel from ALL points
-                        const pdx = nodeA.lx - point.x;
-                        const pdy = nodeA.ly - point.y;
-                        const pDistX = Math.abs(pdx);
-                        const pDistY = Math.abs(pdy);
-                        const pSpacingX = (nodeA.width / 2) + (pointSize / 2);
-                        const pSpacingY = (nodeA.height / 2) + (pointSize / 2);
+                        
+                        const dx = nodeA.lx - point.x;
+                        const dy = nodeA.ly - point.y;
+                        let dist = Math.hypot(dx, dy);
+                        
+                        // Handle extremely close center overlap with random push
+                        let nx = dx;
+                        let ny = dy;
+                        if (dist < 0.1) {
+                            const angle = Math.random() * Math.PI * 2;
+                            nx = Math.cos(angle);
+                            ny = Math.sin(angle);
+                            dist = 0.1;
+                        } else {
+                            nx /= dist;
+                            ny /= dist;
+                        }
 
-                        if (pDistX < pSpacingX && pDistY < pSpacingY) {
-                             // Overlap with a point marker
-                             const diffX = pSpacingX - pDistX;
-                             const diffY = pSpacingY - pDistY;
-                             if (diffX < diffY) {
-                                 nodeA.lx += (pdx > 0 ? diffX : -diffX);
-                             } else {
-                                 nodeA.ly += (pdy > 0 ? diffY : -diffY);
-                             }
+                        // Calculate effective "radius" of the label box at this specific angle.
+                        // We treat the label as a rectangle (w, h) and the point as a circle (r).
+                        // We want to push the label center along (nx, ny) until the circle doesn't touch the rectangle.
+                        
+                        const w2 = nodeA.width / 2;
+                        const h2 = nodeA.height / 2;
+                        const pRadius = (pointSize / 2) + 4; // Margin
+
+                        // Ray-Box Intersection logic to find distance from center to edge of box along vector
+                        // distX = distance to vertical edge (x = w2)
+                        // distY = distance to horizontal edge (y = h2)
+                        const absNx = Math.abs(nx);
+                        const absNy = Math.abs(ny);
+                        
+                        const distToEdgeX = absNx > 0.001 ? w2 / absNx : Infinity;
+                        const distToEdgeY = absNy > 0.001 ? h2 / absNy : Infinity;
+                        
+                        // Distance from label center to its own edge along the vector (nx, ny) pointing INWARDS to point
+                        // Wait, vector (nx, ny) is from Point -> Label.
+                        // So we look at the Label's boundary relative to its center in direction -(nx, ny).
+                        // Since box is symmetric, it's the same distance.
+                        
+                        const distToBoxEdge = Math.min(distToEdgeX, distToEdgeY);
+                        
+                        // Required center-to-center distance = (Distance from LabelCenter to LabelEdge) + PointRadius
+                        const requiredDist = distToBoxEdge + pRadius;
+
+                        if (dist < requiredDist) {
+                            // Push radially outwards to meet requirement
+                            const push = requiredDist - dist;
+                            nodeA.lx += nx * push * 0.8; // Apply most of the push immediately
+                            nodeA.ly += ny * push * 0.8;
                         }
                     }
                     
-                    // 3. Spring force to anchor (Pull back to point)
-                    const tx = nodeA.x; // Target is point center
+                    // 3. Spring force to anchor (Pull back to optimal radius)
+                    const tx = nodeA.x; 
                     const ty = nodeA.y;
                     const dx = nodeA.lx - tx;
                     const dy = nodeA.ly - ty;
-                    // We want it to sit at radius distance
                     const currentDist = Math.hypot(dx, dy);
-                    const targetDist = (pointSize / 2) + (nodeA.width / 2) + 5;
+                    const targetDist = (pointSize / 2) + (nodeA.width / 2) + 10;
                     
-                    if (currentDist > targetDist * 1.5) {
-                        // If too far, pull back
-                         nodeA.lx -= dx * 0.05;
-                         nodeA.ly -= dy * 0.05;
+                    // Pull towards optimal radius, but maintain angle (orbit)
+                    if (currentDist > targetDist) {
+                        const pullFactor = 0.02; // Gentle pull
+                        nodeA.lx -= dx * pullFactor;
+                        nodeA.ly -= dy * pullFactor;
+                    } else if (currentDist < targetDist * 0.5) {
+                         // Too close? Push out (handled by point repulsion above, but this helps)
+                         // nodeA.lx += dx * 0.05;
+                         // nodeA.ly += dy * 0.05;
                     }
                 }
             }
