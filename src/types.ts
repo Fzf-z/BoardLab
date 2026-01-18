@@ -47,6 +47,7 @@ export interface Point {
     tolerance?: number;
     expected_value?: string;
     side?: 'A' | 'B'; // Which side of the board the point belongs to
+    parentPointId?: number | string; // For linked/duplicated points
     // In the frontend, we store latest measurements by type for quick access
     measurements?: Record<string, MeasurementValue>;
     temp_id?: string; // Used during saving to map temp IDs to real IDs

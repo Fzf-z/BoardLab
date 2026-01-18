@@ -253,6 +253,10 @@ export const useBoard = () => {
         setDraggedPointId(null);
     };
 
+    const addPoint = (point: Point) => {
+        setPoints([...points, point]);
+    };
+
     const handleImageClick = (e: MouseEvent<HTMLDivElement>, mode: string, projectId: number | null) => {
         if (mode === 'measure' && !isDragging && e.button === 0) {
             if (!projectId) {
@@ -348,6 +352,7 @@ export const useBoard = () => {
         handleMouseUp,
         handlePointMouseDown,
         handleImageClick,
+        addPoint,
         updatePoint,
         resetBoard,
         undo,

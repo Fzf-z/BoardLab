@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Activity, Zap, Cpu } from 'lucide-react';
+import { Upload, Activity, Zap, Cpu, Link as LinkIcon, Copy } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { MeasurementValue } from '../types';
 import Minimap from './Minimap';
@@ -37,7 +37,7 @@ interface BoardViewProps {
 }
 
 const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
-    const { board, appSettings } = useProject();
+    const { board, appSettings, addPoint } = useProject();
     const { 
         imageSrc,
         imageSrcB, 
@@ -60,6 +60,42 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
     const [hoveredPointId, setHoveredPointId] = useState<number | string | null>(null);
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
     const [labelOffsets, setLabelOffsets] = useState<Record<string | number, {x: number, y: number}>>({});
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, pointId: number | string } | null>(null);
+
+    const getEffectivePoint = (point: any) => {
+        if (point.parentPointId) {
+            return points.find(p => p.id === point.parentPointId) || point;
+        }
+        return point;
+    };
+
+    const handleDuplicatePoint = (originalPointId: number | string) => {
+        const originalPoint = points.find(p => p.id === originalPointId);
+        if (!originalPoint) return;
+
+        const parentId = originalPoint.parentPointId || originalPoint.id;
+
+        const newPoint = {
+            id: `temp-${Date.now()}`,
+            x: originalPoint.x + 20,
+            y: originalPoint.y + 20,
+            label: originalPoint.label,
+            parentPointId: parentId,
+            measurements: {}, 
+            side: originalPoint.side || 'A',
+            type: originalPoint.type,
+            category: originalPoint.category
+        };
+
+        addPoint(newPoint);
+        setContextMenu(null);
+    };
+
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
 
     // Collision Resolution for Labels
     useEffect(() => {
@@ -247,7 +283,10 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
         const point = points.find(p => p.id === hoveredPointId);
         if (!point) return null;
         
-        const hasMeasurements = point.measurements && Object.keys(point.measurements).length > 0;
+        const effectivePoint = getEffectivePoint(point);
+        const isReplica = !!point.parentPointId;
+        const hasMeasurements = effectivePoint.measurements && Object.keys(effectivePoint.measurements).length > 0;
+        
         const screenX = position.x + (point.x * scale);
         const screenY = position.y + (point.y * scale);
         
@@ -257,13 +296,17 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                 style={{ left: screenX + 20, top: screenY, transform: 'translateY(-50%)' }}
             >
                 <div className="font-bold text-sm border-b border-gray-700 pb-1 mb-2 flex justify-between items-center text-blue-400">
-                    {point.label || `Point ${point.id}`}
+                     <span className="flex items-center gap-2">
+                        {isReplica && <LinkIcon size={12} className="text-gray-400" />}
+                        {effectivePoint.label || `Point ${effectivePoint.id}`}
+                    </span>
+                    {isReplica && <span className="text-[10px] bg-gray-700 px-1 rounded text-gray-300">LINKED</span>}
                 </div>
                 {!hasMeasurements ? <div className="text-xs text-gray-500 italic">No measurements yet</div> : (
                     <div className="space-y-2">
                         {['voltage', 'resistance', 'diode', 'oscilloscope'].map(type => {
-                            if (!point.measurements) return null;
-                            const data = point.measurements[type];
+                            if (!effectivePoint.measurements) return null;
+                            const data = effectivePoint.measurements[type];
                             if (!data) return null;
                             
                             let icon = <Activity size={12} />;
@@ -370,27 +413,21 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                         
                         {/* Points Overlay */}
                         {points.map(point => {
+                            const effectivePoint = getEffectivePoint(point);
+                            const isReplica = !!point.parentPointId;
                             const isSelected = selectedPointId === point.id;
                             const isHovered = hoveredPointId === point.id;
                             
-                            const hasMeas = point.measurements && Object.keys(point.measurements).length > 0;
+                            const hasMeas = effectivePoint.measurements && Object.keys(effectivePoint.measurements).length > 0;
                             
                             const size = appSettings.pointSize || 24;
                             let defaultColor = appSettings.pointColor || '#4b5563';
                             
                             // Use category color if defined
-                            if (point.category && appSettings.categories) {
-                                const cat = appSettings.categories.find(c => c.id === point.category);
+                            if (effectivePoint.category && appSettings.categories) {
+                                const cat = appSettings.categories.find(c => c.id === effectivePoint.category);
                                 if (cat) defaultColor = cat.color;
                             }
-                            
-                            // Dynamic Styles
-                            // Priority: Selected > Measured (Blue) > Category Color
-                            // Actually, maybe we want Category color to persist even if measured?
-                            // Let's make measured state an indicator (border or inner dot) instead of full color override
-                            // Or: keep full override for 'measured' if that's preferred.
-                            // User request: "ver con el color de su categoria si corresponde".
-                            // So let's prioritize category color over "measured blue".
                             
                             const finalColor = isSelected ? '#eab308' : defaultColor;
 
@@ -412,6 +449,7 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                 marginTop: `-${size/2}px`,
                                 cursor: mode === 'measure' ? 'grab' : 'pointer',
                                 backgroundColor: finalColor,
+                                borderStyle: isReplica ? 'dashed' : 'solid',
                                 borderColor: isSelected || isHovered ? 'white' : (hasMeas ? '#60a5fa' : '#9ca3af'),
                                 borderWidth: hasMeas ? '3px' : '2px', // Make border thicker if measured
                                 transform: isSelected ? 'scale(1.25)' : 'scale(1)',
@@ -428,11 +466,22 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                         e.stopPropagation();
                                         setSelectedPointId(point.id);
                                     }}
+                                    onContextMenu={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setContextMenu({ x: e.clientX, y: e.clientY, pointId: point.id });
+                                    }}
                                     onMouseEnter={() => setHoveredPointId(point.id)}
                                     onMouseLeave={() => setHoveredPointId(null)}
                                 >
                                     <div className="bg-white rounded-full" style={{ width: size/4, height: size/4 }} />
                                     
+                                    {isReplica && (
+                                        <div className="absolute -top-1 -right-1 bg-gray-800 rounded-full p-[1px] border border-gray-600">
+                                            <LinkIcon size={8} className="text-white" />
+                                        </div>
+                                    )}
+
                                     {/* Leader Line */}
                                     {showLeader && (
                                         <svg className="absolute overflow-visible pointer-events-none" style={{ left: '50%', top: '50%' }}>
@@ -455,7 +504,7 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                             top: '50%'
                                         }}
                                     >
-                                        {point.label}
+                                        {effectivePoint.label}
                                     </div>
                                 </div>
                             );
@@ -487,6 +536,22 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
              {mode === 'measure' && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600/90 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg pointer-events-none border border-red-400 animate-pulse">
                     MEASUREMENT MODE
+                </div>
+            )}
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <div 
+                    className="fixed z-[100] bg-gray-800 border border-gray-600 rounded shadow-xl py-1 w-48 backdrop-blur-sm text-gray-200"
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                >
+                    <button 
+                        className="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center gap-2 text-sm"
+                        onClick={() => handleDuplicatePoint(contextMenu.pointId)}
+                    >
+                        <Copy size={14} />
+                        <span>Duplicate / Link Point</span>
+                    </button>
                 </div>
             )}
         </div>

@@ -449,6 +449,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             addMeasurement: handleAddMeasurement,
             fetchProjectList: handleFetchProjectList,
             board,
+            addPoint: board.addPoint,
             undo,
             redo,
             canUndo,
