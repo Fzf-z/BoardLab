@@ -59,6 +59,120 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
     
     const [hoveredPointId, setHoveredPointId] = useState<number | string | null>(null);
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+    const [labelOffsets, setLabelOffsets] = useState<Record<string | number, {x: number, y: number}>>({});
+
+    // Collision Resolution for Labels
+    useEffect(() => {
+        if (points.length === 0) {
+            setLabelOffsets({});
+            return;
+        }
+
+        const runLayout = () => {
+            const pointSize = appSettings.pointSize || 24;
+            const nodes = points.map(p => ({
+                id: p.id,
+                x: p.x,
+                y: p.y,
+                // Initial Label Position (Right side)
+                lx: p.x + (pointSize / 2) + 5 + (p.label.length * 3), // Center of label approx
+                ly: p.y,
+                width: Math.max(20, p.label.length * 7), // Est width
+                height: 14
+            }));
+
+            // Iterations
+            for (let i = 0; i < 20; i++) {
+                // 1. Repel from other labels
+                for (let a = 0; a < nodes.length; a++) {
+                    const nodeA = nodes[a];
+                    for (let b = a + 1; b < nodes.length; b++) {
+                        const nodeB = nodes[b];
+                        
+                        const dx = nodeA.lx - nodeB.lx;
+                        const dy = nodeA.ly - nodeB.ly;
+                        const distX = Math.abs(dx);
+                        const distY = Math.abs(dy);
+                        
+                        const minSpacingX = (nodeA.width + nodeB.width) / 2 + 2; // + padding
+                        const minSpacingY = (nodeA.height + nodeB.height) / 2 + 2;
+
+                        if (distX < minSpacingX && distY < minSpacingY) {
+                            // Overlap
+                            const diffX = minSpacingX - distX;
+                            const diffY = minSpacingY - distY;
+
+                            // Push in the direction of smaller overlap to resolve faster
+                            if (diffX < diffY) {
+                                const push = dx > 0 ? diffX : -diffX;
+                                nodeA.lx += push / 2;
+                                nodeB.lx -= push / 2;
+                            } else {
+                                const push = dy > 0 ? diffY : -diffY;
+                                nodeA.ly += push / 2;
+                                nodeB.ly -= push / 2;
+                            }
+                        }
+                    }
+
+                    // 2. Repel from Points (Markers) - Keep text away from dots
+                    for (let pIdx = 0; pIdx < nodes.length; pIdx++) {
+                        const point = nodes[pIdx];
+                        // Don't repel from own point center too hard (we want to stay attached), 
+                        // but don't cover it.
+                        // Actually, simpler: Repel from ALL points
+                        const pdx = nodeA.lx - point.x;
+                        const pdy = nodeA.ly - point.y;
+                        const pDistX = Math.abs(pdx);
+                        const pDistY = Math.abs(pdy);
+                        const pSpacingX = (nodeA.width / 2) + (pointSize / 2);
+                        const pSpacingY = (nodeA.height / 2) + (pointSize / 2);
+
+                        if (pDistX < pSpacingX && pDistY < pSpacingY) {
+                             // Overlap with a point marker
+                             const diffX = pSpacingX - pDistX;
+                             const diffY = pSpacingY - pDistY;
+                             if (diffX < diffY) {
+                                 nodeA.lx += (pdx > 0 ? diffX : -diffX);
+                             } else {
+                                 nodeA.ly += (pdy > 0 ? diffY : -diffY);
+                             }
+                        }
+                    }
+                    
+                    // 3. Spring force to anchor (Pull back to point)
+                    const tx = nodeA.x; // Target is point center
+                    const ty = nodeA.y;
+                    const dx = nodeA.lx - tx;
+                    const dy = nodeA.ly - ty;
+                    // We want it to sit at radius distance
+                    const currentDist = Math.hypot(dx, dy);
+                    const targetDist = (pointSize / 2) + (nodeA.width / 2) + 5;
+                    
+                    if (currentDist > targetDist * 1.5) {
+                        // If too far, pull back
+                         nodeA.lx -= dx * 0.05;
+                         nodeA.ly -= dy * 0.05;
+                    }
+                }
+            }
+
+            // Convert back to offsets relative to point center
+            const newOffsets: Record<string | number, {x: number, y: number}> = {};
+            nodes.forEach(n => {
+                newOffsets[n.id] = {
+                    x: n.lx - n.x,
+                    y: n.ly - n.y
+                };
+            });
+            setLabelOffsets(newOffsets);
+        };
+
+        // Debounce to avoid heavy calc on every minor change, though points change rarely
+        const timer = setTimeout(runLayout, 10);
+        return () => clearTimeout(timer);
+
+    }, [points, appSettings.pointSize]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -231,6 +345,15 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                             
                             const finalColor = isSelected ? '#eab308' : defaultColor;
 
+                            // Label Layout
+                            const offset = labelOffsets[point.id] || { x: size/2 + 5 + 10, y: 0 }; // Default right
+                            const labelX = offset.x;
+                            const labelY = offset.y;
+                            
+                            // Determine if we need a leader line (if label is far from center)
+                            const dist = Math.hypot(labelX, labelY);
+                            const showLeader = dist > (size/2 + 15);
+
                             const pointStyle: React.CSSProperties = {
                                 left: point.x, 
                                 top: point.y, 
@@ -261,8 +384,28 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                                 >
                                     <div className="bg-white rounded-full" style={{ width: size/4, height: size/4 }} />
                                     
+                                    {/* Leader Line */}
+                                    {showLeader && (
+                                        <svg className="absolute overflow-visible pointer-events-none" style={{ left: '50%', top: '50%' }}>
+                                            <line 
+                                                x1={0} y1={0} 
+                                                x2={labelX} y2={labelY} 
+                                                stroke="rgba(255,255,255,0.5)" 
+                                                strokeWidth="1.5" 
+                                            />
+                                        </svg>
+                                    )}
+
                                     {/* Label Tag */}
-                                    <div className={`absolute left-full ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${isSelected ? 'bg-yellow-500 text-black' : 'bg-black/50 text-white'}`}>
+                                    <div 
+                                        className={`absolute px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap pointer-events-none ${isSelected ? 'bg-yellow-500 text-black' : 'bg-black/50 text-white'}`}
+                                        style={{
+                                            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                                            // left/top 50% relative to parent (point center)
+                                            left: '50%',
+                                            top: '50%'
+                                        }}
+                                    >
                                         {point.label}
                                     </div>
                                 </div>
