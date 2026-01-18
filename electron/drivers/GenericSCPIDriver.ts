@@ -33,10 +33,17 @@ export class GenericSCPIDriver {
     constructor(config: InstrumentConfig) {
         this.ip = config.ip_address;
         this.port = config.port;
-        this.commands = JSON.parse(config.command_map);
         this.name = config.name;
         this.connectionType = config.connection_type;
         this.timeout = 2000;
+
+        // Parse command map with error handling
+        try {
+            this.commands = JSON.parse(config.command_map);
+        } catch (e) {
+            console.error(`[GenericDriver] Invalid command_map JSON for ${this.name}:`, e);
+            this.commands = {}; // Fallback to empty commands
+        }
 
         // Serial Config
         if (this.connectionType === 'serial') {
@@ -44,7 +51,7 @@ export class GenericSCPIDriver {
                 try {
                     this.serialSettings = JSON.parse(config.serial_settings);
                 } catch (e) {
-                     console.error("Invalid Serial Settings JSON:", e);
+                    console.error(`[GenericDriver] Invalid serial_settings JSON for ${this.name}:`, e);
                 }
             }
             // Fallback if settings are missing but type is serial

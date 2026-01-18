@@ -16,6 +16,7 @@ import ProjectManagerModal from './components/modals/ProjectManagerModal';
 import AIModal from './components/modals/AIModal';
 import NewProjectModal from './components/modals/NewProjectModal';
 import ComparisonModal from './components/modals/ComparisonModal';
+import ErrorBoundary from './components/ErrorBoundary';
 // import PointsTable from './components/PointsTable';
 
 const BoardLab: React.FC = () => {
@@ -264,22 +265,26 @@ const BoardLab: React.FC = () => {
                     setScale={board.setScale}
                     projectName={currentProject?.board_model}
                 />
-                <BoardView
-                    mode={mode}
-                    currentProjectId={currentProject?.id}
-                />
+                <ErrorBoundary>
+                    <BoardView
+                        mode={mode}
+                        currentProjectId={currentProject?.id}
+                    />
+                </ErrorBoundary>
             </div>
 
-            <AIPanel
-                askAboutPoint={gemini.askAboutPoint}
-                captureValue={hardware.captureValue}
-                isCapturing={hardware.isCapturing}
-                analyzeBoard={gemini.analyzeBoard}
-                instrumentConfig={hardware.instrumentConfig}
-                onOpenComparison={() => setComparisonModalOpen(true)}
-                comparisonPoint={comparisonPoint}
-                mode={mode}
-            />
+            <ErrorBoundary>
+                <AIPanel
+                    askAboutPoint={gemini.askAboutPoint}
+                    captureValue={hardware.captureValue}
+                    isCapturing={hardware.isCapturing}
+                    analyzeBoard={gemini.analyzeBoard}
+                    instrumentConfig={hardware.instrumentConfig}
+                    onOpenComparison={() => setComparisonModalOpen(true)}
+                    comparisonPoint={comparisonPoint}
+                    mode={mode}
+                />
+            </ErrorBoundary>
 
             {/* Modals that don't need project data can stay as they are */}
             {hardware.configOpen && (

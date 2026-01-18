@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ArrowUp, ArrowDown, Search, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { Point } from '../types';
 import Waveform from './Waveform';
+import { safeDeepClone } from '../utils/safeJson';
 
 interface PointsTableProps {
     mode?: 'view' | 'measure';
@@ -12,14 +13,14 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
     const { points, deletePoint, board, appSettings, currentProject } = useProject();
     const { setPoints, selectedPointId, selectPoint } = board;
 
-    const [editedPoints, setEditedPoints] = useState<Point[]>(JSON.parse(JSON.stringify(points)));
+    const [editedPoints, setEditedPoints] = useState<Point[]>(() => safeDeepClone(points, []));
     const [sortColumn, setSortColumn] = useState<string>('label');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
     const [filterText, setFilterText] = useState<string>('');
     const [expandedPointIds, setExpandedPointIds] = useState<Set<string | number>>(new Set());
     const rowRefs = useRef<Record<string | number, HTMLTableRowElement | null>>({});
 
-    const toggleExpand = (id: string | number, e: React.MouseEvent) => {
+    const toggleExpand = useCallback((id: string | number, e: React.MouseEvent) => {
         e.stopPropagation();
         setExpandedPointIds(prev => {
             const next = new Set(prev);
@@ -27,15 +28,18 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
             else next.add(id);
             return next;
         });
-    };
+    }, []);
 
-    // Filter categories based on current project board type
-    const availableCategories = (appSettings.categories || []).filter(cat => 
-        !cat.boardType || (currentProject?.board_type && cat.boardType === currentProject.board_type)
+    // Filter categories based on current project board type - memoized
+    const availableCategories = useMemo(() =>
+        (appSettings.categories || []).filter(cat =>
+            !cat.boardType || (currentProject?.board_type && cat.boardType === currentProject.board_type)
+        ),
+        [appSettings.categories, currentProject?.board_type]
     );
 
     useEffect(() => {
-        setEditedPoints(JSON.parse(JSON.stringify(points)));
+        setEditedPoints(safeDeepClone(points, []));
     }, [points]);
 
     useEffect(() => {
@@ -47,7 +51,7 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
         }
     }, [selectedPointId]);
 
-    const handleValueChange = (pointId: string | number, measurementType: string, newValue: string) => {
+    const handleValueChange = useCallback((pointId: string | number, measurementType: string, newValue: string) => {
         setEditedPoints(currentPoints =>
             currentPoints.map(p => {
                 if (p.id === pointId) {
@@ -66,78 +70,86 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
                 return p;
             })
         );
-    };
-    
-    const handleNotesChange = (pointId: string | number, newNotes: string) => {
+    }, []);
+
+    const handleNotesChange = useCallback((pointId: string | number, newNotes: string) => {
         setEditedPoints(currentPoints =>
             currentPoints.map(p => (p.id === pointId ? { ...p, notes: newNotes } : p))
         );
-    };
+    }, []);
 
-    const handleCategoryChange = (pointId: string | number, newCategory: string) => {
+    const handleCategoryChange = useCallback((pointId: string | number, newCategory: string) => {
         setEditedPoints(currentPoints =>
             currentPoints.map(p => (p.id === pointId ? { ...p, category: newCategory } : p))
         );
-    };
+    }, []);
 
-    const handleLabelChange = (pointId: string | number, newLabel: string) => {
+    const handleLabelChange = useCallback((pointId: string | number, newLabel: string) => {
         setEditedPoints(currentPoints =>
             currentPoints.map(p => (p.id === pointId ? { ...p, label: newLabel } : p))
         );
-    };
+    }, []);
 
-    const handleSort = (column: string) => {
-        if (sortColumn === column) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortColumn(column);
+    const handleSort = useCallback((column: string) => {
+        setSortColumn(prev => {
+            if (prev === column) {
+                setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+                return prev;
+            }
             setSortDirection('asc');
-        }
-    };
+            return column;
+        });
+    }, []);
 
-    const handleDelete = (pointId: string | number) => {
+    const handleDelete = useCallback((pointId: string | number) => {
         if (window.confirm('Are you sure you want to delete this point?')) {
             deletePoint(pointId);
         }
-    };
+    }, [deletePoint]);
 
-    const commitChanges = () => {
+    const commitChanges = useCallback(() => {
         setPoints(editedPoints);
-    };
+    }, [setPoints, editedPoints]);
 
-    const handleSaveChanges = () => {
+    const handleSaveChanges = useCallback(() => {
         setPoints(editedPoints);
-    };
+    }, [setPoints, editedPoints]);
 
-    const filteredPoints = editedPoints.filter(point => {
-        // Hide replicas/linked points from main list
-        if (point.parentPointId) return false;
-
+    // Memoized filtered and sorted points for performance
+    const filteredPoints = useMemo(() => {
         const lowerCaseFilterText = filterText.toLowerCase();
-        const labelMatch = point.label.toLowerCase().includes(lowerCaseFilterText);
-        const notesMatch = point.notes?.toLowerCase().includes(lowerCaseFilterText);
-        const categoryMatch = point.category?.toLowerCase().includes(lowerCaseFilterText);
-        const measurementMatch = point.measurements && Object.values(point.measurements).some(m => 
-            m?.value?.toString().toLowerCase().includes(lowerCaseFilterText)
-        );
-        return labelMatch || notesMatch || measurementMatch || categoryMatch;
-    });
+        return editedPoints.filter(point => {
+            // Hide replicas/linked points from main list
+            if (point.parentPointId) return false;
 
-    const sortedAndFilteredPoints = [...filteredPoints].sort((a, b) => {
-        let compareA: any, compareB: any;
-        if (sortColumn === 'label' || sortColumn === 'notes' || sortColumn === 'category' || sortColumn === 'side') {
-            compareA = (a as any)[sortColumn] || '';
-            compareB = (b as any)[sortColumn] || '';
-            return sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
-        } else if (['voltage', 'resistance', 'diode'].includes(sortColumn)) {
-            compareA = parseFloat((a.measurements?.[sortColumn]?.value as string)) || 0;
-            compareB = parseFloat((b.measurements?.[sortColumn]?.value as string)) || 0;
-            return sortDirection === 'asc' ? compareA - compareB : compareB - compareA;
-        }
-        return 0;
-    });
+            const labelMatch = point.label.toLowerCase().includes(lowerCaseFilterText);
+            const notesMatch = point.notes?.toLowerCase().includes(lowerCaseFilterText);
+            const categoryMatch = point.category?.toLowerCase().includes(lowerCaseFilterText);
+            const measurementMatch = point.measurements && Object.values(point.measurements).some(m =>
+                m?.value?.toString().toLowerCase().includes(lowerCaseFilterText)
+            );
+            return labelMatch || notesMatch || measurementMatch || categoryMatch;
+        });
+    }, [editedPoints, filterText]);
 
-    const navigateSelection = (direction: number) => {
+    const sortedAndFilteredPoints = useMemo(() => {
+        return [...filteredPoints].sort((a, b) => {
+            let compareA: string | number;
+            let compareB: string | number;
+            if (sortColumn === 'label' || sortColumn === 'notes' || sortColumn === 'category' || sortColumn === 'side') {
+                compareA = (a as any)[sortColumn] || '';
+                compareB = (b as any)[sortColumn] || '';
+                return sortDirection === 'asc' ? compareA.localeCompare(compareB) : compareB.localeCompare(compareA);
+            } else if (['voltage', 'resistance', 'diode'].includes(sortColumn)) {
+                compareA = parseFloat((a.measurements?.[sortColumn]?.value as string)) || 0;
+                compareB = parseFloat((b.measurements?.[sortColumn]?.value as string)) || 0;
+                return sortDirection === 'asc' ? compareA - compareB : compareB - compareA;
+            }
+            return 0;
+        });
+    }, [filteredPoints, sortColumn, sortDirection]);
+
+    const navigateSelection = useCallback((direction: number) => {
         const currentIndex = sortedAndFilteredPoints.findIndex(p => p.id === selectedPointId);
         if (currentIndex === -1) {
             if (sortedAndFilteredPoints.length > 0) {
@@ -150,7 +162,7 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
         if (newIndex >= 0 && newIndex < sortedAndFilteredPoints.length) {
             selectPoint(sortedAndFilteredPoints[newIndex].id);
         }
-    };
+    }, [sortedAndFilteredPoints, selectedPointId, selectPoint]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {

@@ -4,6 +4,7 @@ import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, AppSettings, PointCategory } from '../types';
 import { Plus, Trash2, Edit2, Check, X, Github, Keyboard } from 'lucide-react';
 import InstrumentManager from './InstrumentManager';
+import { safeDeepClone } from '../utils/safeJson';
 
 const PRESET_COLORS = [
     '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', 
@@ -25,12 +26,21 @@ const Settings: React.FC<SettingsProps> = ({
   const { boardTypes, addBoardType } = useProject();
   
   const [localInstruments] = useState<InstrumentConfig>(() => {
-      const inst = JSON.parse(JSON.stringify(instruments));
+      const inst = safeDeepClone(instruments, {
+          multimeter: { ip: '', port: 0, commands: {} },
+          oscilloscope: { ip: '', port: 0, commands: {} },
+          monitor: { enabled: false }
+      });
       if (!inst.monitor) inst.monitor = { enabled: false };
       return inst;
   });
   const [localAppSettings, setLocalAppSettings] = useState<AppSettings>(() => {
-      const settings = JSON.parse(JSON.stringify(appSettings));
+      const settings = safeDeepClone(appSettings, {
+          autoSave: false,
+          pointSize: 24,
+          pointColor: '#4b5563',
+          categories: []
+      });
       if (!settings.categories) settings.categories = [];
       return settings;
   });

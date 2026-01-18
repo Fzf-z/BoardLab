@@ -97,7 +97,7 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
         return () => window.removeEventListener('click', handleClick);
     }, []);
 
-    // Collision Resolution for Labels
+    // Optimized Collision Resolution for Labels using Spatial Hashing
     useEffect(() => {
         if (points.length === 0) {
             setLabelOffsets({});
@@ -106,155 +106,151 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
 
         const runLayout = () => {
             const pointSize = appSettings.pointSize || 24;
+            const CELL_SIZE = 100; // Grid cell size for spatial partitioning
+            const ITERATIONS = Math.min(15, 5 + Math.floor(points.length / 20)); // Adaptive iterations
+
+            // Create nodes with initial positions
             const nodes = points.map(p => ({
                 id: p.id,
                 x: p.x,
                 y: p.y,
-                // Initial Label Position (Right side)
-                lx: p.x + (pointSize / 2) + 5 + (p.label.length * 3), // Center of label approx
+                lx: p.x + (pointSize / 2) + 5 + (p.label.length * 3),
                 ly: p.y,
-                width: Math.max(20, p.label.length * 7), // Est width
+                width: Math.max(20, p.label.length * 7),
                 height: 14
             }));
 
-            // Iterations
-            for (let i = 0; i < 20; i++) {
-                // 1. Repel from other labels
+            // Skip heavy computation for very large point sets
+            if (nodes.length > 500) {
+                const newOffsets: Record<string | number, {x: number, y: number}> = {};
+                nodes.forEach(n => {
+                    newOffsets[n.id] = { x: n.lx - n.x, y: n.ly - n.y };
+                });
+                setLabelOffsets(newOffsets);
+                return;
+            }
+
+            // Spatial hash helper functions
+            const getCellKey = (x: number, y: number) =>
+                `${Math.floor(x / CELL_SIZE)},${Math.floor(y / CELL_SIZE)}`;
+
+            const getNearbyCellKeys = (x: number, y: number): string[] => {
+                const cx = Math.floor(x / CELL_SIZE);
+                const cy = Math.floor(y / CELL_SIZE);
+                const keys: string[] = [];
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        keys.push(`${cx + dx},${cy + dy}`);
+                    }
+                }
+                return keys;
+            };
+
+            // Run iterations
+            for (let iter = 0; iter < ITERATIONS; iter++) {
+                // Build spatial hash for current iteration
+                const spatialHash = new Map<string, number[]>();
+                nodes.forEach((node, idx) => {
+                    const key = getCellKey(node.lx, node.ly);
+                    if (!spatialHash.has(key)) spatialHash.set(key, []);
+                    spatialHash.get(key)!.push(idx);
+                });
+
+                // Process each node
                 for (let a = 0; a < nodes.length; a++) {
                     const nodeA = nodes[a];
-                    for (let b = a + 1; b < nodes.length; b++) {
-                        const nodeB = nodes[b];
-                        
-                        const dx = nodeA.lx - nodeB.lx;
-                        const dy = nodeA.ly - nodeB.ly;
-                        const distX = Math.abs(dx);
-                        const distY = Math.abs(dy);
-                        
-                        const minSpacingX = (nodeA.width + nodeB.width) / 2 + 2; // + padding
-                        const minSpacingY = (nodeA.height + nodeB.height) / 2 + 2;
 
-                        if (distX < minSpacingX && distY < minSpacingY) {
-                            // Overlap Detected
-                            
-                            // Vector repulsion (360 degrees) instead of Axis-Aligned
-                            let fx = dx;
-                            let fy = dy;
+                    // 1. Repel from nearby labels only (spatial hash lookup)
+                    const nearbyKeys = getNearbyCellKeys(nodeA.lx, nodeA.ly);
+                    const checkedIndices = new Set<number>();
 
-                            // Add jitter if perfect overlap to break symmetry
-                            if (Math.abs(fx) < 0.1 && Math.abs(fy) < 0.1) {
-                                const angle = Math.random() * Math.PI * 2;
-                                fx = Math.cos(angle);
-                                fy = Math.sin(angle);
-                            }
+                    for (const key of nearbyKeys) {
+                        const cellNodes = spatialHash.get(key);
+                        if (!cellNodes) continue;
 
-                            // Normalize vector
-                            const len = Math.hypot(fx, fy);
-                            if (len > 0) {
-                                const nx = fx / len;
-                                const ny = fy / len;
+                        for (const b of cellNodes) {
+                            if (b <= a || checkedIndices.has(b)) continue;
+                            checkedIndices.add(b);
 
-                                // Repulsion strength based on depth of overlap
-                                // We want a soft push that resolves over iterations
-                                const pushFactor = 1.0; 
+                            const nodeB = nodes[b];
+                            const dx = nodeA.lx - nodeB.lx;
+                            const dy = nodeA.ly - nodeB.ly;
+                            const distX = Math.abs(dx);
+                            const distY = Math.abs(dy);
 
-                                nodeA.lx += nx * pushFactor;
-                                nodeA.ly += ny * pushFactor;
-                                nodeB.lx -= nx * pushFactor;
-                                nodeB.ly -= ny * pushFactor;
+                            const minSpacingX = (nodeA.width + nodeB.width) / 2 + 2;
+                            const minSpacingY = (nodeA.height + nodeB.height) / 2 + 2;
+
+                            if (distX < minSpacingX && distY < minSpacingY) {
+                                let fx = dx || 0.1;
+                                let fy = dy || 0.1;
+
+                                if (Math.abs(fx) < 0.1 && Math.abs(fy) < 0.1) {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    fx = Math.cos(angle);
+                                    fy = Math.sin(angle);
+                                }
+
+                                const len = Math.hypot(fx, fy);
+                                if (len > 0) {
+                                    const nx = fx / len;
+                                    const ny = fy / len;
+                                    nodeA.lx += nx;
+                                    nodeA.ly += ny;
+                                    nodeB.lx -= nx;
+                                    nodeB.ly -= ny;
+                                }
                             }
                         }
                     }
 
-                    // 2. Repel from Points (Markers) - Omni-directional & Clearance Guaranteed
-                    for (let pIdx = 0; pIdx < nodes.length; pIdx++) {
-                        const point = nodes[pIdx];
-                        
-                        const dx = nodeA.lx - point.x;
-                        const dy = nodeA.ly - point.y;
-                        let dist = Math.hypot(dx, dy);
-                        
-                        // Handle extremely close center overlap with random push
-                        let nx = dx;
-                        let ny = dy;
-                        if (dist < 0.1) {
-                            const angle = Math.random() * Math.PI * 2;
-                            nx = Math.cos(angle);
-                            ny = Math.sin(angle);
-                            dist = 0.1;
-                        } else {
-                            nx /= dist;
-                            ny /= dist;
-                        }
+                    // 2. Repel from own point marker
+                    const pRadius = (pointSize / 2) + 4;
+                    const dx = nodeA.lx - nodeA.x;
+                    const dy = nodeA.ly - nodeA.y;
+                    let dist = Math.hypot(dx, dy);
 
-                        // Calculate effective "radius" of the label box at this specific angle.
-                        // We treat the label as a rectangle (w, h) and the point as a circle (r).
-                        // We want to push the label center along (nx, ny) until the circle doesn't touch the rectangle.
-                        
-                        const w2 = nodeA.width / 2;
-                        const h2 = nodeA.height / 2;
-                        const pRadius = (pointSize / 2) + 4; // Margin
+                    if (dist < 0.1) dist = 0.1;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
 
-                        // Ray-Box Intersection logic to find distance from center to edge of box along vector
-                        // distX = distance to vertical edge (x = w2)
-                        // distY = distance to horizontal edge (y = h2)
-                        const absNx = Math.abs(nx);
-                        const absNy = Math.abs(ny);
-                        
-                        const distToEdgeX = absNx > 0.001 ? w2 / absNx : Infinity;
-                        const distToEdgeY = absNy > 0.001 ? h2 / absNy : Infinity;
-                        
-                        // Distance from label center to its own edge along the vector (nx, ny) pointing INWARDS to point
-                        // Wait, vector (nx, ny) is from Point -> Label.
-                        // So we look at the Label's boundary relative to its center in direction -(nx, ny).
-                        // Since box is symmetric, it's the same distance.
-                        
-                        const distToBoxEdge = Math.min(distToEdgeX, distToEdgeY);
-                        
-                        // Required center-to-center distance = (Distance from LabelCenter to LabelEdge) + PointRadius
-                        const requiredDist = distToBoxEdge + pRadius;
+                    const w2 = nodeA.width / 2;
+                    const h2 = nodeA.height / 2;
+                    const absNx = Math.abs(nx);
+                    const absNy = Math.abs(ny);
+                    const distToEdgeX = absNx > 0.001 ? w2 / absNx : Infinity;
+                    const distToEdgeY = absNy > 0.001 ? h2 / absNy : Infinity;
+                    const distToBoxEdge = Math.min(distToEdgeX, distToEdgeY);
+                    const requiredDist = distToBoxEdge + pRadius;
 
-                        if (dist < requiredDist) {
-                            // Push radially outwards to meet requirement
-                            const push = requiredDist - dist;
-                            nodeA.lx += nx * push * 0.8; // Apply most of the push immediately
-                            nodeA.ly += ny * push * 0.8;
-                        }
+                    if (dist < requiredDist) {
+                        const push = (requiredDist - dist) * 0.8;
+                        nodeA.lx += nx * push;
+                        nodeA.ly += ny * push;
                     }
-                    
-                    // 3. Spring force to anchor (Pull back to optimal radius)
-                    const tx = nodeA.x; 
-                    const ty = nodeA.y;
-                    const dx = nodeA.lx - tx;
-                    const dy = nodeA.ly - ty;
-                    const currentDist = Math.hypot(dx, dy);
+
+                    // 3. Spring force to anchor
+                    const currentDist = Math.hypot(nodeA.lx - nodeA.x, nodeA.ly - nodeA.y);
                     const targetDist = (pointSize / 2) + (nodeA.width / 2) + 10;
-                    
-                    // Pull towards optimal radius, but maintain angle (orbit)
+
                     if (currentDist > targetDist) {
-                        const pullFactor = 0.02; // Gentle pull
-                        nodeA.lx -= dx * pullFactor;
-                        nodeA.ly -= dy * pullFactor;
-                    } else if (currentDist < targetDist * 0.5) {
-                         // Too close? Push out (handled by point repulsion above, but this helps)
-                         // nodeA.lx += dx * 0.05;
-                         // nodeA.ly += dy * 0.05;
+                        const pullFactor = 0.02;
+                        nodeA.lx -= (nodeA.lx - nodeA.x) * pullFactor;
+                        nodeA.ly -= (nodeA.ly - nodeA.y) * pullFactor;
                     }
                 }
             }
 
-            // Convert back to offsets relative to point center
+            // Convert to offsets
             const newOffsets: Record<string | number, {x: number, y: number}> = {};
             nodes.forEach(n => {
-                newOffsets[n.id] = {
-                    x: n.lx - n.x,
-                    y: n.ly - n.y
-                };
+                newOffsets[n.id] = { x: n.lx - n.x, y: n.ly - n.y };
             });
             setLabelOffsets(newOffsets);
         };
 
-        // Debounce to avoid heavy calc on every minor change, though points change rarely
-        const timer = setTimeout(runLayout, 10);
+        // Debounce layout calculation
+        const timer = setTimeout(runLayout, 50);
         return () => clearTimeout(timer);
 
     }, [points, appSettings.pointSize]);

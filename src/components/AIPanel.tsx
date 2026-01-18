@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit, CheckCircle2 } from 'lucide-react';
+import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit, CheckCircle2, LayoutList } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, MeasurementValue, Point } from '../types';
 import Waveform from './Waveform';
 import PointsTable from './PointsTable';
-import { LayoutList } from 'lucide-react';
+import { safeJsonParse } from '../utils/safeJson';
 
 interface AIPanelProps {
     askAboutPoint: (point: Point) => void;
@@ -317,14 +317,13 @@ const AIPanel: React.FC<AIPanelProps> = ({
                             <div className="bg-gray-900/70 rounded-lg p-2 space-y-2 max-h-48 overflow-y-auto">
                                 {history.length > 0 ? (
                                     history.map((m: any) => {
-                                        let displayValue;
-                                        try {
-                                            // Handle various formats of stored values
-                                            const val = typeof m.value === 'string' ? JSON.parse(m.value) : m.value;
-                                            displayValue = typeof val === 'object' && val !== null ? (val.value || 'Scope Data') : val;
-                                        } catch (e) {
-                                            displayValue = m.value;
-                                        }
+                                        // Handle various formats using safe JSON parsing
+                                        const val = typeof m.value === 'string'
+                                            ? safeJsonParse(m.value, m.value)
+                                            : m.value;
+                                        const displayValue = typeof val === 'object' && val !== null
+                                            ? (val.value || 'Scope Data')
+                                            : val;
 
                                         return (
                                             <div key={m.id || Math.random()} className="text-xs text-gray-300 bg-gray-800/50 p-2 rounded flex justify-between items-center">
@@ -334,13 +333,13 @@ const AIPanel: React.FC<AIPanelProps> = ({
                                                         {m.created_at ? new Date(m.created_at).toLocaleString() : 'Just now'}
                                                     </span>
                                                 </div>
-                                                {m.type === 'oscilloscope' && m.value &&(
-                                                    <button 
+                                                {m.type === 'oscilloscope' && m.value && (
+                                                    <button
                                                         onClick={() => {
-                                                            try {
-                                                                const val = typeof m.value === 'string' ? JSON.parse(m.value) : m.value;
-                                                                setReferenceWaveform(val);
-                                                            } catch (e) { console.error("Failed to parse ref waveform:", e); }
+                                                            const parsedVal = typeof m.value === 'string'
+                                                                ? safeJsonParse(m.value, null)
+                                                                : m.value;
+                                                            if (parsedVal) setReferenceWaveform(parsedVal);
                                                         }}
                                                         className="p-1 text-blue-400 hover:bg-blue-900/30 rounded"
                                                         title="Set as reference waveform"

@@ -1,35 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
 import { InstrumentConfig, MeasurementValue, Point } from '../types';
+
+// Default configuration - moved outside component to avoid recreation
+const DEFAULT_INSTRUMENT_CONFIG: InstrumentConfig = {
+    timeout: 2000,
+    multimeter: {
+        ip: "192.168.0.202",
+        port: 9876,
+        commands: {
+            configure_voltage: "CONF:VOLT:DC AUTO",
+            configure_resistance: "CONF:RES AUTO",
+            configure_diode: "CONF:DIOD",
+            measure: "MEAS:SHOW?"
+        }
+    },
+    oscilloscope: {
+        ip: "192.168.0.200",
+        port: 5555,
+        commands: {
+            prepare_waveform: ":WAV:SOUR CHAN1",
+            request_waveform: ":WAV:DATA?"
+        }
+    },
+    monitor: {
+        enabled: false
+    }
+};
 
 export const useHardware = () => {
     const { showNotification } = useNotifier();
     const [isCapturing, setIsCapturing] = useState<boolean>(false);
     const [configOpen, setConfigOpen] = useState<boolean>(false);
-    const [instrumentConfig, setInstrumentConfig] = useState<InstrumentConfig>({
-        timeout: 2000,
-        multimeter: {
-            ip: "192.168.0.202",
-            port: 9876,
-            commands: {
-                configure_voltage: "CONF:VOLT:DC AUTO",
-                configure_resistance: "CONF:RES AUTO",
-                configure_diode: "CONF:DIOD",
-                measure: "MEAS:SHOW?"
-            }
-        },
-        oscilloscope: {
-            ip: "192.168.0.200",
-            port: 5555,
-            commands: {
-                prepare_waveform: ":WAV:SOUR CHAN1",
-                request_waveform: ":WAV:DATA?"
-            }
-        },
-        monitor: {
-            enabled: false
-        }
-    });
+    const [instrumentConfig, setInstrumentConfig] = useState<InstrumentConfig>(DEFAULT_INSTRUMENT_CONFIG);
+    const configLoadedRef = useRef(false);
 
     const isElectron = window.electronAPI?.isElectron || false;
 
@@ -52,46 +56,52 @@ export const useHardware = () => {
         };
     }, [isElectron, instrumentConfig.monitor?.enabled, instrumentConfig.multimeter.ip, instrumentConfig.multimeter.port]);
 
+    // Load config from persistent storage on mount - runs only once
     useEffect(() => {
-        if (isElectron && window.electronAPI) {
-            window.electronAPI.loadConfig().then((loadedConfig: Partial<InstrumentConfig>) => {
-                if (loadedConfig) {
-                    const newConfig = JSON.parse(JSON.stringify(instrumentConfig)) as InstrumentConfig; // Deep copy default
+        if (!isElectron || !window.electronAPI || configLoadedRef.current) return;
 
-                    if (loadedConfig.timeout) {
-                        newConfig.timeout = loadedConfig.timeout;
-                    }
+        configLoadedRef.current = true;
 
-                    if (loadedConfig.multimeter) {
-                        newConfig.multimeter.ip = loadedConfig.multimeter.ip || newConfig.multimeter.ip;
-                        newConfig.multimeter.port = loadedConfig.multimeter.port || newConfig.multimeter.port;
-                        if (loadedConfig.multimeter.commands) {
-                            newConfig.multimeter.commands = { ...newConfig.multimeter.commands, ...loadedConfig.multimeter.commands };
+        window.electronAPI.loadConfig().then((loadedConfig: Partial<InstrumentConfig>) => {
+            if (loadedConfig) {
+                // Use DEFAULT_INSTRUMENT_CONFIG as base to avoid closure issues
+                const newConfig: InstrumentConfig = {
+                    timeout: loadedConfig.timeout ?? DEFAULT_INSTRUMENT_CONFIG.timeout,
+                    multimeter: {
+                        ip: loadedConfig.multimeter?.ip ?? DEFAULT_INSTRUMENT_CONFIG.multimeter.ip,
+                        port: loadedConfig.multimeter?.port ?? DEFAULT_INSTRUMENT_CONFIG.multimeter.port,
+                        commands: {
+                            ...DEFAULT_INSTRUMENT_CONFIG.multimeter.commands,
+                            ...loadedConfig.multimeter?.commands
                         }
-                    }
-                    if (loadedConfig.oscilloscope) {
-                        newConfig.oscilloscope.ip = loadedConfig.oscilloscope.ip || newConfig.oscilloscope.ip;
-                        newConfig.oscilloscope.port = loadedConfig.oscilloscope.port || newConfig.oscilloscope.port;
-                        if (loadedConfig.oscilloscope.commands) {
-                            newConfig.oscilloscope.commands = { ...newConfig.oscilloscope.commands, ...loadedConfig.oscilloscope.commands };
+                    },
+                    oscilloscope: {
+                        ip: loadedConfig.oscilloscope?.ip ?? DEFAULT_INSTRUMENT_CONFIG.oscilloscope.ip,
+                        port: loadedConfig.oscilloscope?.port ?? DEFAULT_INSTRUMENT_CONFIG.oscilloscope.port,
+                        commands: {
+                            ...DEFAULT_INSTRUMENT_CONFIG.oscilloscope.commands,
+                            ...loadedConfig.oscilloscope?.commands
                         }
+                    },
+                    monitor: {
+                        ...DEFAULT_INSTRUMENT_CONFIG.monitor,
+                        ...loadedConfig.monitor
                     }
-                    if (loadedConfig.monitor) {
-                        newConfig.monitor = { ...newConfig.monitor, ...loadedConfig.monitor };
-                    }
-                    
-                    setInstrumentConfig(newConfig);
-                }
-            });
-        }
-    }, [isElectron]); // Removed instrumentConfig from dep to avoid loop if object ref changes differently
+                };
 
-    const handleSaveConfig = (newConfig: InstrumentConfig) => {
+                setInstrumentConfig(newConfig);
+            }
+        }).catch(err => {
+            console.error('Failed to load instrument config:', err);
+        });
+    }, [isElectron]);
+
+    const handleSaveConfig = useCallback((newConfig: InstrumentConfig) => {
         setInstrumentConfig(newConfig);
         if (isElectron && window.electronAPI) {
             window.electronAPI.saveConfig(newConfig);
         }
-    };
+    }, [isElectron]);
 
     const captureValue = async (selectedPoint: Point | null, overrideValue?: string): Promise<MeasurementValue | null> => {
         if (!selectedPoint) return null;
