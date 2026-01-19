@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useBoard } from '../hooks/useBoard';
 import { useNotifier } from './NotifierContext';
 import { Logger } from '../utils/logger';
-import { Project, Point, MeasurementValue, AppSettings, Instrument, CreateProjectData, CaptureResult, PersistedConfig, MeasurementHistoryItem, ComparisonPoint } from '../types';
+import { Project, Point, MeasurementValue, AppSettings, Instrument, CreateProjectData, CaptureResult, PersistedConfig, MeasurementHistoryItem } from '../types';
 
 const log = Logger.Project;
 
@@ -85,6 +85,7 @@ interface ProjectContextValue {
     prevInSequence: () => void;
     boardTypes: string[];
     addBoardType: (type: string) => Promise<void>;
+    addPoint: (point: Point) => void;
 }
 
 const ProjectContext = createContext<ProjectContextValue | undefined>(undefined);
@@ -154,10 +155,10 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             const isGroundCategory = p.category && p.category.toLowerCase().includes('ground');
             return !isGroundType && !isGroundCategory;
         });
-        
+
         // Use the current order of points (usually creation order or ID)
         const order = actionablePoints.map(p => p.id);
-        
+
         if (order.length === 0) {
             showNotification('No actionable points (non-ground) to sequence.', 'warning');
             return;
@@ -168,7 +169,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             currentIndex: 0,
             order
         });
-        
+
         // Select first point
         board.selectPoint(order[0]);
         showNotification('Sequence Mode Started', 'info');
@@ -215,7 +216,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
     }, [board.points, appSettings.autoSave, currentProject]);
 
     // --- Project Data Logic ---
-    
+
     const handleCreateProject = async (projectData: CreateProjectData) => {
         if (!projectData || !window.electronAPI) return;
         try {
@@ -227,7 +228,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             const imageBuffer = newProject.image_data instanceof Uint8Array
                 ? newProject.image_data
                 : new Uint8Array(newProject.image_data || []);
-            const blob = new Blob([imageBuffer], { type: 'image/png' });
+            const blob = new Blob([imageBuffer as any], { type: 'image/png' });
             const imageUrl = URL.createObjectURL(blob);
 
             let imageUrlB = null;
@@ -236,7 +237,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
                 const imageBufferB = newProject.image_data_b instanceof Uint8Array
                     ? newProject.image_data_b
                     : new Uint8Array(newProject.image_data_b);
-                const blobB = new Blob([imageBufferB], { type: 'image/png' });
+                const blobB = new Blob([imageBufferB as any], { type: 'image/png' });
                 imageUrlB = URL.createObjectURL(blobB);
             } else {
                 log.debug('No Image B found in new project');
@@ -264,7 +265,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         try {
             // Deep clone/sanitize points to avoid "object could not be cloned" errors with IPC
             const pointsPayload = JSON.parse(JSON.stringify(validPointsToSave || board.points));
-            
+
             const savedPoints = await window.electronAPI.savePoints({
                 projectId: currentProject.id,
                 points: pointsPayload
@@ -289,20 +290,20 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             showNotification("Failed to fetch projects.", 'error');
         }
     };
-    
+
     const handleLoadProject = async (project: Project) => {
         if (!project || !window.electronAPI) return;
         try {
             const fullProject = await window.electronAPI.getProjectWithImage(project.id);
             const points = await window.electronAPI.getPoints(project.id);
-            
+
             setCurrentProject(fullProject);
 
             if (fullProject.image_data) {
                 const imageBuffer = fullProject.image_data instanceof Uint8Array
                     ? fullProject.image_data
                     : new Uint8Array(fullProject.image_data);
-                const blob = new Blob([imageBuffer], { type: 'image/png' });
+                const blob = new Blob([imageBuffer as any], { type: 'image/png' });
                 const imageUrl = URL.createObjectURL(blob);
 
                 let imageUrlB = null;
@@ -310,7 +311,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
                     const imageBufferB = fullProject.image_data_b instanceof Uint8Array
                         ? fullProject.image_data_b
                         : new Uint8Array(fullProject.image_data_b);
-                    const blobB = new Blob([imageBufferB], { type: 'image/png' });
+                    const blobB = new Blob([imageBufferB as any], { type: 'image/png' });
                     imageUrlB = URL.createObjectURL(blobB);
                 }
 
@@ -318,7 +319,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             } else {
                 board.resetBoard();
             }
-            
+
             board.setPoints(points);
             showNotification(`Project '${fullProject.board_model}' loaded!`, 'success');
         } catch (error) {
@@ -402,11 +403,11 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         let targetPoint = point;
 
         if (typeof targetPoint.id === 'string' && targetPoint.id.startsWith('temp-')) {
-            const savedPoints = await handleSaveProject(); 
-            
+            const savedPoints = await handleSaveProject();
+
             if (savedPoints) {
                 const newlySavedPoint = savedPoints.find(p => p.temp_id === targetPoint.id);
-                
+
                 if (newlySavedPoint) {
                     targetPoint = newlySavedPoint;
                     if (board.selectedPointId === point.id) {
@@ -417,16 +418,16 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
                     return null;
                 }
             } else {
-                 return null;
+                return null;
             }
         }
 
         board.setPoints(prevPoints => prevPoints.map(p => {
             if (p.id === targetPoint.id) {
                 const type = measurementData.type || 'unknown';
-                const newMeasurements = { 
-                    ...p.measurements, 
-                    [type]: { ...measurementData, capturedAt: new Date().toISOString() } 
+                const newMeasurements = {
+                    ...p.measurements,
+                    [type]: { ...measurementData, capturedAt: new Date().toISOString() }
                 };
                 return { ...p, measurements: newMeasurements };
             }
@@ -436,10 +437,12 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         if (!window.electronAPI) return measurementData;
 
         try {
-            const valueToSave = measurementData.type === 'oscilloscope' ? measurementData : measurementData.value;
+            const valueToSave = measurementData.type === 'oscilloscope'
+                ? measurementData
+                : (measurementData.value ?? '');
             // Use measurementData.type if available (to support type overriding in sequence), fallback to point type
             const finalType = measurementData.type || targetPoint.type;
-            
+
             const result = await window.electronAPI.createMeasurement({
                 pointId: targetPoint.id,
                 type: finalType,

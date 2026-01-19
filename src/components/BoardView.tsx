@@ -395,6 +395,7 @@ const BoardView: React.FC<BoardViewProps> = ({ mode, currentProjectId }) => {
                     x={contextMenu.x}
                     y={contextMenu.y}
                     onDuplicate={() => handleDuplicatePoint(contextMenu.pointId)}
+                    mode={mode}
                 />
             )}
         </div>
