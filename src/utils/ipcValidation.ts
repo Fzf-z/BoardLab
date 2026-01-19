@@ -74,11 +74,16 @@ export const InstrumentSchema = z.object({
     name: z.string(),
     type: z.enum(['multimeter', 'oscilloscope']),
     connection_type: z.enum(['tcp_raw', 'serial']),
-    ip_address: z.string(),
-    port: z.number(),
-    serial_settings: z.string().optional(),
-    command_map: z.string(),
-    is_active: z.number(),
+    ip_address: z.string().nullable().optional(),
+    port: z.number().nullable().optional(),
+    serial_settings: z.string().nullable().optional(),
+    command_map: z.string().nullable().optional(),
+    is_active: z.union([z.number(), z.boolean()]).nullable().optional().transform(val => {
+        // Normalize to number: SQLite returns 0/1, but could also be boolean
+        if (val === null || val === undefined) return 0;
+        if (typeof val === 'boolean') return val ? 1 : 0;
+        return val;
+    }),
 });
 
 export const InstrumentListSchema = z.array(InstrumentSchema);

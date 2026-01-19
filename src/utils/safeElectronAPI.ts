@@ -196,10 +196,16 @@ export const safePointAPI = {
  */
 export const safeInstrumentAPI = {
     async getAllInstruments(): Promise<Instrument[]> {
-        if (!window.electronAPI?.getAllInstruments) return [];
+        if (!window.electronAPI?.getAllInstruments) {
+            console.warn('[SafeAPI] getAllInstruments: electronAPI not available');
+            return [];
+        }
         try {
             const result = await window.electronAPI.getAllInstruments();
-            return validateIpcWithFallback(result, InstrumentListSchema, [], 'getAllInstruments') as Instrument[];
+            console.log('[SafeAPI] getAllInstruments raw result:', result);
+            const validated = validateIpcWithFallback(result, InstrumentListSchema, [], 'getAllInstruments') as Instrument[];
+            console.log('[SafeAPI] getAllInstruments validated:', validated);
+            return validated;
         } catch (error) {
             console.error('[SafeAPI] getAllInstruments error:', error);
             return [];
