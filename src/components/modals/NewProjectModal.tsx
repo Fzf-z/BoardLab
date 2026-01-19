@@ -17,11 +17,11 @@ interface DynamicAttribute {
     value: string;
 }
 
-const NewProjectModal: React.FC<NewProjectModalProps> = ({ 
-    isOpen, 
-    onClose, 
-    onCreate, 
-    knownAttributes = { keys: [], values: [] } 
+const NewProjectModal: React.FC<NewProjectModalProps> = ({
+    isOpen,
+    onClose,
+    onCreate,
+    knownAttributes = { keys: [], values: [] }
 }) => {
     const [availableTypes, setAvailableTypes] = useState<string[]>(["Laptop", "Desktop", "Industrial", "Mobile", "Other"]);
     const [boardType, setBoardType] = useState<string>("Laptop");
@@ -112,7 +112,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
         try {
             const imageDataUint8Array = await fileToUint8Array(imageFile);
             const imageDataBUint8Array = imageFileB ? await fileToUint8Array(imageFileB) : undefined;
-            
+
             // Convert array of attributes to a JSON object
             const attributesObject = dynamicAttributes.reduce<Record<string, string>>((acc, { key, value }) => {
                 if (key.trim()) { // Only include attributes with a name
@@ -136,14 +136,14 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                 board_model: boardModel.trim(),
                 attributes: attributesObject,
                 notes: notes.trim(),
-                image_data: imageDataUint8Array, // Ahora es un Uint8Array
+                image_data: imageDataUint8Array, // Now a Uint8Array
                 image_data_b: imageDataBUint8Array, // Side B
             };
-            
+
             log.debug('Creating project', { hasSideB: !!imageDataBUint8Array });
-            
+
             onCreate(projectData);
-            
+
             // Reset state
             setBoardModel('');
             setNotes('');
@@ -159,14 +159,14 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95">
             <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">
-                
+
                 {/* Header */}
                 <div className="bg-gradient-to-r from-blue-900 to-gray-800 p-6 border-b border-gray-700 flex justify-between items-center">
                     <div className="flex items-center space-x-3">
                         <div className="bg-blue-600 p-2 rounded-lg">
                             <FilePlus className="text-white" size={24} />
                         </div>
-                        <h2 className="text-2xl font-bold text-white">Nuevo Proyecto</h2>
+                        <h2 className="text-2xl font-bold text-white">New Project</h2>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors bg-gray-700/50 hover:bg-red-500/80 p-2 rounded-full">
                         <X size={20} />
@@ -175,15 +175,15 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                 <div className="p-6 overflow-y-auto custom-scrollbar">
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        
+
                         {/* 1. Basic Info Section */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            
+
                             {/* Board Type Selection */}
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-300">Tipo de Placa</label>
-                                <select 
-                                    value={boardType} 
+                                <label className="text-sm font-semibold text-gray-300">Board Type</label>
+                                <select
+                                    value={boardType}
                                     onChange={(e) => setBoardType(e.target.value)}
                                     className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                                 >
@@ -194,7 +194,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                 {boardType === 'Other' && (
                                     <input
                                         type="text"
-                                        placeholder="Especificar tipo (ej: Console, TV...)"
+                                        placeholder="Specify type (e.g. Console, TV...)"
                                         value={customBoardType}
                                         onChange={(e) => setCustomBoardType(e.target.value)}
                                         className="w-full mt-2 bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm animate-in slide-in-from-top-2"
@@ -205,13 +205,13 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                             {/* Model Input */}
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-300">Modelo / Identificador</label>
+                                <label className="text-sm font-semibold text-gray-300">Model / Identifier</label>
                                 <input
                                     type="text"
                                     value={boardModel}
                                     onChange={(e) => setBoardModel(e.target.value)}
                                     className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                    placeholder="ej: NM-A311, MacBook 820-00165"
+                                    placeholder="e.g. NM-A311, MacBook 820-00165"
                                     required
                                 />
                             </div>
@@ -219,11 +219,11 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                         {/* 2. Image Upload Section */}
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-300 block">Imágenes de la Placa</label>
-                            
+                            <label className="text-sm font-semibold text-gray-300 block">Board Images</label>
+
                             <div className="flex gap-4">
                                 {/* Image Upload A */}
-                                <div 
+                                <div
                                     onClick={() => fileInputRef.current?.click()}
                                     className={`flex-1 border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all group h-48 relative ${imagePreview ? 'border-blue-500/50 bg-blue-500/5' : 'border-gray-600 hover:border-blue-400 hover:bg-gray-700/50'}`}
                                 >
@@ -231,7 +231,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                         <div className="relative w-full h-full flex items-center justify-center">
                                             <img src={imagePreview} alt="Preview A" className="max-h-full max-w-full rounded shadow-lg object-contain" />
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
-                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16}/> Cambiar Cara A</p>
+                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16} /> Change Side A</p>
                                             </div>
                                         </div>
                                     ) : (
@@ -239,22 +239,22 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                             <div className="bg-gray-700 p-3 rounded-full mb-2 group-hover:scale-110 transition-transform">
                                                 <UploadCloud className="text-blue-400" size={24} />
                                             </div>
-                                            <p className="text-gray-300 font-medium text-sm">Cara A (Frontal)</p>
-                                            <p className="text-gray-500 text-xs mt-1">Requerido</p>
+                                            <p className="text-gray-300 font-medium text-sm">Side A (Front)</p>
+                                            <p className="text-gray-500 text-xs mt-1">Required</p>
                                         </>
                                     )}
-                                    <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">Cara A</div>
-                                    <input 
-                                        type="file" 
-                                        ref={fileInputRef} 
-                                        onChange={handleImageChange} 
-                                        className="hidden" 
-                                        accept="image/*" 
+                                    <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">Side A</div>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleImageChange}
+                                        className="hidden"
+                                        accept="image/*"
                                     />
                                 </div>
 
                                 {/* Image Upload B */}
-                                <div 
+                                <div
                                     onClick={() => fileInputRefB.current?.click()}
                                     className={`flex-1 border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all group h-48 relative ${imagePreviewB ? 'border-purple-500/50 bg-purple-500/5' : 'border-gray-600 hover:border-purple-400 hover:bg-gray-700/50'}`}
                                 >
@@ -262,16 +262,16 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                         <div className="relative w-full h-full flex items-center justify-center">
                                             <img src={imagePreviewB} alt="Preview B" className="max-h-full max-w-full rounded shadow-lg object-contain" />
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
-                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16}/> Cambiar Cara B</p>
+                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16} /> Change Side B</p>
                                             </div>
-                                            <button 
+                                            <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setImageFileB(null);
                                                     setImagePreviewB(null);
                                                 }}
                                                 className="absolute top-1 right-1 p-1 bg-red-600 rounded-full text-white hover:bg-red-700 z-10"
-                                                title="Eliminar imagen"
+                                                title="Delete image"
                                             >
                                                 <X size={12} />
                                             </button>
@@ -281,17 +281,17 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                             <div className="bg-gray-700 p-3 rounded-full mb-2 group-hover:scale-110 transition-transform">
                                                 <UploadCloud className="text-purple-400" size={24} />
                                             </div>
-                                            <p className="text-gray-300 font-medium text-sm">Cara B (Trasera)</p>
-                                            <p className="text-gray-500 text-xs mt-1">Opcional</p>
+                                            <p className="text-gray-300 font-medium text-sm">Side B (Rear)</p>
+                                            <p className="text-gray-500 text-xs mt-1">Optional</p>
                                         </>
                                     )}
-                                    <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">Cara B</div>
-                                    <input 
-                                        type="file" 
-                                        ref={fileInputRefB} 
-                                        onChange={handleImageChangeB} 
-                                        className="hidden" 
-                                        accept="image/*" 
+                                    <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">Side B</div>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRefB}
+                                        onChange={handleImageChangeB}
+                                        className="hidden"
+                                        accept="image/*"
                                     />
                                 </div>
                             </div>
@@ -300,9 +300,9 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                         {/* 3. Attributes Section */}
                         <div className="space-y-3">
                             <div className="flex justify-between items-center">
-                                <label className="text-sm font-semibold text-gray-300">Detalles Técnicos (Opcional)</label>
+                                <label className="text-sm font-semibold text-gray-300">Technical Details (Optional)</label>
                                 <button type="button" onClick={addAttribute} className="text-xs flex items-center text-blue-400 hover:text-blue-300 transition-colors">
-                                    <PlusCircle size={14} className="mr-1" /> Agregar Campo
+                                    <PlusCircle size={14} className="mr-1" /> Add Field
                                 </button>
                             </div>
                             <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700 space-y-2 max-h-40 overflow-y-auto">
@@ -310,7 +310,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                     <div key={index} className="flex space-x-2 animate-in slide-in-from-left-2">
                                         <input
                                             type="text"
-                                            placeholder="Atributo (ej: CPU, RAM)"
+                                            placeholder="Attribute (e.g. CPU, RAM)"
                                             value={attr.key}
                                             onChange={(e) => handleAttributeChange(index, 'key', e.target.value)}
                                             className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none"
@@ -318,7 +318,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                         />
                                         <input
                                             type="text"
-                                            placeholder="Valor"
+                                            placeholder="Value"
                                             value={attr.value}
                                             onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
                                             className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none"
@@ -333,15 +333,15 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                 ))}
                             </div>
                         </div>
-                        
-                         {/* 4. Notes Section */}
-                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-300">Notas Generales</label>
+
+                        {/* 4. Notes Section */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-300">General Notes</label>
                             <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none h-20 resize-none text-sm"
-                                placeholder="Notas sobre el estado inicial, falla reportada..."
+                                placeholder="Notes on initial state, reported failure..."
                             />
                         </div>
 
@@ -350,20 +350,20 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                 {/* Footer */}
                 <div className="bg-gray-800 p-4 border-t border-gray-700 flex justify-end space-x-3">
-                    <button 
-                        onClick={onClose} 
+                    <button
+                        onClick={onClose}
                         className="px-5 py-2 rounded-lg text-gray-300 hover:bg-gray-700 font-medium transition-colors"
                     >
-                        Cancelar
+                        Cancel
                     </button>
-                    <button 
-                        onClick={handleSubmit} 
+                    <button
+                        onClick={handleSubmit}
                         className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/20 transition-all transform hover:scale-105 active:scale-95"
                     >
-                        Crear Proyecto
+                        Create Project
                     </button>
                 </div>
-                
+
                 {/* Datalist for Autocomplete */}
                 <datalist id="known-keys">
                     {fetchedAttributes.keys.map((k, i) => <option key={i} value={k} />)}

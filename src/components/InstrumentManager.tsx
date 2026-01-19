@@ -44,7 +44,7 @@ const InstrumentManager: React.FC = () => {
 
     const handleNew = () => {
         setEditingId(-1); // -1 indicates new
-        
+
         // Template with standard SCPI commands pre-filled
         const defaultCommands = {
             "IDN": "*IDN?",
@@ -140,19 +140,19 @@ const InstrumentManager: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-xs text-gray-400 mb-1">Name</label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
                             value={formData.name || ''}
-                            onChange={e => setFormData({...formData, name: e.target.value})}
+                            onChange={e => setFormData({ ...formData, name: e.target.value })}
                         />
                     </div>
                     <div>
                         <label className="block text-xs text-gray-400 mb-1">Type</label>
-                        <select 
+                        <select
                             className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
                             value={formData.type || 'multimeter'}
-                            onChange={e => setFormData({...formData, type: e.target.value as 'multimeter' | 'oscilloscope'})}
+                            onChange={e => setFormData({ ...formData, type: e.target.value as 'multimeter' | 'oscilloscope' })}
                         >
                             <option value="multimeter">Multimeter</option>
                             <option value="oscilloscope">Oscilloscope</option>
@@ -161,12 +161,12 @@ const InstrumentManager: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
-                     <div>
+                    <div>
                         <label className="block text-xs text-gray-400 mb-1">Connection</label>
-                        <select 
+                        <select
                             className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
                             value={formData.connection_type || 'tcp_raw'}
-                            onChange={e => setFormData({...formData, connection_type: e.target.value as 'tcp_raw' | 'serial'})}
+                            onChange={e => setFormData({ ...formData, connection_type: e.target.value as 'tcp_raw' | 'serial' })}
                         >
                             <option value="tcp_raw">TCP / LAN</option>
                             <option value="serial">USB / Serial</option>
@@ -178,15 +178,15 @@ const InstrumentManager: React.FC = () => {
                         </label>
                         {formData.connection_type === 'serial' ? (
                             <div className="flex gap-2">
-                                <select 
+                                <select
                                     className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
                                     value={formData.ip_address || ''}
-                                    onChange={e => setFormData({...formData, ip_address: e.target.value})}
+                                    onChange={e => setFormData({ ...formData, ip_address: e.target.value })}
                                 >
                                     <option value="">Select Port</option>
                                     {availablePorts.map(p => <option key={p} value={p}>{p}</option>)}
                                 </select>
-                                <button 
+                                <button
                                     onClick={() => window.electronAPI?.getSerialPorts().then(setAvailablePorts)}
                                     className="px-2 bg-gray-700 hover:bg-gray-600 rounded"
                                     title="Refresh Ports"
@@ -195,11 +195,11 @@ const InstrumentManager: React.FC = () => {
                                 </button>
                             </div>
                         ) : (
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
                                 value={formData.ip_address || ''}
-                                onChange={e => setFormData({...formData, ip_address: e.target.value})}
+                                onChange={e => setFormData({ ...formData, ip_address: e.target.value })}
                             />
                         )}
                     </div>
@@ -211,67 +211,67 @@ const InstrumentManager: React.FC = () => {
                             <select
                                 className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
                                 value={formData.port || 9600}
-                                onChange={e => setFormData({...formData, port: parseInt(e.target.value)})}
+                                onChange={e => setFormData({ ...formData, port: parseInt(e.target.value) })}
                             >
                                 {[9600, 19200, 38400, 57600, 115200].map(rate => (
                                     <option key={rate} value={rate}>{rate}</option>
                                 ))}
                             </select>
                         ) : (
-                            <input 
-                                type="number" 
+                            <input
+                                type="number"
                                 className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white"
                                 value={formData.port || ''}
-                                onChange={e => setFormData({...formData, port: parseInt(e.target.value)})}
+                                onChange={e => setFormData({ ...formData, port: parseInt(e.target.value) })}
                             />
                         )}
                     </div>
                 </div>
 
-                 <div>
+                <div>
                     <label className="text-xs text-gray-400 mb-1 flex justify-between">
                         <span>Command Map (JSON)</span>
-                        <span className="text-gray-500">Mapea acciones a comandos SCPI</span>
+                        <span className="text-gray-500">Maps actions to SCPI commands</span>
                     </label>
-                    <textarea 
+                    <textarea
                         className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white font-mono text-xs h-32"
                         value={formData.command_map || ''}
-                        onChange={e => setFormData({...formData, command_map: e.target.value})}
+                        onChange={e => setFormData({ ...formData, command_map: e.target.value })}
                     />
-                     <div className="text-xs text-gray-500 mt-1">
-                        Required keys: 
+                    <div className="text-xs text-gray-500 mt-1">
+                        Required keys:
                         {formData.type === 'multimeter' ? ' IDN, READ_DC, READ_RESISTANCE, READ_DIODE, CONFIGURE_VOLTAGE, CONFIGURE_RESISTANCE, CONFIGURE_DIODE' : ' IDN, SETUP_WAVE, READ_WAVE'}
                     </div>
                 </div>
-                
-                 <div className="flex items-center space-x-2">
-                    <input 
+
+                <div className="flex items-center space-x-2">
+                    <input
                         type="checkbox"
                         id="isActive"
                         checked={!!formData.is_active}
-                        onChange={e => setFormData({...formData, is_active: e.target.checked ? 1 : 0})}
+                        onChange={e => setFormData({ ...formData, is_active: e.target.checked ? 1 : 0 })}
                         className="w-4 h-4 bg-gray-900 border-gray-700 rounded"
                     />
                     <label htmlFor="isActive" className="text-sm text-gray-300">Set as Active Instrument</label>
-                 </div>
+                </div>
 
                 <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-700">
-                    <button 
+                    <button
                         onClick={handleTestConnection}
                         disabled={testing}
                         className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded flex items-center space-x-1"
                     >
-                         {testing ? <Activity className="w-4 h-4 animate-spin"/> : <Wifi className="w-4 h-4" />}
-                         <span>Test Connection</span>
+                        {testing ? <Activity className="w-4 h-4 animate-spin" /> : <Wifi className="w-4 h-4" />}
+                        <span>Test Connection</span>
                     </button>
                     <div className="flex-1"></div>
-                    <button 
+                    <button
                         onClick={handleCancel}
                         className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded"
                     >
                         Cancel
                     </button>
-                    <button 
+                    <button
                         onClick={handleSave}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded flex items-center space-x-1"
                     >
@@ -285,10 +285,10 @@ const InstrumentManager: React.FC = () => {
 
     return (
         <div className="space-y-4">
-             <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-white">Instrument Definitions</h3>
                 {!editingId && (
-                    <button 
+                    <button
                         onClick={handleNew}
                         className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded flex items-center space-x-1 text-sm"
                     >

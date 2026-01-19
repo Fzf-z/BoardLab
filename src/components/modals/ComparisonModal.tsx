@@ -18,12 +18,12 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [points, setPoints] = useState<Point[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // Filters
     const [pointSearchTerm, setPointSearchTerm] = useState('');
     const [projectSearchTerm, setProjectSearchTerm] = useState('');
     const [selectedBoardType, setSelectedBoardType] = useState<string>('');
-    
+
     // Deep Search (search inside points of all projects)
     const [pointFilterQuery, setPointFilterQuery] = useState('');
     const [matchingProjectIds, setMatchingProjectIds] = useState<number[] | null>(null);
@@ -34,21 +34,21 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
     const [showProjectSuggestions, setShowProjectSuggestions] = useState(false);
 
     const uniqueBoardTypes = Array.from(new Set(projectList.map(p => p.board_type))).filter(Boolean);
-    
+
     // Extract models and all attribute values for autocomplete
     const uniqueSuggestions = React.useMemo(() => {
         const suggestions = new Set<string>();
-        
+
         projectList.forEach(p => {
             if (p.board_model) suggestions.add(p.board_model);
-            
+
             try {
                 const attrs = typeof p.attributes === 'string' ? JSON.parse(p.attributes) : p.attributes;
                 if (attrs && typeof attrs === 'object') {
                     Object.values(attrs).forEach((val: unknown) => {
-                         if (typeof val === 'string' && val.length > 1 && val.length < 20) {
-                             suggestions.add(val);
-                         }
+                        if (typeof val === 'string' && val.length > 1 && val.length < 20) {
+                            suggestions.add(val);
+                        }
                     });
                 }
             } catch (e) { /* ignore */ }
@@ -105,7 +105,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
         const query = projectSearchTerm.toLowerCase();
         const modelMatch = proj.board_model.toLowerCase().includes(query);
         const typeMatch = proj.board_type.toLowerCase().includes(query);
-        
+
         let attrMatch = false;
         try {
             // Check if attributes is a string (JSON) or object. It's defined as string in types, but handled as object in context sometimes?
@@ -128,11 +128,11 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
 
     // Filter Points
     const filteredPoints = points.filter(p => {
-        const nameMatch = p.label.toLowerCase().includes(pointSearchTerm.toLowerCase()) || 
-                          (p.notes && p.notes.toLowerCase().includes(pointSearchTerm.toLowerCase()));
-        
+        const nameMatch = p.label.toLowerCase().includes(pointSearchTerm.toLowerCase()) ||
+            (p.notes && p.notes.toLowerCase().includes(pointSearchTerm.toLowerCase()));
+
         const typeMatch = matchType && currentPoint ? p.type === currentPoint.type : true;
-        
+
         return nameMatch && typeMatch;
     });
 
@@ -169,7 +169,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                 <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
                     <h2 className="text-xl font-bold text-white flex items-center">
                         <Activity className="mr-2 text-purple-400" />
-                        Comparar con "Golden Board"
+                        Compare with "Golden Board"
                     </h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
                 </div>
@@ -180,15 +180,15 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                         <div className="p-2 border-b border-gray-700 bg-gray-800">
                             <h3 className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider flex items-center">
                                 <Filter size={12} className="mr-1" />
-                                Filtrar Proyectos
+                                Filter Projects
                             </h3>
-                            
-                            <select 
-                                value={selectedBoardType} 
+
+                            <select
+                                value={selectedBoardType}
                                 onChange={(e) => setSelectedBoardType(e.target.value)}
                                 className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white mb-2 outline-none focus:border-purple-500"
                             >
-                                <option value="">Todos los tipos</option>
+                                <option value="">All types</option>
                                 {uniqueBoardTypes.map(type => (
                                     <option key={type} value={type}>{type}</option>
                                 ))}
@@ -205,14 +205,14 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                     }}
                                     onFocus={() => setShowProjectSuggestions(true)}
                                     onBlur={() => setTimeout(() => setShowProjectSuggestions(false), 200)}
-                                    placeholder="Modelo, tipo, CPU..."
+                                    placeholder="Model, type, CPU..."
                                     className="w-full bg-gray-900 border border-gray-600 rounded pl-7 pr-2 py-1 text-xs text-white focus:border-purple-500 outline-none transition"
                                 />
                                 {showProjectSuggestions && projectSearchTerm.length > 0 && (
                                     <div className="absolute z-10 w-full bg-gray-800 border border-gray-600 rounded mt-1 max-h-32 overflow-y-auto shadow-lg">
                                         {uniqueSuggestions.filter(s => s.toLowerCase().includes(projectSearchTerm.toLowerCase())).map(suggestion => (
-                                            <div 
-                                                key={suggestion} 
+                                            <div
+                                                key={suggestion}
                                                 className="px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 cursor-pointer"
                                                 onClick={() => setProjectSearchTerm(suggestion)}
                                             >
@@ -223,18 +223,18 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                 )}
                             </div>
 
-                             <div className="relative">
+                            <div className="relative">
                                 <Zap className="absolute left-2 top-2 text-yellow-500" size={12} />
                                 <input
                                     type="text"
                                     value={pointFilterQuery}
                                     onChange={(e) => setPointFilterQuery(e.target.value)}
-                                    placeholder="Contiene punto (ej. 3.3V)..."
+                                    placeholder="Contains point (e.g. 3.3V)..."
                                     className="w-full bg-gray-900 border border-gray-600 rounded pl-7 pr-2 py-1 text-xs text-white focus:border-yellow-500 outline-none transition"
                                 />
                             </div>
                         </div>
-                        
+
                         <div className="flex-1 overflow-y-auto p-2 space-y-1">
                             {filteredProjects.length > 0 ? filteredProjects.map(proj => (
                                 <button
@@ -250,7 +250,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                         </div>                                        <AttributeBadge attributes={proj.attributes} />                                    </div>
                                 </button>
                             )) : (
-                                <div className="text-center text-gray-500 text-xs mt-4">No se encontraron proyectos.</div>
+                                <div className="text-center text-gray-500 text-xs mt-4">No projects found.</div>
                             )}
                         </div>
                     </div>
@@ -267,21 +267,21 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                             type="text"
                                             value={pointSearchTerm}
                                             onChange={(e) => setPointSearchTerm(e.target.value)}
-                                            placeholder="Buscar punto..."
+                                            placeholder="Search point..."
                                             className="w-full bg-gray-900 border border-gray-600 rounded pl-8 pr-2 py-1.5 text-sm text-white focus:border-purple-500 outline-none transition"
                                         />
                                     </div>
-                                    
+
                                     {/* Filter Controls */}
                                     <div className="flex items-center space-x-4 px-1">
                                         <label className="flex items-center space-x-2 text-xs text-gray-300 cursor-pointer select-none">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={matchType} 
+                                            <input
+                                                type="checkbox"
+                                                checked={matchType}
                                                 onChange={(e) => setMatchType(e.target.checked)}
                                                 className="form-checkbox bg-gray-900 border-gray-600 rounded text-purple-500 focus:ring-0 w-3 h-3"
                                             />
-                                            <span>Solo {currentPoint?.type || 'mismo tipo'}</span>
+                                            <span>Only {currentPoint?.type || 'same type'}</span>
                                         </label>
                                     </div>
                                 </div>
@@ -290,7 +290,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                     {isLoading ? (
                                         <div className="text-center text-gray-500 mt-10 flex flex-col items-center">
                                             <Activity className="animate-spin mb-2" />
-                                            Cargando puntos...
+                                            Loading points...
                                         </div>
                                     ) : filteredPoints.length > 0 ? (
                                         filteredPoints.map(p => (
@@ -305,11 +305,11 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                                         <div className="text-xs text-gray-400 mt-1">
                                                             {p.measurements && p.measurements[p.type] ? (
                                                                 <span className="font-mono text-cyan-300">
-                                                                    {typeof p.measurements[p.type]?.value === 'object' 
-                                                                        ? 'Datos Osciloscopio' 
+                                                                    {typeof p.measurements[p.type]?.value === 'object'
+                                                                        ? 'Oscilloscope Data'
                                                                         : p.measurements[p.type]?.value}
                                                                 </span>
-                                                            ) : 'Sin datos'}
+                                                            ) : 'No data'}
                                                         </div>
                                                         {(p.tolerance || p.expected_value) && (
                                                             <div className="text-[10px] text-gray-500 mt-1">
@@ -326,15 +326,15 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                                                         className="bg-gray-700 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs transition opacity-0 group-hover:opacity-100 flex items-center"
                                                     >
                                                         <CheckCircle2 size={12} className="mr-1" />
-                                                        Usar
+                                                        Use
                                                     </button>
                                                 </div>
                                             </div>
                                         ))
                                     ) : (
                                         <div className="text-center text-gray-500 mt-10 text-sm">
-                                            No se encontraron puntos coincidentes.
-                                            {matchType && <div className="mt-1 text-xs opacity-70">Prueba desactivando el filtro de tipo.</div>}
+                                            No matching points found.
+                                            {matchType && <div className="mt-1 text-xs opacity-70">Try disabling the type filter.</div>}
                                         </div>
                                     )}
                                 </div>
@@ -342,7 +342,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
                                 <Folder size={48} className="mb-4 opacity-20" />
-                                <p>Selecciona un proyecto para explorar.</p>
+                                <p>Select a project to explore.</p>
                             </div>
                         )}
                     </div>

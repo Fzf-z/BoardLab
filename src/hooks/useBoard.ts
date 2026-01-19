@@ -110,7 +110,7 @@ export const useBoard = () => {
     useEffect(() => {
         if (imageSrc && containerRef.current) {
             const imgA = new Image();
-            
+
             const processDimensions = (widthA: number, heightA: number, widthB: number = 0, heightB: number = 0) => {
                 // Use a timeout to ensure the container has been rendered and has dimensions
                 setTimeout(() => {
@@ -123,7 +123,7 @@ export const useBoard = () => {
 
                     setImageDimensions({ width: totalWidth, height: totalHeight });
                     setImageAWidth(widthA);
-                    
+
                     if (totalWidth === 0 || totalHeight === 0 || container.clientWidth === 0 || container.clientHeight === 0) {
                         return;
                     }
@@ -138,12 +138,12 @@ export const useBoard = () => {
                     } else {
                         newScale = container.clientWidth / totalWidth;
                     }
-                    
-                    const finalScale = newScale * 0.95; 
+
+                    const finalScale = newScale * 0.95;
                     const centeredX = (container.clientWidth - (totalWidth * finalScale)) / 2;
                     const centeredY = (container.clientHeight - (totalHeight * finalScale)) / 2;
 
-                    setScale(finalScale); 
+                    setScale(finalScale);
                     setPosition({ x: centeredX, y: centeredY });
                 }, 0);
             };
@@ -161,7 +161,7 @@ export const useBoard = () => {
             };
             imgA.src = imageSrc;
         }
-    }, [imageSrc, imageSrcB]); 
+    }, [imageSrc, imageSrcB]);
 
     const selectedPoint = useMemo(() => points.find(p => p.id === selectedPointId), [points, selectedPointId]);
 
@@ -178,7 +178,7 @@ export const useBoard = () => {
 
     const handleWheel = (e: WheelEvent<HTMLDivElement>) => {
         if (e.ctrlKey) return;
-        
+
         const rect = e.currentTarget.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -199,7 +199,7 @@ export const useBoard = () => {
     const handlePointMouseDown = (e: MouseEvent, pointId: number | string) => {
         if (e.button !== 0) return;
         e.stopPropagation();
-        
+
         const point = points.find(p => p.id === pointId);
         if (!point) return;
 
@@ -208,18 +208,18 @@ export const useBoard = () => {
         setIsDraggingPoint(true);
         setDraggedPointId(pointId);
         setSelectedPointId(pointId);
-        
+
         // Save the click offset relative to point center (point is 24x24, -12 offset in CSS)
         // But since we use left/top in style, we just need the mouse pos in image coords
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
-        
+
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
-        
+
         const imgX = (mouseX - position.x) / scale;
         const imgY = (mouseY - position.y) / scale;
-        
+
         setDragStart({ x: imgX - point.x, y: imgY - point.y });
     };
 
@@ -230,11 +230,11 @@ export const useBoard = () => {
             const rect = e.currentTarget.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
-            
+
             const newX = (mouseX - position.x) / scale - dragStart.x;
             const newY = (mouseY - position.y) / scale - dragStart.y;
-            
-            setPointsPresentOnly(prevPoints => prevPoints.map(p => 
+
+            setPointsPresentOnly(prevPoints => prevPoints.map(p =>
                 p.id === draggedPointId ? { ...p, x: newX, y: newY } : p
             ));
         }
@@ -269,17 +269,17 @@ export const useBoard = () => {
             const rect = e.currentTarget.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
-            
+
             const x = (clickX - position.x) / scale;
             const y = (clickY - position.y) / scale;
-            
+
             // Determine side based on X coordinate
             // If we have Image B, check if X is past Image A width
             let side: 'A' | 'B' = 'A';
             if (imageSrcB && imageAWidth > 0 && x > imageAWidth) {
                 side = 'B';
             }
-            // Generar el nuevo nombre con padding de ceros (ej: TP01, TP05, TP10)
+            // Generate new name with zero padding (e.g. TP01, TP05, TP10)
             const newName = `TP${(points.length + 1).toString().padStart(2, '0')}`;
             const newPoint: Point = {
                 id: `temp-${Date.now()}`,
@@ -298,7 +298,7 @@ export const useBoard = () => {
     };
 
     const updatePoint = useCallback((pointId: number | string, updates: Partial<Point>) => {
-        setPoints(currentPoints => 
+        setPoints(currentPoints =>
             currentPoints.map(p => p.id === pointId ? { ...p, ...updates } : p)
         );
     }, [setPoints]);
@@ -315,16 +315,16 @@ export const useBoard = () => {
         if (id && containerRef.current) {
             const point = points.find(p => p.id === id);
             if (point) {
-                 const container = containerRef.current;
-                 const centerX = container.clientWidth / 2;
-                 const centerY = container.clientHeight / 2;
-                 
-                 // Center the point
-                 // We keep the current scale
-                 const newX = centerX - point.x * scale;
-                 const newY = centerY - point.y * scale;
-                 
-                 setPosition({ x: newX, y: newY });
+                const container = containerRef.current;
+                const centerX = container.clientWidth / 2;
+                const centerY = container.clientHeight / 2;
+
+                // Center the point
+                // We keep the current scale
+                const newX = centerX - point.x * scale;
+                const newY = centerY - point.y * scale;
+
+                setPosition({ x: newX, y: newY });
             }
         }
     };
