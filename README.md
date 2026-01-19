@@ -38,19 +38,42 @@ BoardLab is a desktop application designed for electronics repair technicians an
 - **Database**: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (Running in a separate Worker thread for performance)
 - **Hardware Comms**: Node.js `net` (TCP) and `serialport` (Serial) for SCPI communication
 
-## � Project Structure
+## 📁 Project Structure
 
 ```
 src/
-├── components/     # React UI Components (BoardView, Settings, etc.)
-├── contexts/       # Global State (ProjectContext, NotifierContext)
-├── hooks/          # Business Logic (useBoard, useHardware, useGemini)
-└── BoardLab.tsx    # Main Application Layout
+├── components/           # React UI Components
+│   ├── board/            # Board-specific components (PointMarker, PointTooltip, etc.)
+│   ├── modals/           # Modal dialogs (NewProject, Comparison, ProjectManager, AI)
+│   ├── BoardView.tsx     # Main interactive board canvas
+│   ├── AIPanel.tsx       # Measurement panel and point details
+│   ├── Settings.tsx      # Application settings
+│   ├── InstrumentManager.tsx  # Instrument configuration UI
+│   ├── SequencerPanel.tsx     # Sequential measurement mode
+│   └── ...               # Other UI components (Toolbar, Minimap, Waveform, etc.)
+├── contexts/             # React Context providers
+│   ├── ProjectContext.tsx    # Global project state management
+│   └── NotifierContext.tsx   # Toast notifications
+├── hooks/                # Custom React hooks
+│   ├── useBoard.ts       # Board interaction logic (pan, zoom, undo/redo)
+│   ├── useHardware.ts    # Instrument communication
+│   └── useGemini.ts      # AI integration
+├── utils/                # Utility modules
+│   ├── logger.ts         # Centralized logging framework
+│   ├── safeElectronAPI.ts    # Validated IPC wrapper
+│   ├── ipcValidation.ts  # Zod schemas for IPC responses
+│   └── safeJson.ts       # Safe JSON parsing utilities
+├── types.ts              # TypeScript type definitions
+└── BoardLab.tsx          # Main application layout
 
 electron/
-├── main.ts         # Main Process (Window Mgmt, IPC, Hardware Drivers)
-├── db-worker.ts    # Database Operations (Worker Thread)
-└── drivers/        # Instrument Drivers (Owon, Rigol, Connection Logic)
+├── main.ts               # Main process (window management, IPC handlers)
+├── preload.ts            # Preload script (secure bridge to renderer)
+├── db-worker.ts          # SQLite database operations (Worker thread)
+└── drivers/              # Instrument drivers
+    ├── GenericSCPIDriver.ts  # Generic SCPI protocol handler
+    ├── rigol.ts          # Rigol oscilloscope driver
+    └── connection.ts     # TCP/Serial connection management
 ```
 
 ## �📦 Installation
@@ -151,7 +174,7 @@ Contributions are welcome! Please open an issue or submit a pull request for any
 
 ## 🤖 Development & Credits
 
-This project was developed with the assistance of **Google Gemini 3 Pro Preview**, leveraging advanced AI for code generation, architecture planning, and debugging.
+This project was developed with the assistance of **Google Gemini 3 Pro Preview** and **Claude Opus 4.5**, leveraging advanced AI for code generation, architecture planning, and debugging.
 
 ## 📄 License
 
