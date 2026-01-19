@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Instrument } from '../types';
 import { Plus, Trash2, Edit2, Save, Activity, Wifi } from 'lucide-react';
 import { useNotifier } from '../contexts/NotifierContext';
+import { safeInstrumentAPI } from '../utils/safeElectronAPI';
 
 const InstrumentManager: React.FC = () => {
     const [instruments, setInstruments] = useState<Instrument[]>([]);
@@ -24,15 +25,8 @@ const InstrumentManager: React.FC = () => {
     }, [formData.connection_type]);
 
     const loadInstruments = async () => {
-        if (window.electronAPI?.getAllInstruments) {
-            try {
-                const data = await window.electronAPI.getAllInstruments();
-                setInstruments(data);
-            } catch (err) {
-                console.error("Failed to load instruments", err);
-                showNotification("Error loading instruments", "error");
-            }
-        }
+        const data = await safeInstrumentAPI.getAllInstruments();
+        setInstruments(data);
     };
 
     const handleEdit = (inst: Instrument) => {
@@ -80,11 +74,11 @@ const InstrumentManager: React.FC = () => {
 
     const handleDelete = async (id: number) => {
         if (confirm("Are you sure you want to delete this instrument?")) {
-            try {
-                await window.electronAPI?.deleteInstrument(id);
+            const result = await safeInstrumentAPI.deleteInstrument(id);
+            if (result?.status === 'success') {
                 showNotification("Instrument deleted", "success");
                 loadInstruments();
-            } catch (e) {
+            } else {
                 showNotification("Failed to delete", "error");
             }
         }
@@ -96,53 +90,48 @@ const InstrumentManager: React.FC = () => {
             return;
         }
 
+        // Validate JSON
         try {
-            // Validate JSON
-            try {
-                if (typeof formData.command_map === 'string') {
-                    JSON.parse(formData.command_map);
-                }
-            } catch (e) {
-                showNotification("Invalid JSON in Command Map", "error");
-                return;
+            if (typeof formData.command_map === 'string') {
+                JSON.parse(formData.command_map);
             }
+        } catch {
+            showNotification("Invalid JSON in Command Map", "error");
+            return;
+        }
 
-            await window.electronAPI?.saveInstrument(formData as Instrument);
+        const result = await safeInstrumentAPI.saveInstrument(formData as Instrument);
+        if (result) {
             showNotification("Instrument saved", "success");
             setEditingId(null);
             loadInstruments();
-        } catch (e) {
-            console.error(e);
+        } else {
             showNotification("Failed to save", "error");
         }
     };
 
     const handleTestConnection = async () => {
         setTesting(true);
-        try {
-            // Validate JSON first
-            try {
-                 if (typeof formData.command_map === 'string') {
-                    JSON.parse(formData.command_map);
-                }
-            } catch(e) {
-                 showNotification("Invalid JSON", "error");
-                 setTesting(false);
-                 return;
-            }
 
-            const result = await window.electronAPI?.instrumentTestConnection(formData as Instrument);
-            if (result && result.status === 'success') {
-                showNotification(`Connection OK: ${result.value}`, "success");
-            } else {
-                showNotification(`Connection Failed: ${result?.message || 'Unknown error'}`, "error");
+        // Validate JSON first
+        try {
+            if (typeof formData.command_map === 'string') {
+                JSON.parse(formData.command_map);
             }
-        } catch (e) {
-            const message = e instanceof Error ? e.message : 'Unknown error';
-            showNotification(`Connection Error: ${message}`, "error");
-        } finally {
+        } catch {
+            showNotification("Invalid JSON", "error");
             setTesting(false);
+            return;
         }
+
+        const result = await safeInstrumentAPI.testConnection(formData as Instrument);
+        if (result?.status === 'success') {
+            showNotification("Connection OK", "success");
+        } else {
+            showNotification(`Connection Failed: ${result?.message || 'Unknown error'}`, "error");
+        }
+
+        setTesting(false);
     };
 
     const renderForm = () => {

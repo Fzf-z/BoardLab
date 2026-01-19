@@ -5,6 +5,7 @@ import { InstrumentConfig, MeasurementValue, Point, ComparisonPoint, Measurement
 import Waveform from './Waveform';
 import PointsTable from './PointsTable';
 import { safeJsonParse } from '../utils/safeJson';
+import { safePointAPI } from '../utils/safeElectronAPI';
 
 interface AIPanelProps {
     askAboutPoint: (point: Point) => void;
@@ -57,10 +58,9 @@ const AIPanel: React.FC<AIPanelProps> = ({
     useEffect(() => {
         setHistory([]);
         setReferenceWaveform(null);
-        if (selectedPoint && selectedPoint.id && typeof selectedPoint.id === 'number' && window.electronAPI) {
-            window.electronAPI.getMeasurementHistory(selectedPoint.id)
-                .then((measurements: MeasurementHistoryItem[]) => setHistory(measurements || []))
-                .catch((err: unknown) => console.error("Error fetching measurement history:", err));
+        if (selectedPoint && selectedPoint.id && typeof selectedPoint.id === 'number') {
+            safePointAPI.getMeasurementHistory(selectedPoint.id)
+                .then((measurements) => setHistory(measurements));
         }
     }, [selectedPoint?.id]); 
     
