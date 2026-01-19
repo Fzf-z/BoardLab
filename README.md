@@ -1,4 +1,4 @@
-# BoardLab - Intelligent Electronics Diagnosis Platform
+# BoardLab Pro - Intelligent Electronics Diagnosis Platform
 
 BoardLab is a desktop application designed for electronics repair technicians and engineers. It streamlines the process of reverse engineering and diagnosing circuit boards (PCBs) by combining high-resolution image mapping with real-time hardware measurements and AI assistance.
 
