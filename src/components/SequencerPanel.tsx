@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useProject, ExternalTriggerData } from '../contexts/ProjectContext';
 import { useHardware } from '../hooks/useHardware';
 import { Logger } from '../utils/logger';
-import { Play, SkipForward, SkipBack, Square, Timer, Zap, Radio } from 'lucide-react';
+import { SkipForward, SkipBack, Square, Timer, Zap, Radio } from 'lucide-react';
 import { Point, MeasurementType } from '../types';
 
 const log = Logger.Measurements;
@@ -10,14 +10,14 @@ const log = Logger.Measurements;
 const SequencerPanel: React.FC = () => {
     const { sequence, stopSequence, nextInSequence, prevInSequence, points, addMeasurement } = useProject();
     const hardware = useHardware();
-    
+
     const [autoMode, setAutoMode] = useState(false);
     const [countdown, setCountdown] = useState<number | null>(null);
     const processingRef = useRef(false);
-    
+
     // Use timeout from config as delay (converted to seconds, min 1s)
     const autoDelaySec = Math.max(1, Math.round((hardware.instrumentConfig.timeout || 3000) / 1000));
-    
+
     // Derive Locked Type directly from the first point in the sequence
     // This ensures that whatever the user set as the first point's type dictates the mode for the whole run
     const firstPointId = sequence.order[0];
@@ -32,7 +32,7 @@ const SequencerPanel: React.FC = () => {
 
     const captureAndAdvance = async (overrideData?: string) => {
         if (!currentPoint || hardware.isCapturing || processingRef.current) return;
-        
+
         processingRef.current = true;
         try {
             // Use locked type if available, otherwise point type
@@ -61,7 +61,7 @@ const SequencerPanel: React.FC = () => {
         }
 
         setCountdown(autoDelaySec);
-        
+
         const timer = setInterval(() => {
             setCountdown((prev) => {
                 if (prev === null) return null;
@@ -99,7 +99,7 @@ const SequencerPanel: React.FC = () => {
                     <span className="text-xs text-gray-400 flex items-center gap-2">
                         {hardware.instrumentConfig.monitor?.enabled && (
                             <span className="text-green-400 flex items-center gap-1" title="Listening for Multimeter Data">
-                                <Radio size={12} className="animate-pulse"/> MONITORING
+                                <Radio size={12} className="animate-pulse" /> MONITORING
                             </span>
                         )}
                         {sequence.currentIndex + 1} / {sequence.order.length}
@@ -120,52 +120,52 @@ const SequencerPanel: React.FC = () => {
                         </span>
                     )}
                 </div>
-                
+
                 {/* Progress Bar */}
                 <div className="w-full bg-gray-700 h-2 rounded mt-2">
-                    <div 
-                        className="bg-blue-500 h-2 rounded transition-all duration-300" 
+                    <div
+                        className="bg-blue-500 h-2 rounded transition-all duration-300"
                         style={{ width: `${progress}%` }}
                     ></div>
                 </div>
             </div>
 
             <div className="flex space-x-2 border-l border-gray-600 pl-4 items-center">
-                 <button 
+                <button
                     onClick={() => setAutoMode(!autoMode)}
                     className={`p-2 rounded transition ${autoMode ? 'bg-yellow-600 text-white' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
                     title="Toggle Auto-Measure Timer"
                 >
                     <Timer size={20} />
                 </button>
-                
+
                 <div className="w-px h-8 bg-gray-700 mx-1"></div>
 
-                <button 
+                <button
                     onClick={prevInSequence}
                     className="p-2 bg-gray-700 hover:bg-gray-600 rounded text-white transition"
                     title="Previous"
                 >
                     <SkipBack size={20} />
                 </button>
-                
-                <button 
-                    onClick={() => captureAndAdvance()} 
+
+                <button
+                    onClick={() => captureAndAdvance()}
                     className="p-2 bg-blue-600 hover:bg-blue-500 rounded text-white transition shadow-lg"
                     title="Measure Now (Enter)"
                     disabled={hardware.isCapturing}
                 >
-                    {hardware.isCapturing ? <div className="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent"/> : <Zap size={20} />}
+                    {hardware.isCapturing ? <div className="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent" /> : <Zap size={20} />}
                 </button>
 
-                <button 
-                    onClick={nextInSequence} 
+                <button
+                    onClick={nextInSequence}
                     className="p-2 bg-gray-700 hover:bg-gray-600 rounded text-white transition"
                     title="Skip / Next"
                 >
                     <SkipForward size={20} />
                 </button>
-                <button 
+                <button
                     onClick={stopSequence}
                     className="p-2 bg-red-600 hover:bg-red-500 rounded text-white transition"
                     title="Stop Sequence"

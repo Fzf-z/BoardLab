@@ -113,7 +113,7 @@ export const useHardware = () => {
 
         try {
             if (overrideValue) {
-                 result = { status: 'success', value: overrideValue };
+                result = { status: 'success', value: overrideValue };
             } else if (isElectron && window.electronAPI) {
                 if (selectedPoint.type === 'oscilloscope') {
                     // TODO: Migrate oscilloscope to Generic Driver with Binary Support
@@ -147,7 +147,7 @@ export const useHardware = () => {
                 if (selectedPoint.type === 'oscilloscope') {
                     result = {
                         status: 'success',
-                        waveform: Array.from({length: 1000}, () => Math.random() * 2 - 1),
+                        waveform: Array.from({ length: 1000 }, () => Math.random() * 2 - 1),
                         timeScale: 0.001,
                         voltageScale: 0.5,
                         voltageOffset: 0,
@@ -173,10 +173,11 @@ export const useHardware = () => {
                     const type = selectedPoint.type;
 
                     // Fix for known Overload/Open indicators
-                    if (type === 'resistance' && finalValue.includes('Overload')) {
+                    const strValue = String(finalValue);
+                    if (type === 'resistance' && strValue.includes('Overload')) {
                         finalValue = 'OL';
                     }
-                    if (type === 'diode' && finalValue.includes('open')) {
+                    if (type === 'diode' && strValue.includes('open')) {
                         finalValue = 'OL';
                     }
 

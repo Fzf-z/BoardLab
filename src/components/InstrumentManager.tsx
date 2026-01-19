@@ -18,8 +18,8 @@ const InstrumentManager: React.FC = () => {
 
     useEffect(() => {
         if (formData.connection_type === 'serial' && window.electronAPI?.getSerialPorts) {
-            window.electronAPI.getSerialPorts().then((ports: string[]) => {
-                setAvailablePorts(ports);
+            window.electronAPI.getSerialPorts().then((ports) => {
+                setAvailablePorts(ports.map(p => p.path));
             });
         }
     }, [formData.connection_type]);
@@ -34,7 +34,7 @@ const InstrumentManager: React.FC = () => {
         let prettyMap = inst.command_map;
         try {
             // Format JSON for readability
-            const parsed = JSON.parse(inst.command_map);
+            const parsed = JSON.parse(inst.command_map || '{}');
             prettyMap = JSON.stringify(parsed, null, 4);
         } catch (e) {
             // Keep original if parsing fails
@@ -187,7 +187,7 @@ const InstrumentManager: React.FC = () => {
                                     {availablePorts.map(p => <option key={p} value={p}>{p}</option>)}
                                 </select>
                                 <button
-                                    onClick={() => window.electronAPI?.getSerialPorts().then(setAvailablePorts)}
+                                    onClick={() => window.electronAPI?.getSerialPorts().then(ports => setAvailablePorts(ports.map(p => p.path)))}
                                     className="px-2 bg-gray-700 hover:bg-gray-600 rounded"
                                     title="Refresh Ports"
                                 >

@@ -16,8 +16,8 @@ interface ProjectManagerModalProps {
 
 type EditingProject = Omit<Project, 'attributes'> & { attributes: Record<string, string> };
 
-const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({ 
-    isOpen, onClose, projects, onLoadProject, onDeleteProject, onUpdateProject 
+const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
+    isOpen, onClose, projects, onLoadProject, onDeleteProject, onUpdateProject
 }) => {
     const [filter, setFilter] = useState<string>('');
     const [editingProject, setEditingProject] = useState<EditingProject | null>(null);
@@ -32,10 +32,10 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
 
     const filteredProjects = projects.filter(p => {
         const lowerCaseFilter = filter.toLowerCase();
-        
+
         // 1. Check model and type
-        const textMatch = (p.board_model || '').toLowerCase().includes(lowerCaseFilter) || 
-                          (p.board_type || '').toLowerCase().includes(lowerCaseFilter);
+        const textMatch = (p.board_model || '').toLowerCase().includes(lowerCaseFilter) ||
+            (p.board_type || '').toLowerCase().includes(lowerCaseFilter);
 
         // 2. Check attributes
         let attributesMatch = false;
@@ -48,7 +48,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
             }
 
             // Check if any attribute value contains the filter text
-            attributesMatch = Object.values(attrs).some(val => 
+            attributesMatch = Object.values(attrs).some(val =>
                 String(val).toLowerCase().includes(lowerCaseFilter)
             );
         }
@@ -96,7 +96,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                 // ignore
             }
         } else if (typeof project.attributes === 'object' && project.attributes !== null) {
-             // @ts-ignore
+            // @ts-ignore
             attrs = { ...project.attributes };
         }
 
@@ -120,7 +120,12 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
 
     const handleEditSave = () => {
         if (onUpdateProject && editingProject) {
-            onUpdateProject(editingProject);
+            // Serialize attributes back to JSON string for storage
+            const projectToSave: Partial<Project> = {
+                ...editingProject,
+                attributes: JSON.stringify(editingProject.attributes)
+            };
+            onUpdateProject(projectToSave);
             setEditingProject(null);
         }
     };
@@ -155,7 +160,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
     // --- Render Edit View ---
     if (editingProject) {
         const attributes = editingProject.attributes || {};
-        
+
         return (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
                 <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl text-white animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
@@ -168,17 +173,17 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                     <div className="p-6 space-y-4 overflow-y-auto">
                         <div>
                             <label className="block text-sm font-medium text-gray-400 mb-1">Board Model</label>
-                            <input 
-                                type="text" 
-                                value={editingProject.board_model} 
+                            <input
+                                type="text"
+                                value={editingProject.board_model}
                                 onChange={e => setEditingProject(prev => prev ? ({ ...prev, board_model: e.target.value }) : null)}
                                 className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-400 mb-1">Board Type</label>
-                            <select 
-                                value={editingProject.board_type} 
+                            <select
+                                value={editingProject.board_type}
                                 onChange={e => setEditingProject(prev => prev ? ({ ...prev, board_type: e.target.value }) : null)}
                                 className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white"
                             >
@@ -192,22 +197,22 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
 
                         <div>
                             <label className="block text-sm font-medium text-gray-400 mb-1">Project Notes</label>
-                            <textarea 
-                                value={editingProject.notes || ''} 
+                            <textarea
+                                value={editingProject.notes || ''}
                                 onChange={e => setEditingProject(prev => prev ? ({ ...prev, notes: e.target.value }) : null)}
                                 className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white h-24 resize-none"
                                 placeholder="General repair notes..."
                             />
                         </div>
-                        
+
                         <div className="pt-4 border-t border-gray-700">
                             <h3 className="text-sm font-bold text-gray-300 mb-3">Attributes</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 {Object.entries(attributes).map(([key, val]) => (
                                     <div key={key}>
                                         <label className="block text-xs font-medium text-gray-500 mb-1 uppercase">{key}</label>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             value={val}
                                             onChange={(e) => handleAttributeChange(key, e.target.value)}
                                             className="w-full bg-gray-900 border border-gray-600 rounded p-1.5 text-sm text-white"
@@ -216,12 +221,12 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                                     </div>
                                 ))}
                             </div>
-                            
+
                             {/* Add new attribute */}
                             <div className="mt-4 flex space-x-2 items-end">
                                 <div className="flex-1">
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="New Attribute Name"
                                         value={newAttrKey}
                                         onChange={e => setNewAttrKey(e.target.value)}
@@ -230,8 +235,8 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                                     />
                                 </div>
                                 <div className="flex-1">
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="Value"
                                         value={newAttrValue}
                                         onChange={e => setNewAttrValue(e.target.value)}
@@ -240,7 +245,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                                         list="known-values"
                                     />
                                 </div>
-                                <button 
+                                <button
                                     onClick={handleAddAttribute}
                                     className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded"
                                 >
@@ -250,14 +255,14 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                         </div>
                     </div>
                     <div className="p-4 border-t border-gray-700 flex justify-end">
-                         <button 
-                            onClick={handleEditSave} 
+                        <button
+                            onClick={handleEditSave}
                             className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded flex items-center shadow-lg"
                         >
                             <Save size={18} className="mr-2" /> Save Changes
                         </button>
                     </div>
-                    
+
                     {/* Datalists for Autocomplete */}
                     <datalist id="known-keys">
                         {fetchedAttributes.keys.map((k, i) => <option key={`k-${i}`} value={k} />)}
@@ -281,13 +286,13 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                     </h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-white bg-gray-700 p-2 rounded-full"><X size={20} /></button>
                 </div>
-                
+
                 <div className="p-4 bg-gray-800 border-b border-gray-700 flex space-x-2">
                     <div className="relative flex-grow">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="Search projects..." 
+                        <input
+                            type="text"
+                            placeholder="Search projects..."
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
                             className="w-full bg-gray-900 border border-gray-600 rounded-lg pl-10 pr-4 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
@@ -319,32 +324,32 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                                             <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">{project.board_type}</span>
                                         </div>
                                     </div>
-                                    
+
                                     <AttributeBadge attributes={project.attributes} />
 
                                     <div className="text-sm text-gray-500 my-4 line-clamp-2 flex-grow">
                                         {project.notes || "No notes."}
                                     </div>
-                                    
+
                                     <div className="flex items-center text-xs text-gray-500">
-                                         {project.created_at && new Date(project.created_at).toLocaleDateString()}
+                                        {project.created_at && new Date(project.created_at).toLocaleDateString()}
                                     </div>
 
                                     <div className="flex space-x-2 mt-auto">
-                                        <button 
+                                        <button
                                             onClick={() => onLoadProject(project)}
                                             className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-1.5 rounded text-sm font-medium transition-colors"
                                         >
                                             Open
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => handleEditStart(project)}
                                             className="p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
                                             title="Edit Details"
                                         >
                                             <Edit2 size={16} />
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 if (window.confirm(`Delete project "${project.board_model}"?`)) {
                                                     onDeleteProject(project.id);

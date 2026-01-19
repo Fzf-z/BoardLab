@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "main": "dist-electron/main.js",
-  "author": "Tu Nombre",
+  "author": "Z Electrónica UY",
   "description": "BoardLab - Diagnóstico Electrónico Inteligente",
   "scripts": {
     "dev": "vite",
@@ -27,6 +27,7 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.0.6",
     "@types/react": "^18.2.64",
@@ -42,10 +43,12 @@
     "eslint-plugin-react": "^7.34.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "globals": "^17.0.0",
     "postcss": "^8.4.35",
     "puppeteer": "^24.34.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.53.1",
     "vite": "^5.1.6",
     "vite-plugin-electron": "^0.29.0",
     "vite-plugin-electron-renderer": "^0.14.6",

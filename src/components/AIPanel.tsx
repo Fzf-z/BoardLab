@@ -3,7 +3,7 @@ import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit, 
 import { useTranslation } from 'react-i18next';
 import { useProject } from '../contexts/ProjectContext';
 import { Logger } from '../utils/logger';
-import { InstrumentConfig, MeasurementValue, Point, ComparisonPoint, MeasurementHistoryItem, OscilloscopeData, MeasurementType } from '../types';
+import { InstrumentConfig, MeasurementValue, Point, ComparisonPoint, MeasurementHistoryItem } from '../types';
 import Waveform from './Waveform';
 import PointsTable from './PointsTable';
 import { safeJsonParse } from '../utils/safeJson';
@@ -45,7 +45,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
     const { t } = useTranslation();
 
     const [history, setHistory] = useState<MeasurementHistoryItem[]>([]);
-    const [referenceWaveform, setReferenceWaveform] = useState<OscilloscopeData | null>(null);
+    const [referenceWaveform, setReferenceWaveform] = useState<MeasurementValue | undefined>(undefined);
     const [activeTab, setActiveTab] = useState<'detail' | 'table'>('detail');
 
     useEffect(() => {
@@ -62,7 +62,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
     useEffect(() => {
         setHistory([]);
-        setReferenceWaveform(null);
+        setReferenceWaveform(undefined);
         if (selectedPoint && selectedPoint.id && typeof selectedPoint.id === 'number') {
             safePointAPI.getMeasurementHistory(selectedPoint.id)
                 .then((measurements) => setHistory(measurements));
@@ -121,8 +121,12 @@ const AIPanel: React.FC<AIPanelProps> = ({
             if (savedMeasurement) {
                 // It might return object with id, or null. 
                 // We add to history manually for instant feedback in the list, though addMeasurement updates context state
-                // We just need to ensure the ID is there if we want to use it
-                const newHistoryItem = { ...savedMeasurement };
+                // Ensure type is defined for MeasurementHistoryItem
+                const newHistoryItem: MeasurementHistoryItem = {
+                    type: savedMeasurement.type || selectedPoint.type,
+                    value: savedMeasurement.value ?? savedMeasurement,
+                    created_at: savedMeasurement.capturedAt || new Date().toISOString()
+                };
                 setHistory([newHistoryItem, ...history]);
             }
         }
@@ -342,9 +346,9 @@ const AIPanel: React.FC<AIPanelProps> = ({
                                                         <button
                                                             onClick={() => {
                                                                 const parsedVal = typeof m.value === 'string'
-                                                                    ? safeJsonParse<OscilloscopeData | null>(m.value, null)
-                                                                    : m.value as OscilloscopeData;
-                                                                if (parsedVal && 'waveform' in parsedVal) setReferenceWaveform(parsedVal);
+                                                                    ? safeJsonParse<MeasurementValue | undefined>(m.value, undefined)
+                                                                    : m.value as MeasurementValue;
+                                                                if (parsedVal && typeof parsedVal === 'object' && 'waveform' in parsedVal) setReferenceWaveform(parsedVal);
                                                             }}
                                                             className="p-1 text-blue-400 hover:bg-blue-900/30 rounded"
                                                             title="Set as reference waveform"

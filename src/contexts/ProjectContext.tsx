@@ -2,58 +2,15 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useBoard } from '../hooks/useBoard';
 import { useNotifier } from './NotifierContext';
 import { Logger } from '../utils/logger';
-import { Project, Point, MeasurementValue, AppSettings, Instrument, CreateProjectData, CaptureResult, PersistedConfig, MeasurementHistoryItem } from '../types';
+import { Project, Point, MeasurementValue, AppSettings, CreateProjectData } from '../types';
+import type { ExternalTriggerData } from '../types/electron';
+// NOTE: Window.electronAPI types are declared in src/types/electron.d.ts
 
 const log = Logger.Project;
 
-// Extend global window interface for Electron API
-// External trigger data from hardware
-export interface ExternalTriggerData {
-    type: string;
-    value?: string | number;
-    timestamp?: string;
-}
+// Re-export for backwards compatibility
+export type { ExternalTriggerData };
 
-declare global {
-    interface Window {
-        electronAPI?: {
-            createProject: (data: CreateProjectData) => Promise<Project>;
-            savePoints: (data: { projectId: number, points: Point[] }) => Promise<Point[]>;
-            getProjects: () => Promise<Project[]>;
-            getProjectWithImage: (id: number) => Promise<Project>;
-            getPoints: (projectId: number) => Promise<Point[]>;
-            searchProjectsByPoint: (searchTerm: string) => Promise<number[]>;
-            deleteProject: (id: number) => Promise<{ status: string; message?: string }>;
-            updateProject: (data: Partial<Project>) => Promise<{ status: string; message?: string }>;
-            deletePoint: (id: number | string) => Promise<{ status: string; message?: string }>;
-            createMeasurement: (data: { pointId: number | string, type: string, value: string | number | MeasurementValue }) => Promise<{ id?: number; status: string; message?: string }>;
-            startMonitor: (ip: string, port: number) => Promise<{ status: string; message?: string }>;
-            stopMonitor: () => Promise<{ status: string; message?: string }>;
-            onMonitorStatus: (callback: (status: string) => void) => () => void;
-            onExternalTrigger: (callback: (data: ExternalTriggerData) => void) => () => void;
-            getBoardTypes: () => Promise<string[]>;
-            addBoardType: (type: string) => Promise<boolean>;
-            exportPdf: (projectId: number) => Promise<{ status: string; filePath?: string; message?: string }>;
-            exportImage: (projectId: number) => Promise<{ status: string; filePath?: string; message?: string }>;
-
-            // Instruments (Fase 3.2)
-            getAllInstruments: () => Promise<Instrument[]>;
-            saveInstrument: (data: Instrument) => Promise<{ id: number }>;
-            deleteInstrument: (id: number) => Promise<{ status: string }>;
-            instrumentExecute: (type: 'multimeter' | 'oscilloscope', actionKey: string) => Promise<CaptureResult>;
-            instrumentTestConnection: (config: Instrument) => Promise<{ status: string; message?: string }>;
-
-            // Config & Settings
-            loadConfig: () => Promise<PersistedConfig>;
-            saveConfig: (config: PersistedConfig) => Promise<void>;
-            loadApiKey: () => Promise<string>;
-            saveApiKey: (key: string) => Promise<void>;
-            getAllAttributes: (boardType?: string) => Promise<{ keys: string[], values: string[] }>;
-            getMeasurementHistory: (pointId: number | string) => Promise<MeasurementHistoryItem[]>;
-            isElectron?: boolean;
-        };
-    }
-}
 
 interface ProjectContextValue {
     currentProject: Project | null;

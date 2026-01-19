@@ -208,14 +208,14 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
                         className="w-full bg-gray-800 border border-gray-600 rounded pl-7 pr-2 py-1 text-xs text-white focus:border-blue-500 outline-none"
                     />
                 </div>
-                <button 
-                    onClick={handleSaveChanges} 
+                <button
+                    onClick={handleSaveChanges}
                     className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
                 >
                     Save Changes
                 </button>
             </div>
-            
+
             <div className="flex-1 overflow-auto">
                 <table className="text-left border-collapse text-xs">
                     <thead>
@@ -231,144 +231,142 @@ const PointsTable: React.FC<PointsTableProps> = ({ mode = 'measure' }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
-                        {sortedAndFilteredPoints.map((point, index) => {
+                        {sortedAndFilteredPoints.map((point) => {
                             const childPoints = editedPoints.filter(p => p.parentPointId === point.id);
                             const hasChildren = childPoints.length > 0;
                             const hasExpandableContent = point.notes || point.measurements?.oscilloscope || hasChildren;
 
                             return (
-                            <React.Fragment key={point.id}>
-                                <tr
-                                    ref={el => { rowRefs.current[point.id] = el; }}
-                                    className={`hover:bg-gray-800/50 cursor-pointer ${selectedPointId === point.id ? 'bg-blue-900/30' : ''}`}
-                                    onClick={() => selectPoint(point.id)}
-                                >
-                                    <td className="p-2 text-center">
-                                        {hasExpandableContent && (
-                                            <button onClick={(e) => toggleExpand(point.id, e)} className="text-gray-400 hover:text-white">
-                                                {expandedPointIds.has(point.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                            </button>
-                                        )}
-                                    </td>
-                                    <td className="p-2 text-center">
-                                        <div className="flex flex-col items-center">
-                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${point.side === 'B' ? 'bg-purple-900/80 text-purple-200' : 'bg-blue-900/80 text-blue-200'}`}>
-                                                {point.side || 'A'}
-                                            </span>
-                                            {hasChildren && (
-                                                <span className="text-[9px] text-gray-500 mt-0.5">+{childPoints.length}</span>
+                                <React.Fragment key={point.id}>
+                                    <tr
+                                        ref={el => { rowRefs.current[point.id] = el; }}
+                                        className={`hover:bg-gray-800/50 cursor-pointer ${selectedPointId === point.id ? 'bg-blue-900/30' : ''}`}
+                                        onClick={() => selectPoint(point.id)}
+                                    >
+                                        <td className="p-2 text-center">
+                                            {hasExpandableContent && (
+                                                <button onClick={(e) => toggleExpand(point.id, e)} className="text-gray-400 hover:text-white">
+                                                    {expandedPointIds.has(point.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                </button>
                                             )}
-                                        </div>
-                                    </td>
-                                    <td className="p-2">
-                                        <input 
-                                            type="text" 
-                                            value={point.label} 
-                                            onChange={(e) => handleLabelChange(point.id, e.target.value)}
-                                            onBlur={commitChanges}
-                                            onClick={(e) => e.stopPropagation()} 
-                                            readOnly={mode === 'view'}
-                                            style={{ width: `${Math.max(point.label.length, 4) + 2}ch` }}
-                                            className={`bg-transparent border-b border-transparent ${mode === 'view' ? 'cursor-default' : 'focus:border-blue-500'} outline-none text-white font-bold`} 
-                                        />
-                                    </td>
-                                    <td className="p-2">
-                                        <select 
-                                            value={point.category || ''} 
-                                            onChange={(e) => {
-                                                handleCategoryChange(point.id, e.target.value);
-                                            }}
-                                            onBlur={commitChanges}
-                                            onClick={(e) => e.stopPropagation()}
-                                            disabled={mode === 'view'}
-                                            style={{ 
-                                                backgroundColor: availableCategories.find(c => c.id === point.category)?.color,
-                                                color: point.category ? '#fff' : undefined,
-                                                textShadow: point.category ? '0 1px 2px rgba(0,0,0,0.8)' : undefined,
-                                                appearance: mode === 'view' ? 'none' : 'auto',
-                                                WebkitAppearance: mode === 'view' ? 'none' : 'auto',
-                                                MozAppearance: mode === 'view' ? 'none' : 'auto'
-                                            }}
-                                            className={`bg-gray-800 w-16 p-0.5 rounded text-[10px] text-white border border-gray-600 outline-none disabled:opacity-100 font-bold ${mode === 'view' ? 'text-center' : ''}`}
-                                        >
-                                            <option value="" style={{ backgroundColor: '#1f2937', color: 'white', textShadow: 'none' }}>-</option>
-                                            {availableCategories.map(cat => (
-                                                <option 
-                                                    key={cat.id} 
-                                                    value={cat.id}
-                                                    style={{ backgroundColor: cat.color, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
-                                                >
-                                                    {cat.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                    <td className="p-2">
-                                        <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-gray-800 w-20 p-0.5 rounded text-right ${mode === 'view' ? 'text-gray-300' : ''}`} />
-                                    </td>
-                                    <td className="p-2">
-                                        <input type="text" defaultValue={(point.measurements?.resistance?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-gray-800 w-20 p-0.5 rounded text-right ${mode === 'view' ? 'text-gray-300' : ''}`} />
-                                    </td>
-                                    <td className="p-2">
-                                        <input type="text" defaultValue={(point.measurements?.diode?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-gray-800 w-20 p-0.5 rounded text-right ${mode === 'view' ? 'text-gray-300' : ''}`} />
-                                    </td>
-                                    <td className="p-2 text-center">
-                                        {mode !== 'view' && (
-                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(point.id); }} className="text-red-400 hover:text-red-300 opacity-50 hover:opacity-100" title="Delete Point">
-                                            <Trash2 size={14} />
-                                        </button>
-                                        )}
-                                    </td>
-                                </tr>
-                                {expandedPointIds.has(point.id) && (
-                                    <tr className="bg-gray-800/30">
-                                        <td colSpan={8} className="p-4 border-b border-gray-700 shadow-inner">
-                                            <div className="flex flex-col gap-4">
-                                                <div>
-                                                    <label className="text-xs text-gray-400 block mb-1 font-bold">Notes</label>
-                                                    <textarea 
-                                                        value={point.notes || ''} 
-                                                        onChange={(e) => handleNotesChange(point.id, e.target.value)} 
-                                                        onBlur={commitChanges} 
-                                                        onClick={(e) => e.stopPropagation()} 
-                                                        readOnly={mode === 'view'} 
-                                                        className={`bg-gray-900 border border-gray-600 rounded p-2 text-sm text-gray-300 w-full h-20 resize-none outline-none ${mode === 'view' ? 'cursor-default' : 'focus:border-blue-500'}`} 
-                                                        placeholder="Technical notes..."
-                                                    />
-                                                </div>
-                                                
+                                        </td>
+                                        <td className="p-2 text-center">
+                                            <div className="flex flex-col items-center">
+                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${point.side === 'B' ? 'bg-purple-900/80 text-purple-200' : 'bg-blue-900/80 text-blue-200'}`}>
+                                                    {point.side || 'A'}
+                                                </span>
                                                 {hasChildren && (
-                                                    <div>
-                                                        <label className="text-xs text-gray-400 block mb-1 font-bold">Linked Locations (Duplicates)</label>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {childPoints.map(child => (
-                                                                <button 
-                                                                    key={child.id}
-                                                                    onClick={(e) => { e.stopPropagation(); selectPoint(child.id); }}
-                                                                    className={`px-2 py-1 rounded text-xs border flex items-center gap-1 transition-colors ${selectedPointId === child.id ? 'bg-blue-600 border-blue-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'}`}
-                                                                >
-                                                                    <span className={`w-2 h-2 rounded-full ${child.side === 'B' ? 'bg-purple-500' : 'bg-blue-500'}`}></span>
-                                                                    <span>Side {child.side || 'A'}</span>
-                                                                    <span className="opacity-50 text-[10px]">({Math.round(child.x)}, {Math.round(child.y)})</span>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {point.measurements?.oscilloscope && (
-                                                    <div className="bg-black/40 rounded-lg p-4 border border-gray-700">
-                                                        <div className="text-xs text-gray-400 mb-2 font-bold">Oscillogram</div>
-                                                        <Waveform pointData={point} />
-                                                    </div>
+                                                    <span className="text-[9px] text-gray-500 mt-0.5">+{childPoints.length}</span>
                                                 )}
                                             </div>
                                         </td>
+                                        <td className="p-2">
+                                            <input
+                                                type="text"
+                                                value={point.label}
+                                                onChange={(e) => handleLabelChange(point.id, e.target.value)}
+                                                onBlur={commitChanges}
+                                                onClick={(e) => e.stopPropagation()}
+                                                readOnly={mode === 'view'}
+                                                style={{ width: `${Math.max(point.label.length, 4) + 2}ch` }}
+                                                className={`bg-transparent border-b border-transparent ${mode === 'view' ? 'cursor-default' : 'focus:border-blue-500'} outline-none text-white font-bold`}
+                                            />
+                                        </td>
+                                        <td className="p-2">
+                                            <select
+                                                value={point.category || ''}
+                                                onChange={(e) => {
+                                                    handleCategoryChange(point.id, e.target.value);
+                                                }}
+                                                onBlur={commitChanges}
+                                                onClick={(e) => e.stopPropagation()}
+                                                disabled={mode === 'view'}
+                                                style={{
+                                                    backgroundColor: availableCategories.find(c => c.id === point.category)?.color,
+                                                    color: point.category ? '#fff' : undefined,
+                                                    textShadow: point.category ? '0 1px 2px rgba(0,0,0,0.8)' : undefined,
+                                                    appearance: mode === 'view' ? 'none' : 'auto'
+                                                }}
+                                                className={`bg-gray-800 w-16 p-0.5 rounded text-[10px] text-white border border-gray-600 outline-none disabled:opacity-100 font-bold ${mode === 'view' ? 'text-center' : ''}`}
+                                            >
+                                                <option value="" style={{ backgroundColor: '#1f2937', color: 'white', textShadow: 'none' }}>-</option>
+                                                {availableCategories.map(cat => (
+                                                    <option
+                                                        key={cat.id}
+                                                        value={cat.id}
+                                                        style={{ backgroundColor: cat.color, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                                                    >
+                                                        {cat.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </td>
+                                        <td className="p-2">
+                                            <input type="text" defaultValue={(point.measurements?.voltage?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'voltage', e.target.value)} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-gray-800 w-20 p-0.5 rounded text-right ${mode === 'view' ? 'text-gray-300' : ''}`} />
+                                        </td>
+                                        <td className="p-2">
+                                            <input type="text" defaultValue={(point.measurements?.resistance?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'resistance', e.target.value)} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-gray-800 w-20 p-0.5 rounded text-right ${mode === 'view' ? 'text-gray-300' : ''}`} />
+                                        </td>
+                                        <td className="p-2">
+                                            <input type="text" defaultValue={(point.measurements?.diode?.value as string) || ''} onBlur={(e) => handleValueChange(point.id, 'diode', e.target.value)} onClick={(e) => e.stopPropagation()} readOnly={mode === 'view'} className={`bg-gray-800 w-20 p-0.5 rounded text-right ${mode === 'view' ? 'text-gray-300' : ''}`} />
+                                        </td>
+                                        <td className="p-2 text-center">
+                                            {mode !== 'view' && (
+                                                <button onClick={(e) => { e.stopPropagation(); handleDelete(point.id); }} className="text-red-400 hover:text-red-300 opacity-50 hover:opacity-100" title="Delete Point">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                        </td>
                                     </tr>
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
+                                    {expandedPointIds.has(point.id) && (
+                                        <tr className="bg-gray-800/30">
+                                            <td colSpan={8} className="p-4 border-b border-gray-700 shadow-inner">
+                                                <div className="flex flex-col gap-4">
+                                                    <div>
+                                                        <label className="text-xs text-gray-400 block mb-1 font-bold">Notes</label>
+                                                        <textarea
+                                                            value={point.notes || ''}
+                                                            onChange={(e) => handleNotesChange(point.id, e.target.value)}
+                                                            onBlur={commitChanges}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            readOnly={mode === 'view'}
+                                                            className={`bg-gray-900 border border-gray-600 rounded p-2 text-sm text-gray-300 w-full h-20 resize-none outline-none ${mode === 'view' ? 'cursor-default' : 'focus:border-blue-500'}`}
+                                                            placeholder="Technical notes..."
+                                                        />
+                                                    </div>
+
+                                                    {hasChildren && (
+                                                        <div>
+                                                            <label className="text-xs text-gray-400 block mb-1 font-bold">Linked Locations (Duplicates)</label>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {childPoints.map(child => (
+                                                                    <button
+                                                                        key={child.id}
+                                                                        onClick={(e) => { e.stopPropagation(); selectPoint(child.id); }}
+                                                                        className={`px-2 py-1 rounded text-xs border flex items-center gap-1 transition-colors ${selectedPointId === child.id ? 'bg-blue-600 border-blue-400 text-white' : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'}`}
+                                                                    >
+                                                                        <span className={`w-2 h-2 rounded-full ${child.side === 'B' ? 'bg-purple-500' : 'bg-blue-500'}`}></span>
+                                                                        <span>Side {child.side || 'A'}</span>
+                                                                        <span className="opacity-50 text-[10px]">({Math.round(child.x)}, {Math.round(child.y)})</span>
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {point.measurements?.oscilloscope && (
+                                                        <div className="bg-black/40 rounded-lg p-4 border border-gray-700">
+                                                            <div className="text-xs text-gray-400 mb-2 font-bold">Oscillogram</div>
+                                                            <Waveform pointData={point} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

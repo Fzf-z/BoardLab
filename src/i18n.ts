@@ -19,7 +19,7 @@ i18n
             es: { translation: esDocs }
         },
         fallbackLng: 'en',
-        debug: true,
+        debug: import.meta.env.DEV,
 
         interpolation: {
             escapeValue: false, // not needed for react as it escapes by default

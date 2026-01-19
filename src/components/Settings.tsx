@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
 import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, AppSettings, PointCategory } from '../types';
-import { Plus, Trash2, Edit2, Check, X, Github, Keyboard, Cog, Usb, Cpu, Languages } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Github, Keyboard, Cog, Cpu, Languages } from 'lucide-react';
 import InstrumentManager from './InstrumentManager';
 import { safeDeepClone } from '../utils/safeJson';
 import { useTranslation } from 'react-i18next';
 
 const PRESET_COLORS = [
-    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c5e',
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
     '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#ffffff'
 ];
 
@@ -22,7 +22,7 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({
-    instruments, apiKey, setApiKey, appSettings, onSave, onClose
+    instruments, apiKey, appSettings, onSave, onClose
 }) => {
     const { boardTypes, addBoardType } = useProject();
     const { t, i18n } = useTranslation();

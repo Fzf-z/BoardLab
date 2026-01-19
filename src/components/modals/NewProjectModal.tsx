@@ -1,9 +1,8 @@
-import { useRef, useState, useEffect } from 'react';
-import { UploadCloud, X, PlusCircle, Trash2, FilePlus, AlertCircle } from 'lucide-react';
+import { useRef, useState, useEffect, ChangeEvent, FormEvent } from 'react';
+import { UploadCloud, X, PlusCircle, Trash2, FilePlus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Logger } from '../../utils/logger';
 import { CreateProjectData } from '../../types';
-import { useProject } from '../../contexts/ProjectContext';
 
 const log = Logger.Project;
 
@@ -11,7 +10,6 @@ interface NewProjectModalProps {
     isOpen: boolean;
     onClose: () => void;
     onCreate: (projectData: CreateProjectData) => Promise<void>;
-    knownAttributes?: { keys: string[], values: string[] };
 }
 
 interface DynamicAttribute {
@@ -22,8 +20,7 @@ interface DynamicAttribute {
 const NewProjectModal: React.FC<NewProjectModalProps> = ({
     isOpen,
     onClose,
-    onCreate,
-    knownAttributes = { keys: [], values: [] }
+    onCreate
 }) => {
     const [availableTypes, setAvailableTypes] = useState<string[]>(["Laptop", "Desktop", "Industrial", "Mobile", "Other"]);
     const [boardType, setBoardType] = useState<string>("Laptop");
@@ -36,12 +33,9 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
     const [imagePreviewB, setImagePreviewB] = useState<string | null>(null);
     const [customBoardType, setCustomBoardType] = useState<string>('');
     const [fetchedAttributes, setFetchedAttributes] = useState<{ keys: string[], values: string[] }>({ keys: [], values: [] });
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const fileInputRefB = useRef<HTMLInputElement>(null);
     const { t } = useTranslation();
-
-    const { createProject, addBoardType, boardTypes } = useProject();
 
     useEffect(() => {
         if (isOpen && window.electronAPI) {
