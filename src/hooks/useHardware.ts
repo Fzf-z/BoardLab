@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
+import { Logger } from '../utils/logger';
 import { InstrumentConfig, MeasurementValue, Point, CaptureResult } from '../types';
+
+const log = Logger.Instruments;
 
 // Default configuration - moved outside component to avoid recreation
 const DEFAULT_INSTRUMENT_CONFIG: InstrumentConfig = {
@@ -43,15 +46,15 @@ export const useHardware = () => {
 
         if (instrumentConfig.monitor?.enabled) {
             window.electronAPI.startMonitor(instrumentConfig.multimeter.ip, instrumentConfig.multimeter.port)
-                .then(() => console.log('Multimeter Monitor Started'))
-                .catch(err => console.error('Failed to start monitor', err));
+                .then(() => log.info('Multimeter Monitor Started'))
+                .catch(err => log.error('Failed to start monitor', err));
         }
 
         // Cleanup function: Stops monitor when component unmounts or config changes
         return () => {
             if (instrumentConfig.monitor?.enabled && window.electronAPI) {
                 window.electronAPI.stopMonitor()
-                    .catch(err => console.error('Failed to stop monitor during cleanup', err));
+                    .catch(err => log.error('Failed to stop monitor during cleanup', err));
             }
         };
     }, [isElectron, instrumentConfig.monitor?.enabled, instrumentConfig.multimeter.ip, instrumentConfig.multimeter.port]);
@@ -92,7 +95,7 @@ export const useHardware = () => {
                 setInstrumentConfig(newConfig);
             }
         }).catch(err => {
-            console.error('Failed to load instrument config:', err);
+            log.error('Failed to load instrument config', err);
         });
     }, [isElectron]);
 

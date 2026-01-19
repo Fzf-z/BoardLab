@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit, CheckCircle2, LayoutList } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
+import { Logger } from '../utils/logger';
 import { InstrumentConfig, MeasurementValue, Point, ComparisonPoint, MeasurementHistoryItem, OscilloscopeData, MeasurementType } from '../types';
 import Waveform from './Waveform';
 import PointsTable from './PointsTable';
 import { safeJsonParse } from '../utils/safeJson';
 import { safePointAPI } from '../utils/safeElectronAPI';
+
+const log = Logger.Measurements;
 
 interface AIPanelProps {
     askAboutPoint: (point: Point) => void;
@@ -92,11 +95,11 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
             if (actionKey && window.electronAPI?.instrumentExecute) {
                 try {
-                    console.log(`Auto-configuring multimeter: ${actionKey}`);
+                    log.debug(`Auto-configuring multimeter: ${actionKey}`);
                     await window.electronAPI.instrumentExecute('multimeter', actionKey);
                 } catch (err) {
                     // It's possible the instrument doesn't have this command mapped, just warn
-                    console.warn("Failed to auto-configure multimeter:", err);
+                    log.warn('Failed to auto-configure multimeter', err);
                 }
             }
         }
@@ -104,7 +107,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
 
     const handleCapture = async () => {
         if (!selectedPoint || !selectedPoint.id) {
-            console.warn("Attempted to capture measurement with no point selected.");
+            log.warn('Attempted to capture measurement with no point selected');
             return;
         }
 

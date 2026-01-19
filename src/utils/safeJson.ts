@@ -2,6 +2,10 @@
  * Safe JSON parsing utilities to prevent runtime crashes from malformed data
  */
 
+import { createLogger } from './logger';
+
+const log = createLogger('JSON');
+
 /**
  * Safely parse JSON with a fallback value
  * @param jsonString - The JSON string to parse
@@ -13,7 +17,7 @@ export function safeJsonParse<T>(jsonString: string | null | undefined, fallback
     try {
         return JSON.parse(jsonString) as T;
     } catch (error) {
-        console.warn('Failed to parse JSON:', error);
+        log.warn('Failed to parse JSON', error);
         return fallback;
     }
 }
@@ -27,7 +31,7 @@ export function safeJsonStringify(obj: unknown): string {
     try {
         return JSON.stringify(obj);
     } catch (error) {
-        console.warn('Failed to stringify object:', error);
+        log.warn('Failed to stringify object', error);
         return '';
     }
 }
@@ -42,7 +46,7 @@ export function safeDeepClone<T>(obj: T, fallback: T): T {
     try {
         return JSON.parse(JSON.stringify(obj)) as T;
     } catch (error) {
-        console.warn('Failed to deep clone object:', error);
+        log.warn('Failed to deep clone object', error);
         return fallback;
     }
 }

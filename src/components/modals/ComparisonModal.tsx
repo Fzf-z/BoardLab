@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Project, Point, ComparisonPoint } from '../../types';
 import { Search, Folder, Zap, Activity, Filter, CheckCircle2 } from 'lucide-react';
 import { useProject } from '../../contexts/ProjectContext';
+import { Logger } from '../../utils/logger';
+
+const log = Logger.Project;
 
 interface ComparisonModalProps {
     isOpen: boolean;
@@ -72,7 +75,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
             if (pointFilterQuery.trim().length > 0 && window.electronAPI) {
                 window.electronAPI.searchProjectsByPoint(pointFilterQuery)
                     .then(ids => setMatchingProjectIds(ids))
-                    .catch(err => console.error("Search points failed", err));
+                    .catch(err => log.error('Search points failed', err));
             } else {
                 setMatchingProjectIds(null);
             }
@@ -89,7 +92,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({ isOpen, onClose, curr
                     setIsLoading(false);
                 })
                 .catch(err => {
-                    console.error("Error fetching points:", err);
+                    log.error('Error fetching points', err);
                     setIsLoading(false);
                 });
         }

@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect, useMemo, useCallback, ChangeEvent, MouseEvent, WheelEvent } from 'react';
+import { Logger } from '../utils/logger';
 import { Point } from '../types';
+
+const log = Logger.Board;
 
 interface Position {
     x: number;
@@ -260,7 +263,7 @@ export const useBoard = () => {
     const handleImageClick = (e: MouseEvent<HTMLDivElement>, mode: string, projectId: number | null) => {
         if (mode === 'measure' && !isDragging && e.button === 0) {
             if (!projectId) {
-                console.error("Cannot add point: No project is active.");
+                log.warn('Cannot add point: No project is active');
                 return;
             }
             const rect = e.currentTarget.getBoundingClientRect();

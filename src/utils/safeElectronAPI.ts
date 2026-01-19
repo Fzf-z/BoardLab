@@ -22,6 +22,7 @@ import {
     AttributesResponseSchema,
     BoardTypesSchema,
 } from './ipcValidation';
+import { Logger } from './logger';
 import type {
     Project,
     Point,
@@ -32,6 +33,8 @@ import type {
     CaptureResult,
     PersistedConfig
 } from '../types';
+
+const log = Logger.SafeAPI;
 
 // Type for status response
 interface StatusResponse {
@@ -61,7 +64,7 @@ export const safeProjectAPI = {
             const result = await window.electronAPI.createProject(data);
             return validateIpcResponse(result, ProjectSchema, 'createProject');
         } catch (error) {
-            console.error('[SafeAPI] createProject error:', error);
+            log.error('createProject failed', error);
             return null;
         }
     },
@@ -72,7 +75,7 @@ export const safeProjectAPI = {
             const result = await window.electronAPI.getProjects();
             return validateIpcWithFallback(result, ProjectListSchema, [], 'getProjects');
         } catch (error) {
-            console.error('[SafeAPI] getProjects error:', error);
+            log.error('getProjects failed', error);
             return [];
         }
     },
@@ -83,7 +86,7 @@ export const safeProjectAPI = {
             const result = await window.electronAPI.getProjectWithImage(id);
             return validateIpcResponse(result, ProjectSchema, 'getProjectWithImage');
         } catch (error) {
-            console.error('[SafeAPI] getProjectWithImage error:', error);
+            log.error('getProjectWithImage failed', error);
             return null;
         }
     },
@@ -94,7 +97,7 @@ export const safeProjectAPI = {
             const result = await window.electronAPI.deleteProject(id);
             return validateIpcResponse(result, StatusResponseSchema, 'deleteProject');
         } catch (error) {
-            console.error('[SafeAPI] deleteProject error:', error);
+            log.error('deleteProject failed', error);
             return null;
         }
     },
@@ -105,7 +108,7 @@ export const safeProjectAPI = {
             const result = await window.electronAPI.updateProject(data);
             return validateIpcResponse(result, StatusResponseSchema, 'updateProject');
         } catch (error) {
-            console.error('[SafeAPI] updateProject error:', error);
+            log.error('updateProject failed', error);
             return null;
         }
     },
@@ -118,10 +121,10 @@ export const safeProjectAPI = {
             if (Array.isArray(result) && result.every(id => typeof id === 'number')) {
                 return result;
             }
-            console.warn('[SafeAPI] searchProjectsByPoint returned invalid data');
+            log.warn('searchProjectsByPoint returned invalid data', result);
             return [];
         } catch (error) {
-            console.error('[SafeAPI] searchProjectsByPoint error:', error);
+            log.error('searchProjectsByPoint failed', error);
             return [];
         }
     },
@@ -137,7 +140,7 @@ export const safePointAPI = {
             const result = await window.electronAPI.getPoints(projectId);
             return validateIpcWithFallback(result, PointListSchema, [], 'getPoints') as Point[];
         } catch (error) {
-            console.error('[SafeAPI] getPoints error:', error);
+            log.error('getPoints failed', error);
             return [];
         }
     },
@@ -148,7 +151,7 @@ export const safePointAPI = {
             const result = await window.electronAPI.savePoints({ projectId, points });
             return validateIpcWithFallback(result, PointListSchema, [], 'savePoints') as Point[];
         } catch (error) {
-            console.error('[SafeAPI] savePoints error:', error);
+            log.error('savePoints failed', error);
             return [];
         }
     },
@@ -159,7 +162,7 @@ export const safePointAPI = {
             const result = await window.electronAPI.deletePoint(id);
             return validateIpcResponse(result, StatusResponseSchema, 'deletePoint');
         } catch (error) {
-            console.error('[SafeAPI] deletePoint error:', error);
+            log.error('deletePoint failed', error);
             return null;
         }
     },
@@ -174,7 +177,7 @@ export const safePointAPI = {
             }
             return null;
         } catch (error) {
-            console.error('[SafeAPI] createMeasurement error:', error);
+            log.error('createMeasurement failed', error);
             return null;
         }
     },
@@ -185,7 +188,7 @@ export const safePointAPI = {
             const result = await window.electronAPI.getMeasurementHistory(pointId);
             return validateIpcWithFallback(result, MeasurementHistorySchema, [], 'getMeasurementHistory') as MeasurementHistoryItem[];
         } catch (error) {
-            console.error('[SafeAPI] getMeasurementHistory error:', error);
+            log.error('getMeasurementHistory failed', error);
             return [];
         }
     },
@@ -197,17 +200,17 @@ export const safePointAPI = {
 export const safeInstrumentAPI = {
     async getAllInstruments(): Promise<Instrument[]> {
         if (!window.electronAPI?.getAllInstruments) {
-            console.warn('[SafeAPI] getAllInstruments: electronAPI not available');
+            log.warn('getAllInstruments: electronAPI not available');
             return [];
         }
         try {
             const result = await window.electronAPI.getAllInstruments();
-            console.log('[SafeAPI] getAllInstruments raw result:', result);
+            log.debug('getAllInstruments raw result', result);
             const validated = validateIpcWithFallback(result, InstrumentListSchema, [], 'getAllInstruments') as Instrument[];
-            console.log('[SafeAPI] getAllInstruments validated:', validated);
+            log.debug('getAllInstruments validated', validated);
             return validated;
         } catch (error) {
-            console.error('[SafeAPI] getAllInstruments error:', error);
+            log.error('getAllInstruments failed', error);
             return [];
         }
     },
@@ -218,7 +221,7 @@ export const safeInstrumentAPI = {
             const result = await window.electronAPI.saveInstrument(data);
             return validateIpcResponse(result, IdResponseSchema, 'saveInstrument');
         } catch (error) {
-            console.error('[SafeAPI] saveInstrument error:', error);
+            log.error('saveInstrument failed', error);
             return null;
         }
     },
@@ -229,7 +232,7 @@ export const safeInstrumentAPI = {
             const result = await window.electronAPI.deleteInstrument(id);
             return validateIpcResponse(result, StatusResponseSchema, 'deleteInstrument');
         } catch (error) {
-            console.error('[SafeAPI] deleteInstrument error:', error);
+            log.error('deleteInstrument failed', error);
             return null;
         }
     },
@@ -237,10 +240,11 @@ export const safeInstrumentAPI = {
     async instrumentExecute(type: 'multimeter' | 'oscilloscope', actionKey: string): Promise<CaptureResult | null> {
         if (!window.electronAPI?.instrumentExecute) return null;
         try {
+            log.info(`Executing instrument action: ${type}/${actionKey}`);
             const result = await window.electronAPI.instrumentExecute(type, actionKey);
             return validateIpcResponse(result, CaptureResultSchema, 'instrumentExecute');
         } catch (error) {
-            console.error('[SafeAPI] instrumentExecute error:', error);
+            log.error('instrumentExecute failed', error);
             return null;
         }
     },
@@ -248,10 +252,11 @@ export const safeInstrumentAPI = {
     async testConnection(config: Instrument): Promise<StatusResponse | null> {
         if (!window.electronAPI?.instrumentTestConnection) return null;
         try {
+            log.info(`Testing connection to ${config.name}`);
             const result = await window.electronAPI.instrumentTestConnection(config);
             return validateIpcResponse(result, StatusResponseSchema, 'instrumentTestConnection');
         } catch (error) {
-            console.error('[SafeAPI] instrumentTestConnection error:', error);
+            log.error('instrumentTestConnection failed', error);
             return null;
         }
     },
@@ -264,10 +269,11 @@ export const safeExportAPI = {
     async exportPdf(projectId: number): Promise<{ status: string; filePath?: string; message?: string } | null> {
         if (!window.electronAPI?.exportPdf) return null;
         try {
+            log.info(`Exporting PDF for project ${projectId}`);
             const result = await window.electronAPI.exportPdf(projectId);
             return validateIpcResponse(result, ExportResponseSchema, 'exportPdf');
         } catch (error) {
-            console.error('[SafeAPI] exportPdf error:', error);
+            log.error('exportPdf failed', error);
             return null;
         }
     },
@@ -275,10 +281,11 @@ export const safeExportAPI = {
     async exportImage(projectId: number): Promise<{ status: string; filePath?: string; message?: string } | null> {
         if (!window.electronAPI?.exportImage) return null;
         try {
+            log.info(`Exporting image for project ${projectId}`);
             const result = await window.electronAPI.exportImage(projectId);
             return validateIpcResponse(result, ExportResponseSchema, 'exportImage');
         } catch (error) {
-            console.error('[SafeAPI] exportImage error:', error);
+            log.error('exportImage failed', error);
             return null;
         }
     },
@@ -294,7 +301,7 @@ export const safeConfigAPI = {
             const result = await window.electronAPI.loadConfig();
             return validateIpcResponse(result, PersistedConfigSchema, 'loadConfig');
         } catch (error) {
-            console.error('[SafeAPI] loadConfig error:', error);
+            log.error('loadConfig failed', error);
             return null;
         }
     },
@@ -303,8 +310,9 @@ export const safeConfigAPI = {
         if (!window.electronAPI?.saveConfig) return;
         try {
             await window.electronAPI.saveConfig(config);
+            log.debug('Config saved successfully');
         } catch (error) {
-            console.error('[SafeAPI] saveConfig error:', error);
+            log.error('saveConfig failed', error);
         }
     },
 
@@ -314,7 +322,7 @@ export const safeConfigAPI = {
             const result = await window.electronAPI.loadApiKey();
             return typeof result === 'string' ? result : '';
         } catch (error) {
-            console.error('[SafeAPI] loadApiKey error:', error);
+            log.error('loadApiKey failed', error);
             return '';
         }
     },
@@ -323,8 +331,9 @@ export const safeConfigAPI = {
         if (!window.electronAPI?.saveApiKey) return;
         try {
             await window.electronAPI.saveApiKey(key);
+            log.debug('API key saved successfully');
         } catch (error) {
-            console.error('[SafeAPI] saveApiKey error:', error);
+            log.error('saveApiKey failed', error);
         }
     },
 
@@ -334,7 +343,7 @@ export const safeConfigAPI = {
             const result = await window.electronAPI.getAllAttributes(boardType);
             return validateIpcWithFallback(result, AttributesResponseSchema, { keys: [], values: [] }, 'getAllAttributes');
         } catch (error) {
-            console.error('[SafeAPI] getAllAttributes error:', error);
+            log.error('getAllAttributes failed', error);
             return { keys: [], values: [] };
         }
     },
@@ -345,7 +354,7 @@ export const safeConfigAPI = {
             const result = await window.electronAPI.getBoardTypes();
             return validateIpcWithFallback(result, BoardTypesSchema, [], 'getBoardTypes');
         } catch (error) {
-            console.error('[SafeAPI] getBoardTypes error:', error);
+            log.error('getBoardTypes failed', error);
             return [];
         }
     },
@@ -356,7 +365,7 @@ export const safeConfigAPI = {
             const result = await window.electronAPI.addBoardType(type);
             return typeof result === 'boolean' ? result : false;
         } catch (error) {
-            console.error('[SafeAPI] addBoardType error:', error);
+            log.error('addBoardType failed', error);
             return false;
         }
     },

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { X, Folder, Trash2, Search, Edit2, Save, ArrowLeft, Plus } from 'lucide-react';
+import { Logger } from '../../utils/logger';
 import { Project } from '../../types';
+
+const log = Logger.Project;
 
 interface ProjectManagerModalProps {
     isOpen: boolean;
@@ -107,7 +110,7 @@ const ProjectManagerModal: React.FC<ProjectManagerModalProps> = ({
                 .then((attrs: { keys: string[], values: string[] }) => {
                     setFetchedAttributes(attrs || { keys: [], values: [] });
                 })
-                .catch(console.error);
+                .catch(err => log.error('Failed to fetch attributes', err));
         }
     };
 

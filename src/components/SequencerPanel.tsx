@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useProject, ExternalTriggerData } from '../contexts/ProjectContext';
 import { useHardware } from '../hooks/useHardware';
+import { Logger } from '../utils/logger';
 import { Play, SkipForward, SkipBack, Square, Timer, Zap, Radio } from 'lucide-react';
 import { Point, MeasurementType } from '../types';
+
+const log = Logger.Measurements;
 
 const SequencerPanel: React.FC = () => {
     const { sequence, stopSequence, nextInSequence, prevInSequence, points, addMeasurement } = useProject();
@@ -79,7 +82,7 @@ const SequencerPanel: React.FC = () => {
         if (!sequence.active || !currentPoint || !window.electronAPI) return;
 
         const cleanup = window.electronAPI.onExternalTrigger((data: ExternalTriggerData) => {
-            console.log('External trigger received:', data);
+            log.debug('External trigger received', data);
             captureAndAdvance(data.value?.toString());
         });
 

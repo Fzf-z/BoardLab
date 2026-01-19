@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect, ChangeEvent, FormEvent } from 'react';
 import { X, FilePlus, UploadCloud, Trash2, PlusCircle } from 'lucide-react';
+import { Logger } from '../../utils/logger';
 import { CreateProjectData } from '../../types';
+
+const log = Logger.Project;
 
 interface NewProjectModalProps {
     isOpen: boolean;
@@ -50,7 +53,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
             const typeToFetch = boardType === 'Other' ? undefined : boardType;
             window.electronAPI.getAllAttributes(typeToFetch).then((attrs: { keys: string[], values: string[] }) => {
                 setFetchedAttributes(attrs || { keys: [], values: [] });
-            }).catch(console.error);
+            }).catch(err => log.error('Failed to fetch attributes', err));
         }
     }, [isOpen, boardType]);
 
@@ -137,7 +140,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                 image_data_b: imageDataBUint8Array, // Side B
             };
             
-            console.log("Creating project with Side B:", !!imageDataBUint8Array);
+            log.debug('Creating project', { hasSideB: !!imageDataBUint8Array });
             
             onCreate(projectData);
             
@@ -148,7 +151,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
             setImageFile(null);
             setImagePreview(null);
         } catch (error) {
-            console.error("Error processing image:", error);
+            log.error('Error processing image', error);
             alert("Error processing image file.");
         }
     };

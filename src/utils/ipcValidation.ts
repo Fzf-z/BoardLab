@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { Logger } from './logger';
+
+const log = Logger.IPC;
 
 // ============================================
 // Base Schemas
@@ -197,7 +200,7 @@ export function validateIpcResponse<T>(
     const result = schema.safeParse(data);
 
     if (!result.success) {
-        console.error(`[IPC Validation] ${context} failed:`, result.error.format());
+        log.error(`Validation failed for ${context}`, result.error.format());
         return null;
     }
 
@@ -231,7 +234,7 @@ export function createSafeIpcCaller<TArgs extends unknown[], TResult>(
             const result = await fn(...args);
             return validateIpcResponse(result, schema, context);
         } catch (error) {
-            console.error(`[IPC Error] ${context}:`, error);
+            log.error(`IPC call failed for ${context}`, error);
             return null;
         }
     };

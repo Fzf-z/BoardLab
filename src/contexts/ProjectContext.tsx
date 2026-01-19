@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useBoard } from '../hooks/useBoard';
 import { useNotifier } from './NotifierContext';
+import { Logger } from '../utils/logger';
 import { Project, Point, MeasurementValue, AppSettings, Instrument, CreateProjectData, CaptureResult, PersistedConfig, MeasurementHistoryItem, ComparisonPoint } from '../types';
+
+const log = Logger.Project;
 
 // Extend global window interface for Electron API
 // External trigger data from hardware
@@ -217,7 +220,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         if (!projectData || !window.electronAPI) return;
         try {
             const newProject = await window.electronAPI.createProject(projectData);
-            console.log("Created Project:", newProject);
+            log.info('Project created', { id: newProject.id, model: newProject.board_model });
             setCurrentProject(newProject);
 
             // Convert image buffer to Blob - image_data is Uint8Array | number[]
@@ -229,14 +232,14 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
             let imageUrlB = null;
             if (newProject.image_data_b) {
-                console.log("Processing Image B...");
+                log.debug('Processing Image B');
                 const imageBufferB = newProject.image_data_b instanceof Uint8Array
                     ? newProject.image_data_b
                     : new Uint8Array(newProject.image_data_b);
                 const blobB = new Blob([imageBufferB], { type: 'image/png' });
                 imageUrlB = URL.createObjectURL(blobB);
             } else {
-                console.log("No Image B found in new project.");
+                log.debug('No Image B found in new project');
             }
 
             board.setImage(imageUrl, imageUrlB);
@@ -244,7 +247,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
             showNotification(`Project '${projectData.board_model}' created!`, 'success');
         } catch (error) {
-            console.error("Error creating project:", error);
+            log.error('Error creating project', error);
             showNotification("Failed to create project.", 'error');
         }
     };
@@ -270,7 +273,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             showNotification('Project saved successfully!', 'success');
             return savedPoints;
         } catch (error) {
-            console.error("Error saving project:", error);
+            log.error('Error saving project', error);
             showNotification("Failed to save project.", 'error');
         }
     };
@@ -282,7 +285,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             setProjectList(projects || []);
             return projects;
         } catch (error) {
-            console.error("Error fetching projects:", error);
+            log.error('Error fetching projects', error);
             showNotification("Failed to fetch projects.", 'error');
         }
     };
@@ -319,7 +322,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             board.setPoints(points);
             showNotification(`Project '${fullProject.board_model}' loaded!`, 'success');
         } catch (error) {
-            console.error("Error loading project:", error);
+            log.error('Error loading project', error);
             showNotification("Failed to load project.", 'error');
         }
     };
@@ -339,7 +342,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
                 showNotification(`Failed to delete project: ${result?.message}`, 'error');
             }
         } catch (error) {
-            console.error('Error deleting project:', error);
+            log.error('Error deleting project', error);
             showNotification('Error deleting project.', 'error');
         }
     };
@@ -360,7 +363,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
                 showNotification(`Failed to update project: ${result?.message}`, 'error');
             }
         } catch (error) {
-            console.error('Error updating project:', error);
+            log.error('Error updating project', error);
             showNotification('Error updating project.', 'error');
         }
     };
@@ -388,7 +391,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
                 showNotification(`Failed to delete point: ${result.message}`, 'error');
             }
         } catch (error) {
-            console.error('Error deleting point:', error);
+            log.error('Error deleting point', error);
             showNotification('An error occurred while deleting the point.', 'error');
         }
     };
@@ -451,7 +454,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
                 return null;
             }
         } catch (error) {
-            console.error('Error adding measurement:', error);
+            log.error('Error adding measurement', error);
             showNotification('Error saving measurement.', 'error');
             return null;
         }
