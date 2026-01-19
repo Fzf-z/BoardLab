@@ -22,14 +22,14 @@ function renderMiniWaveform(measurement: MeasurementValue): string {
     const width = 120;
     const height = 40;
     const waveform = measurement.waveform;
-    
+
     let min = Infinity, max = -Infinity;
     for (const v of waveform) {
         if (v < min) min = v;
         if (v > max) max = v;
     }
     const range = max - min || 1;
-    
+
     const pointsStr = waveform.map((val, i) => {
         const x = (i / (waveform.length - 1)) * width;
         const y = height - ((val - min) / range) * height;
@@ -50,53 +50,53 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
 
     const renderMiniTable = (pts: Point[], title: string, side: 'A' | 'B') => {
         if (pts.length === 0) return `<div class="table-container empty"><h3>${title}</h3><p>No Data</p></div>`;
-        
+
         const rows = pts.map((p, i) => {
-             const idx = i + 1;
-             const measurements = p.measurements ? Object.entries(p.measurements) : [];
-             const rowId = `row-${side}-${idx}`;
-             
-             if (measurements.length === 0) {
-                 return `<tr id="${rowId}" style="border-bottom: 1px solid var(--border-color);">
+            const idx = i + 1;
+            const measurements = p.measurements ? Object.entries(p.measurements) : [];
+            const rowId = `row-${side}-${idx}`;
+
+            if (measurements.length === 0) {
+                return `<tr id="${rowId}" style="border-bottom: 1px solid var(--border-color);">
                     <td style="font-weight:bold; padding: 4px 8px;">${idx}</td>
                     <td style="font-size:11px; padding: 4px 8px;">${p.label}</td>
-                    <td style="opacity:0.7; font-size:10px; padding: 4px 8px;">${p.type.substring(0,4)}</td>
+                    <td style="opacity:0.7; font-size:10px; padding: 4px 8px;">${p.type.substring(0, 4)}</td>
                     <td style="opacity:0.7; padding: 4px 8px;">-</td>
                  </tr>`;
-             }
+            }
 
-             return measurements.map((entry, index) => {
-                 const [type, m] = entry;
-                 let displayVal = '-';
-                 
-                 if (m.type === 'oscilloscope') {
-                     const vpp = m.vpp ? `${Number(m.vpp).toFixed(2)}Vpp` : '';
-                     const freq = m.freq ? `${Number(m.freq).toFixed(2)}Hz` : '';
-                     const txt = [vpp, freq].filter(Boolean).join(' ') || 'Waveform';
-                     displayVal = `<div>${txt}${renderMiniWaveform(m)}</div>`;
-                 } else if (m.value) {
-                     if (typeof m.value === 'object') {
-                         displayVal = 'Data';
-                     } else {
-                         displayVal = String(m.value);
-                     }
-                 }
+            return measurements.map((entry, index) => {
+                const [type, m] = entry;
+                let displayVal = '-';
 
-                 const isLast = index === measurements.length - 1;
-                 const rowStyle = isLast ? 'border-bottom: 1px solid var(--border-color);' : 'border-bottom: 1px dotted var(--border-color);';
-                 
-                 let labelCell = '';
-                 if (index === 0) {
-                     labelCell = `<td rowspan="${measurements.length}" style="font-weight:bold; color:var(--accent-color); vertical-align:middle; padding: 4px 8px; border-right: 1px solid var(--border-color);">${idx}</td>
+                if (m.type === 'oscilloscope') {
+                    const vpp = m.vpp ? `${Number(m.vpp).toFixed(2)}Vpp` : '';
+                    const freq = m.freq ? `${Number(m.freq).toFixed(2)}Hz` : '';
+                    const txt = [vpp, freq].filter(Boolean).join(' ') || 'Waveform';
+                    displayVal = `<div>${txt}${renderMiniWaveform(m)}</div>`;
+                } else if (m.value) {
+                    if (typeof m.value === 'object') {
+                        displayVal = 'Data';
+                    } else {
+                        displayVal = String(m.value);
+                    }
+                }
+
+                const isLast = index === measurements.length - 1;
+                const rowStyle = isLast ? 'border-bottom: 1px solid var(--border-color);' : 'border-bottom: 1px dotted var(--border-color);';
+
+                let labelCell = '';
+                if (index === 0) {
+                    labelCell = `<td rowspan="${measurements.length}" style="font-weight:bold; color:var(--accent-color); vertical-align:middle; padding: 4px 8px; border-right: 1px solid var(--border-color);">${idx}</td>
                                   <td rowspan="${measurements.length}" style="font-size:11px; vertical-align:middle; padding: 4px 8px;">${p.label}</td>`;
-                 }
+                }
 
-                 return `<tr id="${index === 0 ? rowId : ''}" style="${rowStyle}">
+                return `<tr id="${index === 0 ? rowId : ''}" style="${rowStyle}">
                     ${labelCell}
-                    <td style="font-size:10px; opacity:0.8; text-transform:uppercase; padding: 4px 8px;">${type.substring(0,4)}</td>
+                    <td style="font-size:10px; opacity:0.8; text-transform:uppercase; padding: 4px 8px;">${type.substring(0, 4)}</td>
                     <td style="font-family:monospace; font-weight:bold; font-size:11px; padding: 4px 8px;">${displayVal}</td>
                  </tr>`;
-             }).join('');
+            }).join('');
         }).join('');
 
         return `
@@ -116,13 +116,13 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
         const gap = 98;
         const offset = (side === 'B' && dims?.widthA) ? (dims.widthA + gap) : 0;
 
-        const overlays = pts.map((p, i) => {
+        const overlays = pts.map((p) => {
             let left = 0, top = 0;
             // const idx = i + 1;
             if (width && height && width > 0 && height > 0) {
-                 const adjustedX = p.x - offset;
-                 left = (adjustedX / width) * 100;
-                 top = (p.y / height) * 100;
+                const adjustedX = p.x - offset;
+                left = (adjustedX / width) * 100;
+                top = (p.y / height) * 100;
             }
             // data-x-pct and data-y-pct used by physics engine
             return `
@@ -251,13 +251,14 @@ export function generateImageExportHtml(project: Project, points: Point[], dims?
                 const body = document.body;
                 const html = document.documentElement;
                 
-                // Calculate full scroll size
-                const width = Math.max(body.scrollWidth, body.offsetWidth, html.clientWidth, html.scrollWidth, html.offsetWidth);
-                const height = Math.max(body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight);
+                // Calculate full scroll size based on body content
+                // We use body.scrollWidth because body is set to inline-block/min-content
+                const width = body.offsetWidth;
+                const height = body.offsetHeight;
                 
-                // Add buffer
-                const w = Math.ceil(width) + 50;
-                const h = Math.ceil(height) + 50;
+                // Add small buffer for safety
+                const w = Math.ceil(width) + 2;
+                const h = Math.ceil(height) + 2;
                 
                 // Inject @page rule
                 // CSS size units: px is usually 1/96th of an inch.
