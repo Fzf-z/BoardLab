@@ -147,14 +147,20 @@ Go to **Settings** (Gear Icon) to configure your instruments:
 
 | Key | Action |
 | :--- | :--- |
-| **V** | Switch to **View Mode** |
+| **Space** | Switch to **View Mode** (Pan) |
 | **M** | Switch to **Measure Mode** |
 | **Enter** | **Capture Measurement** (on selected point) |
 | **Del** | Delete selected point |
 | **Esc** | Deselect point / Close Modal |
+| **Arrow Up/Down** | Navigate through points list |
 | **Ctrl + S** | Save Project |
 | **Ctrl + Z** | Undo last action |
 | **Ctrl + Y** | Redo action |
+| **V** | Set Point Type: **Voltage** |
+| **R** | Set Point Type: **Resistance** |
+| **D** | Set Point Type: **Diode** |
+| **G** | Set Point Type: **Ground** |
+| **O** | Set Point Type: **Oscilloscope** |
 
 ## ❓ Troubleshooting
 
