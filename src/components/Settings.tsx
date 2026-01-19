@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNotifier } from '../contexts/NotifierContext';
 import { useProject } from '../contexts/ProjectContext';
 import { InstrumentConfig, AppSettings, PointCategory } from '../types';
-import { Plus, Trash2, Edit2, Check, X, Github, Keyboard } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Github, Keyboard, Cog, Usb, Cpu, Languages } from 'lucide-react';
 import InstrumentManager from './InstrumentManager';
 import { safeDeepClone } from '../utils/safeJson';
+import { useTranslation } from 'react-i18next';
 
 const PRESET_COLORS = [
-    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e',
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c5e',
     '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#ffffff'
 ];
 
@@ -24,6 +25,7 @@ const Settings: React.FC<SettingsProps> = ({
     instruments, apiKey, setApiKey, appSettings, onSave, onClose
 }) => {
     const { boardTypes, addBoardType } = useProject();
+    const { t, i18n } = useTranslation();
 
     const [localInstruments] = useState<InstrumentConfig>(() => {
         const inst = safeDeepClone(instruments, {
@@ -44,7 +46,7 @@ const Settings: React.FC<SettingsProps> = ({
         if (!settings.categories) settings.categories = [];
         return settings;
     });
-    const [activeTab, setActiveTab] = useState<'app' | 'categories' | 'instruments' | 'about'>('app');
+    const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'instruments' | 'ai' | 'about'>('general');
     const { showNotification } = useNotifier();
 
     // Category State
@@ -55,6 +57,9 @@ const Settings: React.FC<SettingsProps> = ({
     // Board Type State
     const [isAddingBoardType, setIsAddingBoardType] = useState(false);
     const [newBoardTypeName, setNewBoardTypeName] = useState('');
+
+    // AI API Key State (temporary for editing)
+    const [tempApiKey, setTempApiKey] = useState(apiKey);
 
     // Set initial selected board type if available
     useEffect(() => {
@@ -100,7 +105,7 @@ const Settings: React.FC<SettingsProps> = ({
         const categories = localAppSettings.categories || [];
 
         if (categories.some(c => c.id === id)) {
-            showNotification('Category already exists', 'error');
+            showNotification(t('settings.category_exists'), 'error');
             return;
         }
 
@@ -132,13 +137,8 @@ const Settings: React.FC<SettingsProps> = ({
         setSelectedBoardType(newBoardTypeName);
         setNewBoardTypeName('');
         setIsAddingBoardType(false);
-        showNotification(`Board Type '${newBoardTypeName}' added.`, 'success');
+        showNotification(t('settings.board_type_added', { name: newBoardTypeName }), 'success');
     };
-
-
-
-
-
 
     // Filter categories for the active board type
     const filteredCategories = (localAppSettings.categories || []).filter(c =>
@@ -152,56 +152,74 @@ const Settings: React.FC<SettingsProps> = ({
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-900">
                     <h2 className="text-xl font-bold text-white flex items-center">
-                        Settings
+                        <Cog className="mr-2" size={24} />
+                        {t('settings.title')}
                     </h2>
                     <div className="flex space-x-2">
                         <button
-                            onClick={() => setActiveTab('app')}
-                            className={`px-3 py-1 rounded text-sm ${activeTab === 'app' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                            className={`px-3 py-1 rounded text-sm ${activeTab === 'general' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                            onClick={() => setActiveTab('general')}
                         >
-                            Application
+                            {t('settings.general')}
                         </button>
                         <button
                             onClick={() => setActiveTab('categories')}
                             className={`px-3 py-1 rounded text-sm ${activeTab === 'categories' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
                         >
-                            Categories
+                            {t('settings.categories')}
                         </button>
                         <button
-                            onClick={() => setActiveTab('instruments')}
                             className={`px-3 py-1 rounded text-sm ${activeTab === 'instruments' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                            onClick={() => setActiveTab('instruments')}
                         >
-                            Instruments
+                            {t('settings.instruments')}
                         </button>
                         <button
-                            onClick={() => setActiveTab('about')}
-                            className={`px-3 py-1 rounded text-sm ${activeTab === 'about' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                            className={`px-3 py-1 rounded text-sm ${activeTab === 'ai' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                            onClick={() => setActiveTab('ai')}
                         >
-                            About
+                            {t('settings.ai_config')}
+                        </button>
+                        <button
+                            className={`px-3 py-1 rounded text-sm ${activeTab === 'about' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+                            onClick={() => setActiveTab('about')}
+                        >
+                            {t('settings.about')}
                         </button>
                     </div>
                 </div>
 
                 {/* Content */}
                 <div className="p-6 overflow-y-auto flex-1">
-                    {activeTab === 'app' && (
+                    {/* --- General Tab --- */}
+                    {activeTab === 'general' && (
                         <div className="space-y-6 animate-in fade-in">
-                            <div>
-                                <h3 className="text-lg font-semibold text-white mb-2">Gemini AI Configuration</h3>
-                                <label className="block text-sm font-medium text-gray-400">API Key</label>
-                                <input
-                                    type="password"
-                                    value={apiKey}
-                                    onChange={(e) => setApiKey(e.target.value)}
-                                    className="mt-1 block w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-white"
-                                    placeholder="Enter your Google Gemini API Key"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Required for diagnosis and component analysis features.</p>
+                            {/* Language Selection */}
+                            <div className="bg-gray-700/30 p-4 rounded-lg border border-gray-700">
+                                <h3 className="text-md font-bold mb-4 flex items-center text-blue-300">
+                                    <Languages size={18} className="mr-2" />
+                                    {t('settings.language')}
+                                </h3>
+                                <div className="flex items-center space-x-4">
+                                    <label className="text-sm text-gray-300">{t('settings.select_language')}</label>
+                                    <select
+                                        value={i18n.language}
+                                        onChange={(e) => i18n.changeLanguage(e.target.value)}
+                                        className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm"
+                                    >
+                                        <option value="en">English</option>
+                                        <option value="es">Español</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div className="pt-4 border-t border-gray-700">
-                                <h3 className="text-lg font-semibold text-white mb-2">General</h3>
-                                <div className="flex items-center">
+                            <div className="bg-gray-700/30 p-4 rounded-lg border border-gray-700">
+                                <h3 className="text-md font-bold mb-4 flex items-center text-blue-300">
+                                    <Cpu size={18} className="mr-2" />
+                                    {t('settings.app_settings')}
+                                </h3>
+
+                                <div className="flex items-center mb-4">
                                     <input
                                         type="checkbox"
                                         id="autosave"
@@ -209,11 +227,11 @@ const Settings: React.FC<SettingsProps> = ({
                                         onChange={(e) => setLocalAppSettings(prev => ({ ...prev, autoSave: e.target.checked }))}
                                         className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
                                     />
-                                    <label htmlFor="autosave" className="ml-2 text-sm text-gray-300">Auto-save project on changes</label>
+                                    <label htmlFor="autosave" className="ml-2 text-sm text-gray-300">{t('settings.auto_save')}</label>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 mt-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-400">Point Size (px)</label>
+                                        <label className="block text-sm font-medium text-gray-400">{t('settings.point_size')}</label>
                                         <input
                                             type="number"
                                             value={localAppSettings.pointSize || 24}
@@ -222,7 +240,7 @@ const Settings: React.FC<SettingsProps> = ({
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-400">Default Point Color</label>
+                                        <label className="block text-sm font-medium text-gray-400">{t('settings.default_point_color')}</label>
                                         <div className="flex items-center mt-1 space-x-2">
                                             <input
                                                 type="color"
@@ -240,11 +258,11 @@ const Settings: React.FC<SettingsProps> = ({
 
                     {activeTab === 'categories' && (
                         <div className="animate-in fade-in space-y-4">
-                            <h3 className="text-xl font-semibold mb-4 text-blue-400 border-b border-gray-700 pb-2">Point Categories</h3>
+                            <h3 className="text-xl font-semibold mb-4 text-blue-400 border-b border-gray-700 pb-2">{t('settings.point_categories')}</h3>
 
                             {/* Board Type Selector */}
                             <div className="flex items-center space-x-3 mb-6 bg-gray-700/30 p-3 rounded border border-gray-600">
-                                <label className="text-sm font-medium text-gray-300">Board Type:</label>
+                                <label className="text-sm font-medium text-gray-300">{t('settings.board_type')}:</label>
                                 {isAddingBoardType ? (
                                     <div className="flex items-center space-x-2 flex-1">
                                         <input
@@ -252,20 +270,20 @@ const Settings: React.FC<SettingsProps> = ({
                                             value={newBoardTypeName}
                                             onChange={(e) => setNewBoardTypeName(e.target.value)}
                                             className="bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-white text-sm flex-1"
-                                            placeholder="Enter new board type name"
+                                            placeholder={t('settings.enter_board_type_name')}
                                             autoFocus
                                         />
                                         <button
                                             onClick={handleAddBoardType}
                                             className="px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-500"
                                         >
-                                            Save
+                                            {t('common.save')}
                                         </button>
                                         <button
                                             onClick={() => setIsAddingBoardType(false)}
                                             className="px-3 py-1.5 bg-gray-600 text-white rounded text-sm hover:bg-gray-500"
                                         >
-                                            Cancel
+                                            {t('common.cancel')}
                                         </button>
                                     </div>
                                 ) : (
@@ -278,13 +296,13 @@ const Settings: React.FC<SettingsProps> = ({
                                             {boardTypes.map(type => (
                                                 <option key={type} value={type}>{type}</option>
                                             ))}
-                                            <option value="General">General (Global)</option>
+                                            <option value="General">{t('settings.general_global')}</option>
                                         </select>
                                         <button
                                             onClick={() => setIsAddingBoardType(true)}
                                             className="px-3 py-1.5 bg-blue-600/50 text-blue-100 rounded text-sm hover:bg-blue-600 flex items-center"
                                         >
-                                            <Plus size={14} className="mr-1" /> New Type
+                                            <Plus size={14} className="mr-1" /> {t('settings.new_type')}
                                         </button>
                                     </div>
                                 )}
@@ -292,17 +310,17 @@ const Settings: React.FC<SettingsProps> = ({
 
                             <div className="flex space-x-2 mb-6 p-4 bg-gray-900/50 rounded-lg border border-gray-700 items-start">
                                 <div className="flex-1">
-                                    <label className="block text-xs text-gray-400 mb-1">New Category Name ({selectedBoardType})</label>
+                                    <label className="block text-xs text-gray-400 mb-1">{t('settings.new_category_name', { boardType: selectedBoardType })}</label>
                                     <input
                                         type="text"
                                         value={newCatName}
                                         onChange={(e) => setNewCatName(e.target.value)}
                                         className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-1.5 text-white text-sm"
-                                        placeholder={`e.g. 3.3V Rail`}
+                                        placeholder={t('settings.category_name_placeholder')}
                                     />
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="block text-xs text-gray-400 mb-1">Color</label>
+                                    <label className="block text-xs text-gray-400 mb-1">{t('settings.color')}</label>
                                     <div className="flex items-center space-x-2">
                                         <input
                                             type="color"
@@ -325,14 +343,14 @@ const Settings: React.FC<SettingsProps> = ({
                                 </div>
                                 <div className="flex items-end h-[60px]">
                                     <button onClick={handleAddCategory} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-500 flex items-center h-9">
-                                        <Plus size={16} className="mr-1" /> Add
+                                        <Plus size={16} className="mr-1" /> {t('settings.add')}
                                     </button>
                                 </div>
                             </div>
 
                             <div className="space-y-2">
                                 {filteredCategories.length === 0 && (
-                                    <div className="text-center text-gray-500 py-4 italic">No categories defined for {selectedBoardType}.</div>
+                                    <div className="text-center text-gray-500 py-4 italic">{t('settings.no_categories_defined', { boardType: selectedBoardType })}</div>
                                 )}
                                 {filteredCategories.map(cat => (
                                     <div key={cat.id} className="flex items-center justify-between bg-gray-700/50 p-3 rounded border border-gray-700">
@@ -344,7 +362,7 @@ const Settings: React.FC<SettingsProps> = ({
                                                     onChange={(e) => setEditCatName(e.target.value)}
                                                     className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"
                                                     autoFocus
-                                                    placeholder="Category Name"
+                                                    placeholder={t('settings.category_name')}
                                                 />
                                                 <div className="flex items-center space-x-2">
                                                     <input
@@ -376,19 +394,19 @@ const Settings: React.FC<SettingsProps> = ({
                                         <div className="flex items-center space-x-1">
                                             {editingCategoryId === cat.id ? (
                                                 <>
-                                                    <button onClick={handleSaveEdit} className="p-2 text-green-400 hover:bg-green-900/30 rounded" title="Save">
+                                                    <button onClick={handleSaveEdit} className="p-2 text-green-400 hover:bg-green-900/30 rounded" title={t('common.save')}>
                                                         <Check size={16} />
                                                     </button>
-                                                    <button onClick={handleCancelEdit} className="p-2 text-gray-400 hover:bg-gray-600 rounded" title="Cancel">
+                                                    <button onClick={handleCancelEdit} className="p-2 text-gray-400 hover:bg-gray-600 rounded" title={t('common.cancel')}>
                                                         <X size={16} />
                                                     </button>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <button onClick={() => handleStartEdit(cat)} className="p-2 text-blue-400 hover:bg-blue-900/30 rounded" title="Edit">
+                                                    <button onClick={() => handleStartEdit(cat)} className="p-2 text-blue-400 hover:bg-blue-900/30 rounded" title={t('common.edit')}>
                                                         <Edit2 size={16} />
                                                     </button>
-                                                    <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 text-red-400 hover:bg-red-900/30 rounded" title="Delete">
+                                                    <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 text-red-400 hover:bg-red-900/30 rounded" title={t('common.delete')}>
                                                         <Trash2 size={16} />
                                                     </button>
                                                 </>
@@ -403,6 +421,35 @@ const Settings: React.FC<SettingsProps> = ({
                     {activeTab === 'instruments' && (
                         <div className="animate-in fade-in">
                             <InstrumentManager />
+                        </div>
+                    )}
+
+                    {/* --- AI Tab --- */}
+                    {activeTab === 'ai' && (
+                        <div className="bg-gray-700/30 p-4 rounded-lg border border-gray-700 space-y-4 animate-in fade-in">
+                            <h3 className="text-md font-bold text-green-300">{t('settings.ai_config')}</h3>
+
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">{t('settings.ai_api_key')}</label>
+                                <input
+                                    type="password"
+                                    value={tempApiKey}
+                                    onChange={(e) => setTempApiKey(e.target.value)}
+                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white font-mono"
+                                    placeholder={t('settings.ai_api_key_placeholder')}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">{t('settings.ai_api_key_description')}</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">{t('settings.ai_model')}</label>
+                                <input
+                                    type="text"
+                                    value="Gemini 2.5 Flash"
+                                    disabled
+                                    className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-gray-500 font-mono"
+                                />
+                            </div>
                         </div>
                     )}
 

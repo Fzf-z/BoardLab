@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect, ChangeEvent, FormEvent } from 'react';
-import { X, FilePlus, UploadCloud, Trash2, PlusCircle } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { UploadCloud, X, PlusCircle, Trash2, FilePlus, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Logger } from '../../utils/logger';
 import { CreateProjectData } from '../../types';
+import { useProject } from '../../contexts/ProjectContext';
 
 const log = Logger.Project;
 
@@ -26,7 +28,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
     const [availableTypes, setAvailableTypes] = useState<string[]>(["Laptop", "Desktop", "Industrial", "Mobile", "Other"]);
     const [boardType, setBoardType] = useState<string>("Laptop");
     const [boardModel, setBoardModel] = useState<string>('');
-    const [notes, setNotes] = useState<string>('');
+    const [notes, setNotes] = useState('');
     const [dynamicAttributes, setDynamicAttributes] = useState<DynamicAttribute[]>([{ key: '', value: '' }]);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -34,8 +36,12 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
     const [imagePreviewB, setImagePreviewB] = useState<string | null>(null);
     const [customBoardType, setCustomBoardType] = useState<string>('');
     const [fetchedAttributes, setFetchedAttributes] = useState<{ keys: string[], values: string[] }>({ keys: [], values: [] });
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const fileInputRefB = useRef<HTMLInputElement>(null);
+    const { t } = useTranslation();
+
+    const { createProject, addBoardType, boardTypes } = useProject();
 
     useEffect(() => {
         if (isOpen && window.electronAPI) {
@@ -166,7 +172,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                         <div className="bg-blue-600 p-2 rounded-lg">
                             <FilePlus className="text-white" size={24} />
                         </div>
-                        <h2 className="text-2xl font-bold text-white">New Project</h2>
+                        <h2 className="text-2xl font-bold text-white">{t('new_project.title')}</h2>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors bg-gray-700/50 hover:bg-red-500/80 p-2 rounded-full">
                         <X size={20} />
@@ -181,7 +187,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                             {/* Board Type Selection */}
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-300">Board Type</label>
+                                <label className="text-sm font-semibold text-gray-300">{t('new_project.board_type')}</label>
                                 <select
                                     value={boardType}
                                     onChange={(e) => setBoardType(e.target.value)}
@@ -194,7 +200,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                 {boardType === 'Other' && (
                                     <input
                                         type="text"
-                                        placeholder="Specify type (e.g. Console, TV...)"
+                                        placeholder={t('new_project.specify_type')}
                                         value={customBoardType}
                                         onChange={(e) => setCustomBoardType(e.target.value)}
                                         className="w-full mt-2 bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm animate-in slide-in-from-top-2"
@@ -205,13 +211,13 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                             {/* Model Input */}
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-gray-300">Model / Identifier</label>
+                                <label className="text-sm font-semibold text-gray-300">{t('new_project.model_id')}</label>
                                 <input
                                     type="text"
                                     value={boardModel}
                                     onChange={(e) => setBoardModel(e.target.value)}
                                     className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                    placeholder="e.g. NM-A311, MacBook 820-00165"
+                                    placeholder={t('new_project.model_placeholder')}
                                     required
                                 />
                             </div>
@@ -219,7 +225,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                         {/* 2. Image Upload Section */}
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-300 block">Board Images</label>
+                            <label className="text-sm font-semibold text-gray-300 block">{t('new_project.board_images')}</label>
 
                             <div className="flex gap-4">
                                 {/* Image Upload A */}
@@ -231,7 +237,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                         <div className="relative w-full h-full flex items-center justify-center">
                                             <img src={imagePreview} alt="Preview A" className="max-h-full max-w-full rounded shadow-lg object-contain" />
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
-                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16} /> Change Side A</p>
+                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16} /> {t('new_project.change_side_a')}</p>
                                             </div>
                                         </div>
                                     ) : (
@@ -239,8 +245,8 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                             <div className="bg-gray-700 p-3 rounded-full mb-2 group-hover:scale-110 transition-transform">
                                                 <UploadCloud className="text-blue-400" size={24} />
                                             </div>
-                                            <p className="text-gray-300 font-medium text-sm">Side A (Front)</p>
-                                            <p className="text-gray-500 text-xs mt-1">Required</p>
+                                            <p className="text-gray-300 font-medium text-sm">{t('new_project.side_a')}</p>
+                                            <p className="text-gray-500 text-xs mt-1">{t('common.required')}</p>
                                         </>
                                     )}
                                     <div className="absolute top-2 left-2 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">Side A</div>
@@ -262,7 +268,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                         <div className="relative w-full h-full flex items-center justify-center">
                                             <img src={imagePreviewB} alt="Preview B" className="max-h-full max-w-full rounded shadow-lg object-contain" />
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
-                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16} /> Change Side B</p>
+                                                <p className="text-white font-bold text-xs flex items-center"><UploadCloud className="mr-2" size={16} /> {t('new_project.change_side_b')}</p>
                                             </div>
                                             <button
                                                 onClick={(e) => {
@@ -281,8 +287,8 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                             <div className="bg-gray-700 p-3 rounded-full mb-2 group-hover:scale-110 transition-transform">
                                                 <UploadCloud className="text-purple-400" size={24} />
                                             </div>
-                                            <p className="text-gray-300 font-medium text-sm">Side B (Rear)</p>
-                                            <p className="text-gray-500 text-xs mt-1">Optional</p>
+                                            <p className="text-gray-300 font-medium text-sm">{t('new_project.side_b')}</p>
+                                            <p className="text-gray-500 text-xs mt-1">{t('common.optional')}</p>
                                         </>
                                     )}
                                     <div className="absolute top-2 left-2 bg-purple-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">Side B</div>
@@ -300,9 +306,9 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                         {/* 3. Attributes Section */}
                         <div className="space-y-3">
                             <div className="flex justify-between items-center">
-                                <label className="text-sm font-semibold text-gray-300">Technical Details (Optional)</label>
+                                <label className="text-sm font-semibold text-gray-300">{t('new_project.tech_details')}</label>
                                 <button type="button" onClick={addAttribute} className="text-xs flex items-center text-blue-400 hover:text-blue-300 transition-colors">
-                                    <PlusCircle size={14} className="mr-1" /> Add Field
+                                    <PlusCircle size={14} className="mr-1" /> {t('new_project.add_field')}
                                 </button>
                             </div>
                             <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700 space-y-2 max-h-40 overflow-y-auto">
@@ -310,7 +316,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                     <div key={index} className="flex space-x-2 animate-in slide-in-from-left-2">
                                         <input
                                             type="text"
-                                            placeholder="Attribute (e.g. CPU, RAM)"
+                                            placeholder={t('new_project.attribute_placeholder')}
                                             value={attr.key}
                                             onChange={(e) => handleAttributeChange(index, 'key', e.target.value)}
                                             className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none"
@@ -318,7 +324,7 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                                         />
                                         <input
                                             type="text"
-                                            placeholder="Value"
+                                            placeholder={t('new_project.value_placeholder')}
                                             value={attr.value}
                                             onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
                                             className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-1.5 text-sm text-white focus:border-blue-500 outline-none"
@@ -336,12 +342,12 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
                         {/* 4. Notes Section */}
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold text-gray-300">General Notes</label>
+                            <label className="text-sm font-semibold text-gray-300">{t('new_project.general_notes')}</label>
                             <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                                 className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none h-20 resize-none text-sm"
-                                placeholder="Notes on initial state, reported failure..."
+                                placeholder={t('new_project.notes_placeholder')}
                             />
                         </div>
 
@@ -354,13 +360,13 @@ const NewProjectModal: React.FC<NewProjectModalProps> = ({
                         onClick={onClose}
                         className="px-5 py-2 rounded-lg text-gray-300 hover:bg-gray-700 font-medium transition-colors"
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </button>
                     <button
                         onClick={handleSubmit}
                         className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/20 transition-all transform hover:scale-105 active:scale-95"
                     >
-                        Create Project
+                        {t('new_project.create_project')}
                     </button>
                 </div>
 

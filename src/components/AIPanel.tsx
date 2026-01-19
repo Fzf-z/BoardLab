@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Zap, Cpu, Sparkles, Trash2, Wifi, Loader2, Clock, GitCommit, CheckCircle2, LayoutList } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useProject } from '../contexts/ProjectContext';
 import { Logger } from '../utils/logger';
 import { InstrumentConfig, MeasurementValue, Point, ComparisonPoint, MeasurementHistoryItem, OscilloscopeData, MeasurementType } from '../types';
@@ -41,6 +42,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
     } = useProject();
 
     const { setPoints, selectedPoint } = board;
+    const { t } = useTranslation();
 
     const [history, setHistory] = useState<MeasurementHistoryItem[]>([]);
     const [referenceWaveform, setReferenceWaveform] = useState<OscilloscopeData | null>(null);
@@ -169,21 +171,21 @@ const AIPanel: React.FC<AIPanelProps> = ({
                         className={`flex-1 py-3 text-sm font-bold flex items-center justify-center transition-colors ${activeTab === 'detail' ? 'bg-gray-800 text-blue-400 border-b-2 border-blue-400' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}
                     >
                         <Activity size={16} className="mr-2" />
-                        Data
+                        {t('ai_panel.data')}
                     </button>
                     <button
                         onClick={() => setActiveTab('table')}
                         className={`flex-1 py-3 text-sm font-bold flex items-center justify-center transition-colors ${activeTab === 'table' ? 'bg-gray-800 text-blue-400 border-b-2 border-blue-400' : 'bg-gray-900/50 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`}
                     >
                         <LayoutList size={16} className="mr-2" />
-                        Table
+                        {t('ai_panel.table')}
                     </button>
                 </div>
             ) : (
                 <div className="flex border-b border-gray-700">
                     <div className="flex-1 py-3 text-sm font-bold flex items-center justify-center bg-gray-800 text-blue-400 border-b-2 border-blue-400">
                         <LayoutList size={16} className="mr-2" />
-                        Points Table
+                        {t('ai_panel.points_table')}
                     </div>
                 </div>
             )}
@@ -195,7 +197,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
             ) : (
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                     {!selectedPoint ? (
-                        <div className="text-gray-500 text-center mt-10 text-sm">Select a point.</div>
+                        <div className="text-gray-500 text-center mt-10 text-sm">{t('ai_panel.select_point')}</div>
                     ) : (
                         <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
                             {/* --- Point Details --- */}
@@ -252,17 +254,17 @@ const AIPanel: React.FC<AIPanelProps> = ({
                             {/* --- Tolerance & Expected Value --- */}
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="text-[10px] text-gray-400 block mb-1">Valor Esperado</label>
+                                    <label className="text-gray-400 text-xs font-semibold">{t('ai_panel.expected_value')}</label>
                                     <input
                                         type="text"
                                         value={selectedPoint.expected_value || ''}
                                         onChange={(e) => handlePointUpdate('expected_value', e.target.value)}
-                                        placeholder="Ej: 3.3"
-                                        className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white font-mono"
+                                        className="w-full bg-gray-900 rounded p-1 text-sm text-yellow-500 font-mono text-center border border-gray-700"
+                                        placeholder="e.g. 1.8V"
                                     />
                                 </div>
-                                <div>
-                                    <label className="text-[10px] text-gray-400 block mb-1">Tolerancia (%)</label>
+                                <div className="flex-1">
+                                    <label className="text-gray-400 text-xs font-semibold">{t('ai_panel.tolerance')} (%)</label>
                                     <input
                                         type="number"
                                         value={selectedPoint.tolerance || ''}
@@ -279,7 +281,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                                     className="w-full bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 text-xs py-1.5 rounded border border-purple-800/50 flex items-center justify-center transition"
                                 >
                                     <GitCommit size={12} className="mr-2" />
-                                    Compare with Golden Board
+                                    {t('ai_panel.compare_gold')}
                                 </button>
                             )}
 
@@ -299,7 +301,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                                 )}
                                 <button onClick={handleCapture} disabled={isCapturing} className={`w-full py-2 rounded font-bold flex items-center justify-center space-x-2 transition ${!isCapturing ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-gray-700 text-gray-500'}`}>
                                     {isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Wifi size={16} />}
-                                    <span>{isCapturing ? 'MEASURING...' : 'CAPTURE'}</span>
+                                    <span>{isCapturing ? t('ai_panel.measuring') : t('ai_panel.capture')}</span>
                                 </button>
                             </div>
 
@@ -308,14 +310,14 @@ const AIPanel: React.FC<AIPanelProps> = ({
                                 value={selectedPoint.notes || ''}
                                 onChange={(e) => handlePointUpdate('notes', e.target.value)}
                                 className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm text-gray-300 h-24 resize-none"
-                                placeholder="Technical notes..."
+                                placeholder={t('ai_panel.tech_notes')}
                             />
 
                             {/* --- History --- */}
-                            <div className="space-y-2">
+                            <div className="mt-4">
                                 <h3 className="text-sm font-bold text-gray-400 flex items-center">
                                     <Clock size={14} className="mr-2" />
-                                    Measurement History
+                                    {t('ai_panel.measurement_history')}
                                 </h3>
                                 <div className="bg-gray-900/70 rounded-lg p-2 space-y-2 max-h-48 overflow-y-auto">
                                     {history.length > 0 ? (
@@ -354,7 +356,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                                             );
                                         })
                                     ) : (
-                                        <div className="text-center text-gray-500 text-xs py-4">No measurements saved for this point.</div>
+                                        <div className="text-center text-gray-500 text-xs py-4">{t('ai_panel.no_measurements')}</div>
                                     )}
                                 </div>
                             </div>
@@ -367,7 +369,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                 <div className="p-4 border-t border-gray-700">
                     <button onClick={() => analyzeBoard(points)} className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-2 rounded shadow-lg flex items-center justify-center space-x-2">
                         <Sparkles size={16} />
-                        <span>AI Diagnostics</span>
+                        <span>{t('ai_panel.ai_diagnostics')}</span>
                     </button>
                 </div>
             )}
