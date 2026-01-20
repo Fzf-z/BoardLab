@@ -21,9 +21,6 @@
         "new_project": "New Project",
         "open_project": "Open Project",
         "save_project": "Save Project",
-        "export_pdf": "Export to PDF",
-        "export_image": "Export to Image",
-        "start_sequence": "Start Sequence",
         "settings": "Settings"
     },
     "ai_panel": {
@@ -39,8 +36,6 @@
         "tech_notes": "Technical notes...",
         "measurement_history": "Measurement History",
         "no_measurements": "No measurements saved for this point.",
-        "ai_diagnostics": "AI Diagnostics",
-        "ask_ai": "Ask AI",
         "delete_point": "Delete Point"
     },
     "new_project": {
@@ -66,7 +61,6 @@
         "general": "General",
         "categories": "Categories",
         "instruments": "Instruments",
-        "ai_config": "AI Configuration",
         "about": "About",
         "language": "Language",
         "select_language": "Select Language",
@@ -91,17 +85,7 @@
         "add": "Add",
         "no_categories_defined": "No categories defined for {{boardType}}",
         "instrument_manager": "Instrument Manager",
-        "ai_api_key": "Gemini API Key",
-        "ai_api_key_placeholder": "Enter your Gemini API key",
-        "ai_api_key_description": "Get your key from Google AI Studio",
-        "ai_model": "Model Selection",
-        "ai_prompt": "Custom System Prompt",
         "save_settings": "Save Settings",
         "reset_defaults": "Reset Defaults"
-    },
-    "pro": {
-        "feature_title": "Pro Feature",
-        "available_in_pro": "is available in BoardLab Pro.",
-        "upgrade_now": "Upgrade to Pro"
     }
 }

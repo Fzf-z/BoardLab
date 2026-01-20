@@ -5,22 +5,20 @@ import { safeDeepClone } from '../../utils/safeJson';
 import InstrumentManager from '../InstrumentManager';
 import { GeneralSettings } from './GeneralSettings';
 import { CategoriesSettings } from './CategoriesSettings';
-import { AISettings } from './AISettings';
 import { AboutSettings } from './AboutSettings';
 import type { InstrumentConfig, AppSettings } from '../../types';
 
-type TabId = 'general' | 'categories' | 'instruments' | 'ai' | 'about';
+type TabId = 'general' | 'categories' | 'instruments' | 'about';
 
 interface SettingsProps {
     instruments: InstrumentConfig;
-    apiKey: string;
     appSettings: AppSettings;
-    onSave: (config: InstrumentConfig, apiKey: string, appSettings: AppSettings) => void;
+    onSave: (config: InstrumentConfig, appSettings: AppSettings) => void;
     onClose: () => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({
-    instruments, apiKey, appSettings, onSave, onClose
+    instruments, appSettings, onSave, onClose
 }) => {
     const { t } = useTranslation();
 
@@ -46,13 +44,11 @@ const Settings: React.FC<SettingsProps> = ({
     });
 
     const [activeTab, setActiveTab] = useState<TabId>('general');
-    const [tempApiKey, setTempApiKey] = useState(apiKey);
 
     const tabs: { id: TabId; label: string }[] = [
         { id: 'general', label: t('settings.general') },
         { id: 'categories', label: t('settings.categories') },
         { id: 'instruments', label: t('settings.instruments') },
-        { id: 'ai', label: t('settings.ai_config') },
         { id: 'about', label: t('settings.about') },
     ];
 
@@ -101,13 +97,6 @@ const Settings: React.FC<SettingsProps> = ({
                         </div>
                     )}
 
-                    {activeTab === 'ai' && (
-                        <AISettings
-                            tempApiKey={tempApiKey}
-                            setTempApiKey={setTempApiKey}
-                        />
-                    )}
-
                     {activeTab === 'about' && <AboutSettings />}
                 </div>
 
@@ -121,7 +110,7 @@ const Settings: React.FC<SettingsProps> = ({
                     </button>
                     <button
                         onClick={() => {
-                            onSave(localInstruments, tempApiKey, localAppSettings);
+                            onSave(localInstruments, localAppSettings);
                             onClose();
                         }}
                         className="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-500 shadow-lg transition-colors"

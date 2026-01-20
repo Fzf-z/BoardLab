@@ -1,6 +1,6 @@
 # BoardLab Pro - Intelligent Electronics Diagnosis Platform
 
-BoardLab is a desktop application designed for electronics repair technicians and engineers. It streamlines the process of reverse engineering and diagnosing circuit boards (PCBs) by combining high-resolution image mapping with real-time hardware measurements and AI assistance.
+BoardLab is a desktop application designed for electronics repair technicians and engineers. It streamlines the process of reverse engineering and diagnosing circuit boards (PCBs) by combining high-resolution image mapping with real-time hardware measurements and efficient data management.
 
 ![BoardLab Screenshot](Doc/Main.png)
 ![BoardLab Screenshot](Doc/Measure.png)
@@ -16,19 +16,17 @@ BoardLab is a desktop application designed for electronics repair technicians an
 ### 🔌 Hardware Integration
 - **Owon XDM Series Multimeters**: Read Voltage, Resistance, and Diode drop values directly into the software via TCP/IP.
 - **Rigol DHO Series Oscilloscopes**: Capture live waveforms, Vpp, and Frequency directly attached to a specific test point.
-- **Generic SCPI Support**: Connect any SCPI-compatible instrument via TCP/IP or USB Serial (COM Ports).
+- **Generic SCPI Support**: Connect any SCPI-compatible instrument via TCP/IP.
 - **Real-time Monitoring**: "Monitor Mode" continuously watches measurement values for hands-free triggering.
-
-### 🧠 AI Assistant (Gemini)
-- **Context-Aware Diagnosis**: Ask questions about specific components or measurements.
-- **Board Analysis**: The AI analyzes your measurements against expected values to suggest potential faults.
-- **Chat Interface**: Integrated chat panel to brainstorm repair strategies.
 
 ### 📊 Project & Data Management
 - **Database Backend**: All projects, points, and measurement history are stored locally in a SQLite database.
-- **Sequencer Mode**: Define a sequence of test points and rapidly measure them one by one.
 - **Golden Board Comparison**: Compare measurements from a faulty board against a known-good "Golden Board" project.
-- **Reports**: Generate detailed PDF reports with waveforms and measurement logs.
+- **Customizable Categories**: Define point categories (e.g., Power Rails, Data Lines) with custom colors for better visualization.
+
+### 🌍 Internationalization
+- **Multi-language Support**: Fully localized in English and Spanish.
+- **Dynamic Switching**: Switch languages instantly from the settings menu.
 
 ## 🛠️ Tech Stack
 
@@ -37,6 +35,7 @@ BoardLab is a desktop application designed for electronics repair technicians an
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **Database**: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (Running in a separate Worker thread for performance)
 - **Hardware Comms**: Node.js `net` (TCP) and `serialport` (Serial) for SCPI communication
+- **i18n**: [i18next](https://www.i18next.com/) for translation management
 
 ## 📁 Project Structure
 
@@ -44,25 +43,25 @@ BoardLab is a desktop application designed for electronics repair technicians an
 src/
 ├── components/           # React UI Components
 │   ├── board/            # Board-specific components (PointMarker, PointTooltip, etc.)
-│   ├── modals/           # Modal dialogs (NewProject, Comparison, ProjectManager, AI)
+│   ├── modals/           # Modal dialogs (NewProject, Comparison, ProjectManager)
+│   ├── settings/         # Settings components (General, Categories, Instruments)
 │   ├── BoardView.tsx     # Main interactive board canvas
-│   ├── AIPanel.tsx       # Measurement panel and point details
-│   ├── Settings.tsx      # Application settings
-│   ├── InstrumentManager.tsx  # Instrument configuration UI
-│   ├── SequencerPanel.tsx     # Sequential measurement mode
-│   └── ...               # Other UI components (Toolbar, Minimap, Waveform, etc.)
+│   ├── AIPanel.tsx       # Measurement panel and point details (Legacy naming)
+│   ├── Toolbar.tsx       # Main application toolbar
+│   └── StatusBar.tsx     # Status information bar
 ├── contexts/             # React Context providers
 │   ├── ProjectContext.tsx    # Global project state management
+│   ├── BoardContext.tsx      # Board view state
 │   └── NotifierContext.tsx   # Toast notifications
 ├── hooks/                # Custom React hooks
-│   ├── useBoard.ts       # Board interaction logic (pan, zoom, undo/redo)
+│   ├── useBoard.ts       # Board interaction logic
 │   ├── useHardware.ts    # Instrument communication
-│   └── useGemini.ts      # AI integration
+│   └── useProjectOperations.ts # Project CRUD operations
 ├── utils/                # Utility modules
 │   ├── logger.ts         # Centralized logging framework
 │   ├── safeElectronAPI.ts    # Validated IPC wrapper
-│   ├── ipcValidation.ts  # Zod schemas for IPC responses
 │   └── safeJson.ts       # Safe JSON parsing utilities
+├── locales/              # Translation files (en.json, es.json)
 ├── types.ts              # TypeScript type definitions
 └── BoardLab.tsx          # Main application layout
 
@@ -76,7 +75,7 @@ electron/
     └── connection.ts     # TCP/Serial connection management
 ```
 
-## �📦 Installation
+## 📦 Installation
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (v18 or higher)
@@ -127,11 +126,11 @@ The output will be in the `dist` folder.
 3.  **Measure**:
     *   Select a point.
     *   Choose the measurement type (Voltage, Resistance, Diode, Oscilloscope) in the right panel.
-    *   Ensure your instrument is connected (Settings -> Configure IP).
+    *   Ensure your instrument is connected (Settings -> Instruments).
     *   Click **"CAPTURAR"** (Capture) or press **Enter**.
 
 4.  **Compare**:
-    *   Go to "Comparar con Golden Board".
+    *   Go to "Comparar con Golden Board" (Compare with Golden Board).
     *   Select a reference project to overlay expected values or find matching points.
 
 ## ⚙️ Hardware Configuration
@@ -170,17 +169,10 @@ Go to **Settings** (Gear Icon) to configure your instruments:
     *   Check firewall settings (Port 9876 for Owon, 5555 for Rigol).
 *   **Database Error**:
     *   The app stores data in `%APPDATA%/BoardLab/boardlab.db`. Ensure you have write permissions.
-*   **AI Not Responding**:
-    *   Verify you have entered a valid Gemini API Key in **Settings**.
-    *   Check your internet connection.
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request for any bugs or feature requests.
-
-## 🤖 Development & Credits
-
-This project was developed with the assistance of **Google Gemini 3 Pro Preview** and **Claude Opus 4.5**, leveraging advanced AI for code generation, architecture planning, and debugging.
 
 ## 📄 License
 

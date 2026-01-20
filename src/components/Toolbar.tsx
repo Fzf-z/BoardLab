@@ -1,4 +1,4 @@
-import { Cpu, Move, Crosshair, Settings as SettingsIcon, FilePlus, FolderOpen, Save, FileDown, Play, Image as ImageIcon } from 'lucide-react';
+import { Cpu, Move, Crosshair, Settings as SettingsIcon, FilePlus, FolderOpen, Save } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface ToolbarProps {
@@ -8,7 +8,6 @@ interface ToolbarProps {
     onNewProject: () => void;
     onOpenProject: () => void;
     onSaveProject: () => void;
-    onProFeature: (featureName: string) => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -17,8 +16,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onOpenSettings,
     onNewProject,
     onOpenProject,
-    onSaveProject,
-    onProFeature
+    onSaveProject
 }) => {
     const { t } = useTranslation();
     return (
@@ -51,31 +49,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
             </button>
             <button onClick={onSaveProject} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title={t('toolbar.save_project')}>
                 <Save size={20} />
-            </button>
-            <button
-                onClick={() => onProFeature(t('toolbar.export_pdf'))}
-                className="p-3 text-amber-400/60 hover:bg-gray-700 rounded-xl relative"
-                title={t('toolbar.export_pdf')}
-            >
-                <FileDown size={20} />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[8px] flex items-center justify-center text-white font-bold">P</span>
-            </button>
-            <button
-                onClick={() => onProFeature(t('toolbar.export_image'))}
-                className="p-3 text-amber-400/60 hover:bg-gray-700 rounded-xl relative"
-                title={t('toolbar.export_image')}
-            >
-                <ImageIcon size={20} />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[8px] flex items-center justify-center text-white font-bold">P</span>
-            </button>
-
-            <button
-                onClick={() => onProFeature(t('toolbar.start_sequence'))}
-                className="p-3 text-amber-400/60 hover:bg-gray-700 rounded-xl relative"
-                title={t('toolbar.start_sequence')}
-            >
-                <Play size={20} />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[8px] flex items-center justify-center text-white font-bold">P</span>
             </button>
 
             <div className="h-px w-8 bg-gray-700 my-2"></div>

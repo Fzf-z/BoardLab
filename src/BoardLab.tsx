@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useProject } from './contexts/ProjectContext';
-import { useGemini } from './hooks/useGemini';
 import { useHardware } from './hooks/useHardware';
 import { InstrumentConfig, Project, AppSettings, CreateProjectData, ComparisonPoint, PersistedConfig } from './types';
 
@@ -11,10 +10,8 @@ import BoardView from './components/BoardView';
 import AIPanel from './components/AIPanel';
 import Settings from './components/Settings';
 import ProjectManagerModal from './components/modals/ProjectManagerModal';
-import AIModal from './components/modals/AIModal';
 import NewProjectModal from './components/modals/NewProjectModal';
 import ComparisonModal from './components/modals/ComparisonModal';
-import ProFeatureModal from './components/modals/ProFeatureModal';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const BoardLab: React.FC = () => {
@@ -24,7 +21,6 @@ const BoardLab: React.FC = () => {
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState<boolean>(false);
     const [isComparisonModalOpen, setComparisonModalOpen] = useState<boolean>(false);
     const [comparisonPoint, setComparisonPoint] = useState<ComparisonPoint | null>(null);
-    const [proFeatureModal, setProFeatureModal] = useState<{ open: boolean; featureName: string }>({ open: false, featureName: '' });
 
     // Global Project State - Consumed from context
     const {
@@ -46,9 +42,7 @@ const BoardLab: React.FC = () => {
     } = useProject();
 
     // Other Hooks
-    const [apiKey, setApiKey] = useState<string>(''); // API key can be local UI state for Settings
     const hardware = useHardware();
-    const gemini = useGemini(apiKey);
 
     // Keyboard Shortcuts
     useEffect(() => {
@@ -122,10 +116,9 @@ const BoardLab: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [mode, board.selectedPointId, board.selectedPoint, hardware.isCapturing, isNewProjectModalOpen, isProjectManagerOpen]);
 
-    // Load API key and settings on mount
+    // Load settings on mount
     useEffect(() => {
         if (hardware.isElectron && window.electronAPI) {
-            window.electronAPI.loadApiKey().then((key: string) => setApiKey(key || ''));
             window.electronAPI.loadConfig().then((config: PersistedConfig) => {
                 if (config?.appSettings) {
                     setAppSettings(config.appSettings);
@@ -153,7 +146,6 @@ const BoardLab: React.FC = () => {
                 onNewProject={() => setNewProjectModalOpen(true)}
                 onOpenProject={handleOpenProject}
                 onSaveProject={saveProject}
-                onProFeature={(featureName) => setProFeatureModal({ open: true, featureName })}
             />
 
             <ProjectManagerModal
@@ -205,11 +197,8 @@ const BoardLab: React.FC = () => {
 
             <ErrorBoundary>
                 <AIPanel
-                    askAboutPoint={gemini.askAboutPoint}
                     captureValue={hardware.captureValue}
                     isCapturing={hardware.isCapturing}
-                    analyzeBoard={gemini.analyzeBoard}
-                    instrumentConfig={hardware.instrumentConfig}
                     onOpenComparison={() => setComparisonModalOpen(true)}
                     comparisonPoint={comparisonPoint}
                     mode={mode}
@@ -220,34 +209,17 @@ const BoardLab: React.FC = () => {
             {hardware.configOpen && (
                 <Settings
                     instruments={hardware.instrumentConfig}
-                    apiKey={apiKey}
                     appSettings={appSettings}
-                    onSave={(newConfig: InstrumentConfig, newApiKey: string, newAppSettings: AppSettings) => {
+                    onSave={(newConfig: InstrumentConfig, newAppSettings: AppSettings) => {
                         hardware.handleSaveConfig(newConfig);
                         if (window.electronAPI) {
-                            window.electronAPI.saveApiKey(newApiKey);
                             window.electronAPI.saveConfig({ ...newConfig, appSettings: newAppSettings });
                         }
-                        setApiKey(newApiKey);
                         setAppSettings(newAppSettings);
                     }}
                     onClose={() => hardware.setConfigOpen(false)}
                 />
             )}
-
-            <AIModal
-                isOpen={gemini.aiModalOpen}
-                onClose={() => gemini.setAiModalOpen(false)}
-                title={gemini.aiTitle}
-                response={gemini.aiResponse}
-                isLoading={gemini.isAiLoading}
-            />
-
-            <ProFeatureModal
-                isOpen={proFeatureModal.open}
-                onClose={() => setProFeatureModal({ open: false, featureName: '' })}
-                featureName={proFeatureModal.featureName}
-            />
         </div>
     );
 }

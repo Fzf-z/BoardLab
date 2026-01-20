@@ -21,9 +21,6 @@
         "new_project": "Nuevo Proyecto",
         "open_project": "Abrir Proyecto",
         "save_project": "Guardar Proyecto",
-        "export_pdf": "Exportar a PDF",
-        "export_image": "Exportar a Imagen",
-        "start_sequence": "Iniciar Secuencia",
         "settings": "Configuración"
     },
     "ai_panel": {
@@ -39,8 +36,6 @@
         "tech_notes": "Notas técnicas...",
         "measurement_history": "Historial de Mediciones",
         "no_measurements": "No hay mediciones guardadas para este punto.",
-        "ai_diagnostics": "Diagnóstico AI",
-        "ask_ai": "Preguntar a AI",
         "delete_point": "Eliminar Punto"
     },
     "new_project": {
@@ -66,7 +61,6 @@
         "general": "General",
         "categories": "Categorías",
         "instruments": "Instrumentos",
-        "ai_config": "Configuración AI",
         "about": "Acerca de",
         "language": "Idioma",
         "select_language": "Seleccionar Idioma",
@@ -91,17 +85,7 @@
         "add": "Agregar",
         "no_categories_defined": "No hay categorías definidas para {{boardType}}",
         "instrument_manager": "Gestor de Instrumentos",
-        "ai_api_key": "Clave API Gemini",
-        "ai_api_key_placeholder": "Ingresa tu clave API de Gemini",
-        "ai_api_key_description": "Obtén tu clave en Google AI Studio",
-        "ai_model": "Selección de Modelo",
-        "ai_prompt": "Prompt del Sistema Personalizado",
         "save_settings": "Guardar Ajustes",
         "reset_defaults": "Restaurar Predeterminados"
-    },
-    "pro": {
-        "feature_title": "Función Pro",
-        "available_in_pro": "está disponible en BoardLab Pro.",
-        "upgrade_now": "Actualizar a Pro"
     }
 }

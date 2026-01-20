@@ -1,31 +1,26 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Activity, Sparkles, LayoutList } from 'lucide-react';
+import { Activity, LayoutList } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useProject } from '../../contexts/ProjectContext';
 import { Logger } from '../../utils/logger';
 import { PointDetails } from './PointDetails';
 import PointsTable from '../PointsTable';
 import { safePointAPI } from '../../utils/safeElectronAPI';
-import type { InstrumentConfig, MeasurementValue, Point, ComparisonPoint, MeasurementHistoryItem } from '../../types';
+import type { MeasurementValue, Point, ComparisonPoint, MeasurementHistoryItem } from '../../types';
 
 const log = Logger.Measurements;
 
 interface AIPanelProps {
-    askAboutPoint: (point: Point) => void;
     captureValue: (point: Point) => Promise<MeasurementValue | null>;
     isCapturing: boolean;
-    analyzeBoard: (points: Point[]) => void;
-    instrumentConfig: InstrumentConfig;
     onOpenComparison?: () => void;
     comparisonPoint?: ComparisonPoint | null;
     mode: 'view' | 'measure';
 }
 
 const AIPanel: React.FC<AIPanelProps> = ({
-    askAboutPoint,
     captureValue,
     isCapturing,
-    analyzeBoard,
     onOpenComparison,
     comparisonPoint,
     mode
@@ -173,25 +168,11 @@ const AIPanel: React.FC<AIPanelProps> = ({
                             referenceWaveform={referenceWaveform}
                             onUpdatePoint={handlePointUpdate}
                             onDeletePoint={deletePoint}
-                            onAskAboutPoint={askAboutPoint}
                             onCapture={handleCapture}
                             onOpenComparison={onOpenComparison}
                             onSetReferenceWaveform={setReferenceWaveform}
                         />
                     )}
-                </div>
-            )}
-
-            {/* AI Diagnostics Button */}
-            {points.length > 0 && activeTab === 'detail' && (
-                <div className="p-4 border-t border-gray-700">
-                    <button
-                        onClick={() => analyzeBoard(points)}
-                        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-2 rounded shadow-lg flex items-center justify-center space-x-2"
-                    >
-                        <Sparkles size={16} />
-                        <span>{t('ai_panel.ai_diagnostics')}</span>
-                    </button>
                 </div>
             )}
         </div>

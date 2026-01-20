@@ -1,4 +1,4 @@
-import { Activity, Zap, Cpu, Sparkles, Trash2, GitCommit, CheckCircle2 } from 'lucide-react';
+import { Activity, Zap, Cpu, Trash2, GitCommit, CheckCircle2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { MeasurementCapture } from './MeasurementCapture';
 import { MeasurementHistory } from './MeasurementHistory';
@@ -19,7 +19,6 @@ interface PointDetailsProps {
     referenceWaveform?: MeasurementValue;
     onUpdatePoint: (field: keyof Point, value: Point[keyof Point]) => void;
     onDeletePoint: (id: number | string) => void;
-    onAskAboutPoint: (point: Point) => void;
     onCapture: () => void;
     onOpenComparison?: () => void;
     onSetReferenceWaveform: (waveform: MeasurementValue) => void;
@@ -33,7 +32,6 @@ export const PointDetails: React.FC<PointDetailsProps> = ({
     referenceWaveform,
     onUpdatePoint,
     onDeletePoint,
-    onAskAboutPoint,
     onCapture,
     onOpenComparison,
     onSetReferenceWaveform
@@ -71,19 +69,12 @@ export const PointDetails: React.FC<PointDetailsProps> = ({
         <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
             {/* Point Header */}
             <div className="flex justify-between items-center">
-                <div className="flex-1 mr-2 flex space-x-2">
+                <div className="flex-1 mr-2">
                     <input
                         value={selectedPoint.label}
                         onChange={(e) => onUpdatePoint('label', e.target.value)}
                         className="bg-gray-900 border border-gray-600 rounded px-2 py-1 text-white w-full font-bold"
                     />
-                    <button
-                        onClick={() => onAskAboutPoint(selectedPoint)}
-                        className="p-2 bg-purple-600/20 text-purple-300 rounded hover:bg-purple-600/40"
-                        title={t('ai_panel.ask_ai')}
-                    >
-                        <Sparkles size={16} />
-                    </button>
                 </div>
                 <button
                     onClick={() => onDeletePoint(selectedPoint.id)}
