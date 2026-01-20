@@ -93,7 +93,9 @@ export interface ElectronAPI {
         actionKey: string
     ) => Promise<CaptureResult>;
     instrumentTestConnection: (config: Instrument) => Promise<StatusResponse>;
-    /** Legacy oscilloscope measurement - TODO: migrate to instrumentExecute */
+    /**
+     * @deprecated Legacy oscilloscope measurement - use instrumentExecute('oscilloscope', actionKey) instead
+     */
     measureScope: (config: { ip: string; port: number; timeout?: number }) => Promise<CaptureResult>;
 
     // --- Config & Settings ---

@@ -50,3 +50,21 @@ export function safeDeepClone<T>(obj: T, fallback: T): T {
         return fallback;
     }
 }
+
+/**
+ * Parse project attributes that may be stored as JSON string or already as object
+ * Handles the common pattern where attributes come from DB as string but need to be object
+ * @param attributes - Attributes as string (JSON) or object
+ * @returns Parsed record of string key-value pairs
+ */
+export function parseProjectAttributes(
+    attributes: string | Record<string, string> | null | undefined
+): Record<string, string> {
+    if (!attributes) return {};
+
+    if (typeof attributes === 'object') {
+        return attributes;
+    }
+
+    return safeJsonParse<Record<string, string>>(attributes, {});
+}

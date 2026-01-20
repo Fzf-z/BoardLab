@@ -372,6 +372,56 @@ export const safeConfigAPI = {
 };
 
 /**
+ * Safe wrapper for monitor operations
+ */
+export const safeMonitorAPI = {
+    async startMonitor(ip: string, port: number): Promise<StatusResponse | null> {
+        if (!window.electronAPI?.startMonitor) return null;
+        try {
+            log.info(`Starting monitor on ${ip}:${port}`);
+            const result = await window.electronAPI.startMonitor(ip, port);
+            return validateIpcResponse(result, StatusResponseSchema, 'startMonitor');
+        } catch (error) {
+            log.error('startMonitor failed', error);
+            return null;
+        }
+    },
+
+    async stopMonitor(): Promise<StatusResponse | null> {
+        if (!window.electronAPI?.stopMonitor) return null;
+        try {
+            log.info('Stopping monitor');
+            const result = await window.electronAPI.stopMonitor();
+            return validateIpcResponse(result, StatusResponseSchema, 'stopMonitor');
+        } catch (error) {
+            log.error('stopMonitor failed', error);
+            return null;
+        }
+    },
+};
+
+/**
+ * Safe wrapper for serial port operations
+ */
+export const safeSerialAPI = {
+    async getSerialPorts(): Promise<{ path: string; manufacturer?: string }[]> {
+        if (!window.electronAPI?.getSerialPorts) return [];
+        try {
+            const result = await window.electronAPI.getSerialPorts();
+            // Validate array of port objects
+            if (Array.isArray(result) && result.every(p => typeof p === 'object' && typeof p.path === 'string')) {
+                return result;
+            }
+            log.warn('getSerialPorts returned invalid data', result);
+            return [];
+        } catch (error) {
+            log.error('getSerialPorts failed', error);
+            return [];
+        }
+    },
+};
+
+/**
  * Combined safe API object for convenience
  */
 export const safeElectronAPI = {
@@ -380,6 +430,8 @@ export const safeElectronAPI = {
     ...safeInstrumentAPI,
     ...safeExportAPI,
     ...safeConfigAPI,
+    ...safeMonitorAPI,
+    ...safeSerialAPI,
     isElectron: isElectronEnvironment,
 };
 

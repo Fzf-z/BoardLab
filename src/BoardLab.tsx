@@ -17,7 +17,6 @@ import AIModal from './components/modals/AIModal';
 import NewProjectModal from './components/modals/NewProjectModal';
 import ComparisonModal from './components/modals/ComparisonModal';
 import ErrorBoundary from './components/ErrorBoundary';
-// import PointsTable from './components/PointsTable';
 
 const BoardLab: React.FC = () => {
     // UI State - Stays in this component
@@ -25,7 +24,6 @@ const BoardLab: React.FC = () => {
     const [isProjectManagerOpen, setProjectManagerOpen] = useState<boolean>(false);
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState<boolean>(false);
     const [isComparisonModalOpen, setComparisonModalOpen] = useState<boolean>(false);
-    // const [isPointsTableOpen, setPointsTableOpen] = useState<boolean>(false);
     const [comparisonPoint, setComparisonPoint] = useState<ComparisonPoint | null>(null);
     const { showNotification } = useNotifier();
 
@@ -218,7 +216,6 @@ const BoardLab: React.FC = () => {
                 mode={mode}
                 setMode={setMode}
                 onOpenSettings={() => hardware.setConfigOpen(true)}
-                // onOpenPointsTable={() => setPointsTableOpen(true)}
                 onNewProject={() => setNewProjectModalOpen(true)}
                 onOpenProject={handleOpenProject}
                 onSaveProject={saveProject}
@@ -307,10 +304,6 @@ const BoardLab: React.FC = () => {
                     onClose={() => hardware.setConfigOpen(false)}
                 />
             )}
-
-
-
-            {/* Points Table removed */}
 
             <AIModal
                 isOpen={gemini.aiModalOpen}

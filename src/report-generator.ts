@@ -1,12 +1,22 @@
 import { Project, Point, MeasurementValue } from './types';
 
+type BufferLike = Uint8Array | number[] | ArrayBuffer;
+
 // Helper for buffer handling if environment differs
-const bufferToBase64 = (buffer: Uint8Array | number[] | any): string => {
+const bufferToBase64 = (buffer: BufferLike | undefined | null): string => {
+    if (!buffer) return '';
+
+    // Normalize to Uint8Array
+    const bytes = buffer instanceof Uint8Array
+        ? buffer
+        : Array.isArray(buffer)
+            ? new Uint8Array(buffer)
+            : new Uint8Array(buffer);
+
     if (typeof Buffer !== 'undefined') {
-        return Buffer.from(buffer as any).toString('base64');
+        return Buffer.from(bytes).toString('base64');
     } else {
         let binary = '';
-        const bytes = new Uint8Array(buffer as any);
         const len = bytes.byteLength;
         for (let i = 0; i < len; i++) {
             binary += String.fromCharCode(bytes[i]);
