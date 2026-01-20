@@ -58,7 +58,6 @@ export const useBoard = () => {
 
     // Point dragging
     const {
-        isDraggingPoint,
         handlePointMouseDown,
         handleMouseMove: handlePointDragMouseMove,
         handleMouseUp: handlePointDragMouseUp

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Activity, Sparkles, LayoutList } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useProject } from '../../contexts/ProjectContext';
@@ -46,6 +46,14 @@ const AIPanel: React.FC<AIPanelProps> = ({
     const [history, setHistory] = useState<MeasurementHistoryItem[]>([]);
     const [referenceWaveform, setReferenceWaveform] = useState<MeasurementValue | undefined>(undefined);
     const [activeTab, setActiveTab] = useState<'detail' | 'table'>('detail');
+
+    // Memoize filtered categories to avoid recalculating on every render
+    const filteredCategories = useMemo(() =>
+        (appSettings.categories || []).filter(cat =>
+            !cat.boardType || cat.boardType === currentProject?.board_type
+        ),
+        [appSettings.categories, currentProject?.board_type]
+    );
 
     useEffect(() => {
         if (comparisonPoint && comparisonPoint.type === 'oscilloscope' && comparisonPoint.measurements?.oscilloscope) {
@@ -159,9 +167,7 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     ) : (
                         <PointDetails
                             selectedPoint={selectedPoint}
-                            categories={(appSettings.categories || []).filter(cat =>
-                                !cat.boardType || cat.boardType === currentProject?.board_type
-                            )}
+                            categories={filteredCategories}
                             history={history}
                             isCapturing={isCapturing}
                             referenceWaveform={referenceWaveform}

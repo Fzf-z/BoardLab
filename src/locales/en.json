@@ -39,7 +39,9 @@
         "tech_notes": "Technical notes...",
         "measurement_history": "Measurement History",
         "no_measurements": "No measurements saved for this point.",
-        "ai_diagnostics": "AI Diagnostics"
+        "ai_diagnostics": "AI Diagnostics",
+        "ask_ai": "Ask AI",
+        "delete_point": "Delete Point"
     },
     "new_project": {
         "title": "New Project",

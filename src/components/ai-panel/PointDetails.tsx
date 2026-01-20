@@ -80,7 +80,7 @@ export const PointDetails: React.FC<PointDetailsProps> = ({
                     <button
                         onClick={() => onAskAboutPoint(selectedPoint)}
                         className="p-2 bg-purple-600/20 text-purple-300 rounded hover:bg-purple-600/40"
-                        title="Ask AI"
+                        title={t('ai_panel.ask_ai')}
                     >
                         <Sparkles size={16} />
                     </button>
@@ -88,7 +88,7 @@ export const PointDetails: React.FC<PointDetailsProps> = ({
                 <button
                     onClick={() => onDeletePoint(selectedPoint.id)}
                     className="text-red-400 p-2 hover:bg-red-900/30 rounded"
-                    title="Delete Point"
+                    title={t('ai_panel.delete_point')}
                 >
                     <Trash2 size={16} />
                 </button>
