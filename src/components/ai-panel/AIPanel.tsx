@@ -36,7 +36,8 @@ const AIPanel: React.FC<AIPanelProps> = ({
         deletePoint,
         addMeasurement,
         appSettings,
-        saveProject
+        saveProject,
+        currentProject
     } = useProject();
 
     const { setPoints, selectedPoint } = board;
@@ -158,7 +159,9 @@ const AIPanel: React.FC<AIPanelProps> = ({
                     ) : (
                         <PointDetails
                             selectedPoint={selectedPoint}
-                            categories={appSettings.categories || []}
+                            categories={(appSettings.categories || []).filter(cat =>
+                                !cat.boardType || cat.boardType === currentProject?.board_type
+                            )}
                             history={history}
                             isCapturing={isCapturing}
                             referenceWaveform={referenceWaveform}

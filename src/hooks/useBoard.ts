@@ -1,4 +1,4 @@
-import { useRef, useMemo, useCallback, MouseEvent } from 'react';
+import { useRef, useMemo, useCallback, useState, MouseEvent } from 'react';
 import { Logger } from '../utils/logger';
 import { useUndoRedo, useZoomPan, usePointsDrag, useImageLoader } from './board';
 import type { Point } from '../types';
@@ -53,18 +53,8 @@ export const useBoard = () => {
         onReset: resetHistory
     });
 
-    // Point selection
-    const [selectedPointId, setSelectedPointIdState] = useMemo(() => {
-        let id: number | string | null = null;
-        const setId = (newId: number | string | null) => { id = newId; };
-        return [id, setId] as const;
-    }, []);
-
-    // Use a ref to track selected point id for real-time updates
-    const selectedPointIdRef = useRef<number | string | null>(null);
-    const setSelectedPointId = useCallback((id: number | string | null) => {
-        selectedPointIdRef.current = id;
-    }, []);
+    // Point selection - use useState to trigger re-renders when selection changes
+    const [selectedPointId, setSelectedPointId] = useState<number | string | null>(null);
 
     // Point dragging
     const {
@@ -83,8 +73,8 @@ export const useBoard = () => {
     });
 
     const selectedPoint = useMemo(
-        () => points.find(p => p.id === selectedPointIdRef.current),
-        [points]
+        () => points.find(p => p.id === selectedPointId),
+        [points, selectedPointId]
     );
 
     // Combined mouse handlers
@@ -179,7 +169,7 @@ export const useBoard = () => {
         imageDimensions,
         points,
         setPoints,
-        selectedPointId: selectedPointIdRef.current,
+        selectedPointId,
         setSelectedPointId,
         selectPoint,
         scale,

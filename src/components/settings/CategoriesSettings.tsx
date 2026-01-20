@@ -35,7 +35,8 @@ export const CategoriesSettings: React.FC<CategoriesSettingsProps> = ({
     const [editCatColor, setEditCatColor] = useState('#ffffff');
 
     useEffect(() => {
-        if (boardTypes.length > 0 && !boardTypes.includes(selectedBoardType)) {
+        // Don't reset if "General" is selected - it's a valid special option
+        if (boardTypes.length > 0 && !boardTypes.includes(selectedBoardType) && selectedBoardType !== 'General') {
             setSelectedBoardType(boardTypes[0]);
         }
     }, [boardTypes, selectedBoardType]);
