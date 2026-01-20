@@ -7,14 +7,13 @@ import net from 'net';
 import { SerialPort } from 'serialport';
 import { getRigolData } from './drivers/rigol';
 import { testConnection } from './drivers/connection';
-import { generateReportHtml, generateImageExportHtml } from '../src/report-generator';
 import { GenericSCPIDriver, InstrumentConfig } from './drivers/GenericSCPIDriver';
 
 const store = new Store();
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
-  app.quit();
+    app.quit();
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -42,7 +41,7 @@ ipcMain.handle('get-serial-ports', async () => {
 // Initialize the database worker
 const dbPath = path.join(app.getPath('userData'), 'boardlab.db');
 const dbWorker = new Worker(path.join(__dirname, 'db-worker.js'), {
-  workerData: { dbPath }
+    workerData: { dbPath }
 });
 
 // Keep track of pending queries
@@ -51,31 +50,31 @@ let queryId = 0;
 
 // Listen for messages from the worker
 dbWorker.on('message', (msg) => {
-  const { id, result, error } = msg;
-  if (pendingQueries.has(id)) {
-    const { resolve, reject } = pendingQueries.get(id);
-    pendingQueries.delete(id);
-    if (error) {
-      console.error('Database worker error:', error);
-      reject(new Error(error.message));
-    } else {
-      resolve(result);
+    const { id, result, error } = msg;
+    if (pendingQueries.has(id)) {
+        const { resolve, reject } = pendingQueries.get(id);
+        pendingQueries.delete(id);
+        if (error) {
+            console.error('Database worker error:', error);
+            reject(new Error(error.message));
+        } else {
+            resolve(result);
+        }
     }
-  }
 });
 
 dbWorker.on('error', err => console.error('DB worker error:', err));
 dbWorker.on('exit', code => {
-  if (code !== 0) console.error(`DB worker stopped with exit code ${code}`);
+    if (code !== 0) console.error(`DB worker stopped with exit code ${code}`);
 });
 
 // Helper function to query the database worker
 function dbQuery(type: string, payload?: any) {
-  return new Promise((resolve, reject) => {
-    const id = queryId++;
-    pendingQueries.set(id, { resolve, reject });
-    dbWorker.postMessage({ id, type, payload });
-  });
+    return new Promise((resolve, reject) => {
+        const id = queryId++;
+        pendingQueries.set(id, { resolve, reject });
+        dbWorker.postMessage({ id, type, payload });
+    });
 }
 
 // =================================================================
@@ -83,30 +82,30 @@ function dbQuery(type: string, payload?: any) {
 // =================================================================
 
 ipcMain.handle('start-monitor', async (event, { ip, port }) => {
-  try {
-    if (activeMultimeter) {
-        await activeMultimeter.startMonitor((data) => {
-            if (mainWindow) {
-                console.log('Monitor Data Received:', data);
-                mainWindow.webContents.send('external-trigger', data);
-            }
-        });
-        if (mainWindow) mainWindow.webContents.send('monitor-status', 'connected');
-        return { status: 'success' };
+    try {
+        if (activeMultimeter) {
+            await activeMultimeter.startMonitor((data) => {
+                if (mainWindow) {
+                    console.log('Monitor Data Received:', data);
+                    mainWindow.webContents.send('external-trigger', data);
+                }
+            });
+            if (mainWindow) mainWindow.webContents.send('monitor-status', 'connected');
+            return { status: 'success' };
+        }
+        return { status: 'error', message: 'No active multimeter driver' };
+    } catch (error: any) {
+        if (mainWindow) mainWindow.webContents.send('monitor-status', 'error');
+        return { status: 'error', message: error.message };
     }
-    return { status: 'error', message: 'No active multimeter driver' };
-  } catch (error: any) {
-    if (mainWindow) mainWindow.webContents.send('monitor-status', 'error');
-    return { status: 'error', message: error.message };
-  }
 });
 
 ipcMain.handle('stop-monitor', async () => {
-   if (activeMultimeter) {
-       activeMultimeter.stopMonitor();
-   }
-   if (mainWindow) mainWindow.webContents.send('monitor-status', 'disconnected');
-   return { status: 'success' };
+    if (activeMultimeter) {
+        activeMultimeter.stopMonitor();
+    }
+    if (mainWindow) mainWindow.webContents.send('monitor-status', 'disconnected');
+    return { status: 'success' };
 });
 
 // =================================================================
@@ -114,67 +113,67 @@ ipcMain.handle('stop-monitor', async () => {
 // =================================================================
 
 function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  });
+    mainWindow = new BrowserWindow({
+        width: 1400,
+        height: 900,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js'),
+            nodeIntegration: false,
+            contextIsolation: true
+        }
+    });
 
-  // ---------------------------------------------------------
-  // CORRECCIÓN AQUÍ
-  // ---------------------------------------------------------
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-  } else {
-    // CAMBIO: Usar '../dist/index.html' porque main.js está dentro de 'dist-electron'
-    // y necesita salir para encontrar la carpeta 'dist'.
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
-  }
-  
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
+    // ---------------------------------------------------------
+    // CORRECCIÓN AQUÍ
+    // ---------------------------------------------------------
+    if (process.env.VITE_DEV_SERVER_URL) {
+        mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
+    } else {
+        // CAMBIO: Usar '../dist/index.html' porque main.js está dentro de 'dist-electron'
+        // y necesita salir para encontrar la carpeta 'dist'.
+        mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    }
+
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+    });
 }
 
 app.on('ready', async () => {
-  createWindow();
+    createWindow();
 
-  // Load Active Instruments
-  try {
-      const instruments = await dbQuery('db:get-active-instruments') as InstrumentConfig[];
-      if (Array.isArray(instruments)) {
-          instruments.forEach(inst => {
-              const driver = new GenericSCPIDriver(inst);
-              if (inst.type === 'multimeter') {
-                  activeMultimeter = driver;
-                  console.log(`[Main] Loaded Multimeter: ${inst.name} (${inst.ip_address})`);
-              } else if (inst.type === 'oscilloscope') {
-                  activeOscilloscope = driver;
-                  console.log(`[Main] Loaded Oscilloscope: ${inst.name} (${inst.ip_address})`);
-              }
-          });
-      }
-  } catch (err) {
-      console.error("[Main] Failed to load instruments:", err);
-  }
+    // Load Active Instruments
+    try {
+        const instruments = await dbQuery('db:get-active-instruments') as InstrumentConfig[];
+        if (Array.isArray(instruments)) {
+            instruments.forEach(inst => {
+                const driver = new GenericSCPIDriver(inst);
+                if (inst.type === 'multimeter') {
+                    activeMultimeter = driver;
+                    console.log(`[Main] Loaded Multimeter: ${inst.name} (${inst.ip_address})`);
+                } else if (inst.type === 'oscilloscope') {
+                    activeOscilloscope = driver;
+                    console.log(`[Main] Loaded Oscilloscope: ${inst.name} (${inst.ip_address})`);
+                }
+            });
+        }
+    } catch (err) {
+        console.error("[Main] Failed to load instruments:", err);
+    }
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+    if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+    }
 });
 
 app.on('window-all-closed', () => {
-  dbQuery('close', undefined).finally(() => {
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
-  });
+    dbQuery('close', undefined).finally(() => {
+        if (process.platform !== 'darwin') {
+            app.quit();
+        }
+    });
 });
 
 // =================================================================
@@ -218,7 +217,7 @@ ipcMain.handle('instrument:test-connection', async (event, config) => {
         if (typeof driverConfig.command_map === 'object') {
             driverConfig.command_map = JSON.stringify(driverConfig.command_map);
         }
-        
+
         const tempDriver = new GenericSCPIDriver(driverConfig);
         // 'IDN' is the standard key for identification in our map
         return await tempDriver.execute('IDN');
@@ -228,7 +227,7 @@ ipcMain.handle('instrument:test-connection', async (event, config) => {
 });
 
 ipcMain.handle('hardware:measure-resistance', async () => {
-  // ... (existing hardware code)
+    // ... (existing hardware code)
 });
 
 // Osciloscopio (Legacy - To be migrated to Binary Generic Driver)
@@ -242,192 +241,6 @@ ipcMain.handle('save-api-key', (event, apiKey) => store.set('geminiApiKey', apiK
 ipcMain.handle('load-api-key', () => store.get('geminiApiKey'));
 ipcMain.handle('save-app-settings', (event, settings) => store.set('appSettings', settings));
 ipcMain.handle('load-app-settings', () => store.get('appSettings'));
-
-// Exportación
-ipcMain.handle('exportPdf', async (event, projectId) => {
-    try {
-        const project = await dbQuery('db:get-project-with-image', projectId) as any;
-        if (!project) {
-            throw new Error(`Project with ID ${projectId} not found.`);
-        }
-        const pointsWithMeasurements = await dbQuery('db:get-points', projectId) as any[];
-
-        // Name format: BoardLab_"Project Name"_Fecha.pdf
-        const sanitizedProjectName = (project.board_model || 'Project').replace(/[^a-z0-9]/gi, '_');
-        const date = new Date();
-        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const defaultFilename = `BoardLab_${sanitizedProjectName}_${dateStr}.pdf`;
-
-        const { canceled, filePath } = await dialog.showSaveDialog({
-            title: 'Save Report as PDF',
-            defaultPath: defaultFilename,
-            filters: [{ name: 'PDF Documents', extensions: ['pdf'] }]
-        });
-
-        if (canceled || !filePath) {
-            return { status: 'cancelled' };
-        }
-
-        // Calculate image dimensions for overlay positioning
-        const dims: any = {};
-        try {
-            if (project.image_data) {
-                const img = nativeImage.createFromBuffer(Buffer.from(project.image_data));
-                const size = img.getSize();
-                if (size.width > 0 && size.height > 0) {
-                    dims.widthA = size.width;
-                    dims.heightA = size.height;
-                }
-            }
-            if (project.image_data_b) {
-                const img = nativeImage.createFromBuffer(Buffer.from(project.image_data_b));
-                const size = img.getSize();
-                if (size.width > 0 && size.height > 0) {
-                    dims.widthB = size.width;
-                    dims.heightB = size.height;
-                }
-            }
-        } catch (e) {
-            console.error("Error calculating image dimensions:", e);
-        }
-
-        const htmlContent = generateReportHtml(project, pointsWithMeasurements, dims);
-
-        // Create a hidden window to render the HTML
-        let printWindow: BrowserWindow | null = null;
-        const tempHtmlPath = path.join(app.getPath('temp'), `boardlab_report_${Date.now()}.html`);
-
-        try {
-            printWindow = new BrowserWindow({ 
-                show: false,
-                webPreferences: {
-                    nodeIntegration: false,
-                    contextIsolation: true
-                }
-            });
-
-            fs.writeFileSync(tempHtmlPath, htmlContent);
-            
-            await printWindow.loadFile(tempHtmlPath);
-            
-            // Wait for client-side scripts to position elements (overlays) and set page size
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            const pdfData = await printWindow.webContents.printToPDF({
-                printBackground: true,
-                preferCSSPageSize: true 
-            });
-
-            fs.writeFileSync(filePath, pdfData);
-            
-            return { status: 'success', filePath };
-
-        } finally {
-            if (printWindow) {
-                printWindow.close();
-            }
-            try { 
-                if (fs.existsSync(tempHtmlPath)) fs.unlinkSync(tempHtmlPath); 
-            } catch(e) { 
-                console.warn('Failed to clean temp file', e); 
-            }
-        }
-    } catch (error: any) {
-        console.error('Failed to generate PDF:', error);
-        return { status: 'error', message: error.message };
-    }
-});
-
-ipcMain.handle('exportImage', async (event, projectId) => {
-    try {
-        const project = await dbQuery('db:get-project-with-image', projectId) as any;
-        if (!project) throw new Error(`Project with ID ${projectId} not found.`);
-        const pointsWithMeasurements = await dbQuery('db:get-points', projectId) as any[];
-
-        const sanitizedProjectName = (project.board_model || 'Project').replace(/[^a-z0-9]/gi, '_');
-        const date = new Date();
-        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const defaultFilename = `BoardLab_HiRes_${sanitizedProjectName}_${dateStr}.png`;
-
-        const { canceled, filePath } = await dialog.showSaveDialog({
-            title: 'Save High-Res Image',
-            defaultPath: defaultFilename,
-            filters: [{ name: 'PNG Image', extensions: ['png'] }]
-        });
-
-        if (canceled || !filePath) return { status: 'cancelled' };
-
-        // Calculate dimensions
-        const dims: any = {};
-        try {
-            if (project.image_data) {
-                const img = nativeImage.createFromBuffer(Buffer.from(project.image_data));
-                const size = img.getSize();
-                dims.widthA = size.width;
-                dims.heightA = size.height;
-            }
-            if (project.image_data_b) {
-                const img = nativeImage.createFromBuffer(Buffer.from(project.image_data_b));
-                const size = img.getSize();
-                dims.widthB = size.width;
-                dims.heightB = size.height;
-            }
-        } catch (e) { console.error(e); }
-
-        const htmlContent = generateImageExportHtml(project, pointsWithMeasurements, dims, 'dark');
-
-        // Render in large hidden window
-        let captureWindow: BrowserWindow | null = null;
-        const tempHtmlPath = path.join(app.getPath('temp'), `boardlab_img_${Date.now()}.html`);
-
-        try {
-            captureWindow = new BrowserWindow({ 
-                show: false,
-                width: 3000, 
-                height: 2000,
-                webPreferences: { nodeIntegration: false, contextIsolation: true }
-            });
-
-            fs.writeFileSync(tempHtmlPath, htmlContent);
-            await captureWindow.loadFile(tempHtmlPath);
-            
-            // Resize window to fit content
-            const contentSize = await captureWindow.webContents.executeJavaScript(`
-                new Promise(resolve => {
-                    // Wait for images
-                    const imgs = Array.from(document.images);
-                    Promise.all(imgs.map(img => {
-                        if (img.complete) return Promise.resolve();
-                        return new Promise(r => img.onload = r);
-                    })).then(() => {
-                        // Return size
-                        resolve({ 
-                            width: document.body.scrollWidth, 
-                            height: document.body.scrollHeight 
-                        });
-                    });
-                })
-            `);
-            
-            captureWindow.setContentSize(Math.ceil(contentSize.width), Math.ceil(contentSize.height));
-            
-            // Wait a bit for layout
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            const image = await captureWindow.webContents.capturePage();
-            fs.writeFileSync(filePath, image.toPNG());
-            
-            return { status: 'success', filePath };
-
-        } finally {
-            if (captureWindow) captureWindow.close();
-            try { if (fs.existsSync(tempHtmlPath)) fs.unlinkSync(tempHtmlPath); } catch(e) {}
-        }
-    } catch (error: any) {
-        console.error('Failed to export image:', error);
-        return { status: 'error', message: error.message };
-    }
-});
 
 // Board Types Management
 ipcMain.handle('get-board-types', () => {

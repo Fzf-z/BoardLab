@@ -5,26 +5,20 @@ interface ToolbarProps {
     mode: 'view' | 'measure';
     setMode: (mode: 'view' | 'measure') => void;
     onOpenSettings: () => void;
-    // onOpenPointsTable: () => void;
     onNewProject: () => void;
     onOpenProject: () => void;
     onSaveProject: () => void;
-    onExportPdf: () => void;
-    onExportImage: () => void;
-    onStartSequence: () => void;
+    onProFeature: (featureName: string) => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
     mode,
     setMode,
     onOpenSettings,
-    // onOpenPointsTable, 
     onNewProject,
     onOpenProject,
     onSaveProject,
-    onExportPdf,
-    onExportImage,
-    onStartSequence
+    onProFeature
 }) => {
     const { t } = useTranslation();
     return (
@@ -58,22 +52,35 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <button onClick={onSaveProject} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title={t('toolbar.save_project')}>
                 <Save size={20} />
             </button>
-            <button onClick={onExportPdf} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title={t('toolbar.export_pdf')}>
+            <button
+                onClick={() => onProFeature(t('toolbar.export_pdf'))}
+                className="p-3 text-amber-400/60 hover:bg-gray-700 rounded-xl relative"
+                title={t('toolbar.export_pdf')}
+            >
                 <FileDown size={20} />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[8px] flex items-center justify-center text-white font-bold">P</span>
             </button>
-            <button onClick={onExportImage} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title={t('toolbar.export_image')}>
+            <button
+                onClick={() => onProFeature(t('toolbar.export_image'))}
+                className="p-3 text-amber-400/60 hover:bg-gray-700 rounded-xl relative"
+                title={t('toolbar.export_image')}
+            >
                 <ImageIcon size={20} />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[8px] flex items-center justify-center text-white font-bold">P</span>
             </button>
 
-            <button onClick={onStartSequence} className="p-3 text-green-400 hover:bg-gray-700 rounded-xl" title={t('toolbar.start_sequence')}>
+            <button
+                onClick={() => onProFeature(t('toolbar.start_sequence'))}
+                className="p-3 text-amber-400/60 hover:bg-gray-700 rounded-xl relative"
+                title={t('toolbar.start_sequence')}
+            >
                 <Play size={20} />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full text-[8px] flex items-center justify-center text-white font-bold">P</span>
             </button>
 
             <div className="h-px w-8 bg-gray-700 my-2"></div>
 
             <div className="flex-1"></div>
-
-            {/* Points Table button removed */}
 
             <button onClick={onOpenSettings} className="p-3 text-gray-400 hover:bg-gray-700 rounded-xl" title={t('toolbar.settings')}>
                 <SettingsIcon size={20} />

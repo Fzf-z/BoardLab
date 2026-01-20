@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useProject } from './contexts/ProjectContext';
-import { useNotifier } from './contexts/NotifierContext';
 import { useGemini } from './hooks/useGemini';
 import { useHardware } from './hooks/useHardware';
 import { InstrumentConfig, Project, AppSettings, CreateProjectData, ComparisonPoint, PersistedConfig } from './types';
@@ -10,12 +9,12 @@ import Toolbar from './components/Toolbar';
 import StatusBar from './components/StatusBar';
 import BoardView from './components/BoardView';
 import AIPanel from './components/AIPanel';
-import SequencerPanel from './components/SequencerPanel';
 import Settings from './components/Settings';
 import ProjectManagerModal from './components/modals/ProjectManagerModal';
 import AIModal from './components/modals/AIModal';
 import NewProjectModal from './components/modals/NewProjectModal';
 import ComparisonModal from './components/modals/ComparisonModal';
+import ProFeatureModal from './components/modals/ProFeatureModal';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const BoardLab: React.FC = () => {
@@ -25,7 +24,7 @@ const BoardLab: React.FC = () => {
     const [isNewProjectModalOpen, setNewProjectModalOpen] = useState<boolean>(false);
     const [isComparisonModalOpen, setComparisonModalOpen] = useState<boolean>(false);
     const [comparisonPoint, setComparisonPoint] = useState<ComparisonPoint | null>(null);
-    const { showNotification } = useNotifier();
+    const [proFeatureModal, setProFeatureModal] = useState<{ open: boolean; featureName: string }>({ open: false, featureName: '' });
 
     // Global Project State - Consumed from context
     const {
@@ -44,9 +43,6 @@ const BoardLab: React.FC = () => {
         setAppSettings,
         undo,
         redo,
-        sequence,
-        startSequence,
-        nextInSequence,
     } = useProject();
 
     // Other Hooks
@@ -112,16 +108,7 @@ const BoardLab: React.FC = () => {
 
             // Measure (Enter)
             if (key === 'ENTER') {
-                if (sequence.active && board.selectedPoint && !hardware.isCapturing) {
-                    e.preventDefault();
-                    const measurement = await hardware.captureValue(board.selectedPoint);
-                    if (measurement) {
-                        await addMeasurement(board.selectedPoint, measurement);
-                        // Small delay to let the user see the result briefly if needed, 
-                        // but usually instant for efficiency. 
-                        nextInSequence();
-                    }
-                } else if (mode === 'measure' && board.selectedPoint && !hardware.isCapturing) {
+                if (mode === 'measure' && board.selectedPoint && !hardware.isCapturing) {
                     e.preventDefault();
                     const measurement = await hardware.captureValue(board.selectedPoint);
                     if (measurement) {
@@ -133,7 +120,7 @@ const BoardLab: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [mode, board.selectedPointId, board.selectedPoint, hardware.isCapturing, isNewProjectModalOpen, isProjectManagerOpen, sequence.active]);
+    }, [mode, board.selectedPointId, board.selectedPoint, hardware.isCapturing, isNewProjectModalOpen, isProjectManagerOpen]);
 
     // Load API key and settings on mount
     useEffect(() => {
@@ -157,59 +144,6 @@ const BoardLab: React.FC = () => {
         setNewProjectModalOpen(false);
     };
 
-    const handleExportPdf = async () => {
-        if (!currentProject) {
-            showNotification('No project open to export', 'warning');
-            return;
-        }
-
-        if (hardware.isElectron && window.electronAPI) {
-            try {
-                showNotification('Generating PDF...', 'info');
-                const result = await window.electronAPI.exportPdf(currentProject.id);
-                if (result.status === 'success') {
-                    showNotification(`Report saved to ${result.filePath}`, 'success');
-                } else if (result.status === 'cancelled') {
-                   // User cancelled
-                } else {
-                    showNotification(`Export failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unknown error';
-                showNotification(`Export error: ${message}`, 'error');
-            }
-        } else {
-            showNotification('PDF Export is only available in Desktop App', 'warning');
-        }
-    };
-
-    const handleExportImage = async () => {
-        if (!currentProject) {
-            showNotification('No project open to export', 'warning');
-            return;
-        }
-
-        if (hardware.isElectron && window.electronAPI) {
-            try {
-                showNotification('Generating High-Res Image...', 'info');
-                const result = await window.electronAPI.exportImage(currentProject.id);
-                if (result.status === 'success') {
-                    showNotification(`Image saved to ${result.filePath}`, 'success');
-                } else if (result.status === 'cancelled') {
-                   // User cancelled
-                } else {
-                    showNotification(`Export failed: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unknown error';
-                showNotification(`Export error: ${message}`, 'error');
-            }
-        } else {
-            showNotification('Image Export is only available in Desktop App', 'warning');
-        }
-    };
-
-
     return (
         <div className="flex h-screen bg-gray-900 text-gray-100 font-sans">
             <Toolbar
@@ -219,11 +153,9 @@ const BoardLab: React.FC = () => {
                 onNewProject={() => setNewProjectModalOpen(true)}
                 onOpenProject={handleOpenProject}
                 onSaveProject={saveProject}
-                onExportPdf={handleExportPdf}
-                onExportImage={handleExportImage}
-                onStartSequence={startSequence}
+                onProFeature={(featureName) => setProFeatureModal({ open: true, featureName })}
             />
-            
+
             <ProjectManagerModal
                 isOpen={isProjectManagerOpen}
                 onClose={() => setProjectManagerOpen(false)}
@@ -236,7 +168,7 @@ const BoardLab: React.FC = () => {
                 onUpdateProject={updateProject}
             />
 
-            <ComparisonModal 
+            <ComparisonModal
                 isOpen={isComparisonModalOpen}
                 onClose={() => setComparisonModalOpen(false)}
                 currentPoint={board.selectedPoint || null}
@@ -258,7 +190,6 @@ const BoardLab: React.FC = () => {
             />
 
             <div className="flex-1 flex flex-col relative">
-                <SequencerPanel />
                 <StatusBar
                     scale={board.scale}
                     setScale={board.setScale}
@@ -290,11 +221,10 @@ const BoardLab: React.FC = () => {
                 <Settings
                     instruments={hardware.instrumentConfig}
                     apiKey={apiKey}
-                    setApiKey={setApiKey}
                     appSettings={appSettings}
                     onSave={(newConfig: InstrumentConfig, newApiKey: string, newAppSettings: AppSettings) => {
                         hardware.handleSaveConfig(newConfig);
-                        if(window.electronAPI) {
+                        if (window.electronAPI) {
                             window.electronAPI.saveApiKey(newApiKey);
                             window.electronAPI.saveConfig({ ...newConfig, appSettings: newAppSettings });
                         }
@@ -311,6 +241,12 @@ const BoardLab: React.FC = () => {
                 title={gemini.aiTitle}
                 response={gemini.aiResponse}
                 isLoading={gemini.isAiLoading}
+            />
+
+            <ProFeatureModal
+                isOpen={proFeatureModal.open}
+                onClose={() => setProFeatureModal({ open: false, featureName: '' })}
+                featureName={proFeatureModal.featureName}
             />
         </div>
     );

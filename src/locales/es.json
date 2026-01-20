@@ -98,5 +98,10 @@
         "ai_prompt": "Prompt del Sistema Personalizado",
         "save_settings": "Guardar Ajustes",
         "reset_defaults": "Restaurar Predeterminados"
+    },
+    "pro": {
+        "feature_title": "Función Pro",
+        "available_in_pro": "está disponible en BoardLab Pro.",
+        "upgrade_now": "Actualizar a Pro"
     }
 }

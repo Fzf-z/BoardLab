@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useBoard } from '../hooks/useBoard';
 import { useNotifier } from './NotifierContext';
-import { useSequencer, useBoardTypes, useProjectOperations, usePointOperations } from './project';
+import { useBoardTypes, useProjectOperations, usePointOperations } from './project';
 import type { Project, Point, MeasurementValue, AppSettings, CreateProjectData } from '../types';
 import type { ExternalTriggerData } from '../types/electron';
 
@@ -27,15 +27,6 @@ interface ProjectContextValue {
     redo: () => void;
     canUndo: boolean;
     canRedo: boolean;
-    sequence: {
-        active: boolean;
-        currentIndex: number;
-        order: (number | string)[];
-    };
-    startSequence: () => void;
-    stopSequence: () => void;
-    nextInSequence: () => void;
-    prevInSequence: () => void;
     boardTypes: string[];
     addBoardType: (type: string) => Promise<void>;
     addPoint: (point: Point) => void;
@@ -77,18 +68,6 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
     // Specialized hooks
     const { boardTypes, addBoardType } = useBoardTypes();
-
-    const {
-        sequence,
-        startSequence,
-        stopSequence,
-        nextInSequence,
-        prevInSequence
-    } = useSequencer({
-        points: board.points,
-        selectPoint: board.selectPoint,
-        showNotification
-    });
 
     const {
         currentProject,
@@ -142,12 +121,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
             undo,
             redo,
             canUndo,
-            canRedo,
-            sequence,
-            startSequence,
-            stopSequence,
-            nextInSequence,
-            prevInSequence
+            canRedo
         }}>
             {children}
         </ProjectContext.Provider>
